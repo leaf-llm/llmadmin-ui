@@ -1,0 +1,174 @@
+{
+  "id": "qualifire",
+  "description": "https://qualifire.ai",
+  "credentials": {
+    "type": "object",
+    "properties": {
+      "apiKey": {
+        "type": "string",
+        "label": "API Key",
+        "description": "Create your api-key in the Qualifire settings (https://app.qualifire.ai/settings/api-keys/)",
+        "encrypted": true
+      }
+    },
+    "required": ["apiKey"]
+  },
+  "functions": [
+    {
+      "name": "Content Moderation Check",
+      "id": "contentModeration",
+      "supportedHooks": ["beforeRequestHook", "afterRequestHook"],
+      "type": "guardrail",
+      "description": [
+        {
+          "type": "subHeading",
+          "text": "Checks for dangerous content, sexual content, harassment, and dangerous content in the user input or model output."
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Hallucinations Check",
+      "id": "hallucinations",
+      "supportedHooks": ["afterRequestHook"],
+      "type": "guardrail",
+      "description": [
+        {
+          "type": "subHeading",
+          "text": "Checks that the model did not hallucinate."
+        }
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "label": "Mode",
+            "description": "The mode to use for the check",
+            "enum": ["speed", "balanced", "quality"],
+            "default": "balanced"
+          }
+        }
+      }
+    },
+    {
+      "name": "PII Check",
+      "id": "pii",
+      "supportedHooks": ["beforeRequestHook", "afterRequestHook"],
+      "type": "guardrail",
+      "description": [
+        {
+          "type": "subHeading",
+          "text": "Checks that neither the user nor the model included PIIs."
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Prompt Injections Check",
+      "id": "promptInjections",
+      "supportedHooks": ["beforeRequestHook"],
+      "type": "guardrail",
+      "description": [
+        {
+          "type": "subHeading",
+          "text": "Checks that the prompt does not contain any injections to the model."
+        }
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Grounding Check",
+      "id": "grounding",
+      "supportedHooks": ["afterRequestHook"],
+      "type": "guardrail",
+      "description": [
+        {
+          "type": "subHeading",
+          "text": "Checks that the model is grounded in the context provided."
+        }
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "label": "Mode",
+            "description": "The mode to use for the check",
+            "enum": ["speed", "balanced", "quality"],
+            "default": "balanced"
+          }
+        }
+      }
+    },
+    {
+      "name": "Tool Use Quality Check",
+      "id": "toolUseQuality",
+      "supportedHooks": ["afterRequestHook"],
+      "type": "guardrail",
+      "description": [
+        {
+          "type": "subHeading",
+          "text": "Checks the model's tool use quality. Including correct tool selection, correct tool parameters and values."
+        }
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "label": "Mode",
+            "description": "The mode to use for the check",
+            "enum": ["speed", "balanced", "quality"],
+            "default": "balanced"
+          }
+        }
+      }
+    },
+    {
+      "name": "Policy Violations Check",
+      "id": "policy",
+      "supportedHooks": ["beforeRequestHook", "afterRequestHook"],
+      "type": "guardrail",
+      "description": [
+        {
+          "type": "subHeading",
+          "text": "Checks that the prompt and response didn't violate any of the given policies."
+        }
+      ],
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "policies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "label": "Policy",
+              "description": [
+                {
+                  "type": "subHeading",
+                  "text": "The policy to check against. (eg: 'The model cannot provide any discount to the user')"
+                }
+              ]
+            }
+          },
+          "mode": {
+            "type": "string",
+            "label": "Mode",
+            "description": "The mode to use for the check",
+            "enum": ["speed", "balanced", "quality"],
+            "default": "balanced"
+          },
+          "policy_target": {
+            "type": "string",
+            "label": "Policy Target",
+            "description": "Where to apply the policy check",
+            "enum": ["input", "output", "both"],
+            "default": "both"
+          }
+        },
+        "required": ["policies"]
+      }
+    }
+  ]
+}
