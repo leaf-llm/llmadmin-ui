@@ -3,6 +3,7 @@ name: Publish Bun Executables
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -30,10 +31,18 @@ jobs:
       - name: Build executable
         run: bun build src/start-server.ts --compile --outdir=build --output=${{ matrix.artifact }} --target=bun
 
-      - name: Upload artifact
+      - name: Upload to Release
+        if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./build/${{ matrix.artifact }}
           asset_name: ${{ matrix.artifact }}
           asset_content_type: application/octet-stream
+
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./build/${{ matrix.artifact }}
