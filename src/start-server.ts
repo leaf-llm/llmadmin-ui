@@ -258,6 +258,17 @@ console.log('   ' + '\x1b[1;4;32m%s\x1b[0m', `${url}`);
 // Secondary information on single lines
 if (!isHeadless) {
   console.log('\n\x1b[90m📱 UI:\x1b[0m \x1b[36m%s\x1b[0m', `${url}/public/`);
+
+  // Open browser to UI (cross-platform)
+  if (process.platform === 'win32') {
+    import('child_process').then(({ exec }) => {
+      exec(`start ${url}/public/`);
+    });
+  } else {
+    import('child_process').then(({ exec }) => {
+      exec(`open ${url}/public/`);
+    });
+  }
 }
 // console.log('\x1b[90m📚 Docs:\x1b[0m \x1b[36m%s\x1b[0m', 'https://portkey.ai/docs');
 
