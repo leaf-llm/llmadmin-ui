@@ -1,0 +1,39 @@
+name: Publish Bun Executables
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: portkey-gateway.exe
+          - os: ubuntu-latest
+            artifact: portkey-gateway
+          - os: macos-latest
+            artifact: portkey-gateway-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+
+      - run: bun install
+
+      - name: Build UI
+        run: bun run build:ui
+
+      - name: Build executable
+        run: bun build src/start-server.ts --compile --outdir=build --output=${{ matrix.artifact }} --target=bun
+
+      - name: Upload artifact
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./build/${{ matrix.artifact }}
+          asset_name: ${{ matrix.artifact }}
+          asset_content_type: application/octet-stream

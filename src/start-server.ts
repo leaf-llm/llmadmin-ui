@@ -30,10 +30,25 @@ if (
     const { fileURLToPath } = await import('url');
     const { readFileSync, existsSync, statSync } = await import('fs');
 
-    const scriptDir = dirname(fileURLToPath(import.meta.url));
+    // Detect if running as compiled bun binary
+    const isBunBinary = import.meta.url.startsWith('file:///$bunfs/');
+    let publicDir: string;
+
+    if (isBunBinary) {
+      // In compiled bun binary, look for public files alongside the binary
+      // or in /usr/local/share/portkey-gateway/public/
+      const binaryDir = dirname(process.execPath);
+      const installedPublicDir = '/usr/local/share/portkey-gateway/public';
+      publicDir = existsSync(join(installedPublicDir, 'index.html'))
+        ? installedPublicDir
+        : join(binaryDir, 'public');
+    } else {
+      const scriptDir = dirname(fileURLToPath(import.meta.url));
+      publicDir = join(scriptDir, 'public');
+    }
 
     // Serve the index.html content directly for both routes
-    const indexPath = join(scriptDir, 'public/index.html');
+    const indexPath = join(publicDir, 'index.html');
     const indexContent = readFileSync(indexPath, 'utf-8');
 
     const serveIndex = (c: Context) => {
@@ -45,7 +60,7 @@ if (
     app.get('/public/', serveIndex);
 
     // Serve admin UI static files (SPA)
-    const adminDir = join(scriptDir, 'public/admin');
+    const adminDir = join(publicDir, 'admin');
     const adminIndexPath = join(adminDir, 'index.html');
 
     const contentTypeByExt: Record<string, string> = {
@@ -243,6 +258,17 @@ console.log('   ' + '\x1b[1;4;32m%s\x1b[0m', `${url}`);
 // Secondary information on single lines
 if (!isHeadless) {
   console.log('\n\x1b[90m📱 UI:\x1b[0m \x1b[36m%s\x1b[0m', `${url}/public/`);
+
+  // Open browser to UI (cross-platform)
+  if (process.platform === 'win32') {
+    import('child_process').then(({ exec }) => {
+      exec(`start ${url}/public/`);
+    });
+  } else {
+    import('child_process').then(({ exec }) => {
+      exec(`open ${url}/public/`);
+    });
+  }
 }
 // console.log('\x1b[90m📚 Docs:\x1b[0m \x1b[36m%s\x1b[0m', 'https://portkey.ai/docs');
 
