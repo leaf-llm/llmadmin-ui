@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+# Stop and disable service on removal
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+    systemctl stop portkey-gateway 2>/dev/null || true
+    systemctl disable portkey-gateway 2>/dev/null || true
+    rm -f /etc/systemd/system/portkey-gateway.service
+    systemctl daemon-reload
+fi

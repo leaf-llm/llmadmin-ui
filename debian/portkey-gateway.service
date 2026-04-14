@@ -1,0 +1,15 @@
+[Unit]
+Description=Portkey AI Gateway
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/portkey-gateway --port=8787
+WorkingDirectory=/usr/local/share/portkey-gateway
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
