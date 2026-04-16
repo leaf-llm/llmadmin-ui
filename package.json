@@ -45,7 +45,10 @@
     "bun:dev": "bun run src/start-server.ts",
     "bun:build": "bun build src/start-server.ts --outdir=build --format=bun --target=bun --compile --output=build/portkey-gateway",
     "bun:start": "bun run build/portkey-gateway",
-    "build:deb": "bash scripts/build-deb.sh"
+    "build:deb": "bash scripts/build-deb.sh",
+    "desktop:setup": "cd desktop && neu update",
+    "build:desktop": "npm run bun:build && npm run build:ui && cd desktop && neu build",
+    "dev:desktop": "npm run bun:dev & cd desktop && neu run"
   },
   "dependencies": {
     "@aws-crypto/sha256-js": "^5.2.0",
