@@ -29,7 +29,7 @@ jobs:
         run: bun run build:ui
 
       - name: Build executable
-        run: bun build src/start-server.ts --compile --outdir=build --output=${{ matrix.artifact }} --target=bun
+        run: BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
 
       - name: Upload to Release
         if: github.event_name == 'release'

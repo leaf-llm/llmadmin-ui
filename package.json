@@ -43,7 +43,7 @@
     "prepare": "node -e \"if (process.env.NODE_ENV !== 'production'){process.exit(1)} \" || husky",
     "postinstall": "patch-package",
     "bun:dev": "bun run src/start-server.ts",
-    "bun:build": "bun build src/start-server.ts --compile --target=bun --output=build/portkey-gateway",
+    "bun:build": "bun build src/start-server.ts --compile --target=bun --output=${BUN_OUTPUT}",
     "bun:start": "bun run build/portkey-gateway",
     "build:deb": "bash scripts/build-deb.sh"
   },
