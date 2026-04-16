@@ -35,7 +35,8 @@ jobs:
         run: cp conf.example.json conf.json  # Dereference symlink
 
       - name: Build executable
-        run: BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
+        run: bun build src/start-server.ts --compile --target=bun --output=build/${{ matrix.artifact }}
+        shell: bash
 
       - name: Upload to Release
         if: github.event_name == 'release'
