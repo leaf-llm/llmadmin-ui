@@ -151,9 +151,12 @@ if (
     c.header('Cache-Control', 'no-cache');
     c.header('X-Accel-Buffering', 'no');
 
+    const addLogClientRef: any = c.get('addLogClient');
+    const removeLogClientRef: any = c.get('removeLogClient');
+
     return streamSSE(c, async (stream) => {
-      const addLogClient: any = c.get('addLogClient');
-      const removeLogClient: any = c.get('removeLogClient');
+      const addLogClient = addLogClientRef;
+      const removeLogClient = removeLogClientRef;
 
       const client = {
         sendLog: (message: any) =>
