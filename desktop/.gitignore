@@ -1,0 +1,6 @@
+# Downloaded by `neu update`
+bin/
+resources/js/neutralino.js
+
+# Build output
+dist/
