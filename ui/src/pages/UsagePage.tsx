@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getProviders, ProviderId, UsageByModel, UsageResponse, getUsage } from '../api/adminClient';
+import {
+  getProviders,
+  ProviderId,
+  UsageByModel,
+  UsageResponse,
+  getUsage,
+} from '../api/adminClient';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 function toISODate(d: Date) {
@@ -60,18 +66,35 @@ export default function UsagePage() {
         <div className="grid grid-2">
           <div className="field">
             <div className="label">From</div>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+            />
           </div>
           <div className="field">
             <div className="label">To</div>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+            />
           </div>
 
           <div className="field">
             <div className="label">Provider</div>
-            <select value={provider} onChange={(e) => setProvider(e.target.value as any)}>
+            <select
+              value={provider}
+              onChange={(e) => setProvider(e.target.value as any)}
+            >
               <option value="all">All</option>
-              {loadingProviders ? null : providers.map((p) => <option key={p} value={p}>{p}</option>)}
+              {loadingProviders
+                ? null
+                : providers.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
             </select>
           </div>
 
@@ -84,7 +107,11 @@ export default function UsagePage() {
                 setLoading(true);
                 setError(null);
                 try {
-                  const res = await getUsage({ provider: provider === 'all' ? undefined : provider, from, to });
+                  const res = await getUsage({
+                    provider: provider === 'all' ? undefined : provider,
+                    from,
+                    to,
+                  });
                   setUsage(res);
                 } catch (e: any) {
                   setError(e?.message ?? String(e));
@@ -105,7 +132,9 @@ export default function UsagePage() {
             <div className="card">
               <div className="card__title">Total Cost</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>
-                {typeof totals?.costUSD === 'number' ? `$${totals.costUSD.toFixed(4)}` : '—'}
+                {typeof totals?.costUSD === 'number'
+                  ? `$${totals.costUSD.toFixed(4)}`
+                  : '—'}
               </div>
             </div>
             <div className="card">
@@ -139,11 +168,23 @@ export default function UsagePage() {
                   byModel.map((row, idx) => (
                     <tr key={`${row.model ?? 'unknown'}-${idx}`}>
                       <td>{row.model ?? 'unknown'}</td>
-                      <td>{typeof row.requests === 'number' ? row.requests : '—'}</td>
-                      <td>{typeof row.inputTokens === 'number' ? row.inputTokens : '—'}</td>
-                      <td>{typeof row.outputTokens === 'number' ? row.outputTokens : '—'}</td>
                       <td>
-                        {typeof row.costUSD === 'number' ? `$${row.costUSD.toFixed(4)}` : '—'}
+                        {typeof row.requests === 'number' ? row.requests : '—'}
+                      </td>
+                      <td>
+                        {typeof row.inputTokens === 'number'
+                          ? row.inputTokens
+                          : '—'}
+                      </td>
+                      <td>
+                        {typeof row.outputTokens === 'number'
+                          ? row.outputTokens
+                          : '—'}
+                      </td>
+                      <td>
+                        {typeof row.costUSD === 'number'
+                          ? `$${row.costUSD.toFixed(4)}`
+                          : '—'}
                       </td>
                     </tr>
                   ))
@@ -156,4 +197,3 @@ export default function UsagePage() {
     </div>
   );
 }
-

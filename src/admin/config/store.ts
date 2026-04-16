@@ -39,7 +39,8 @@ const CONFIG_FILE_NAME = 'conf.ui.json';
 function maskApiKey(key: string): string {
   const trimmed = key.trim();
   if (!trimmed) return '';
-  if (trimmed.length <= 8) return `${trimmed.slice(0, 2)}***${trimmed.slice(-2)}`;
+  if (trimmed.length <= 8)
+    return `${trimmed.slice(0, 2)}***${trimmed.slice(-2)}`;
   return `${trimmed.slice(0, 4)}***${trimmed.slice(-4)}`;
 }
 
@@ -121,9 +122,13 @@ export async function upsertProvider(
         : update.apiKey.trim();
 
   const organizationId =
-    update.organizationId === undefined ? current.organizationId : update.organizationId.trim() || undefined;
+    update.organizationId === undefined
+      ? current.organizationId
+      : update.organizationId.trim() || undefined;
   const projectId =
-    update.projectId === undefined ? current.projectId : update.projectId.trim() || undefined;
+    update.projectId === undefined
+      ? current.projectId
+      : update.projectId.trim() || undefined;
 
   const budgetUSD =
     update.budgetUSD === undefined || Number.isNaN(update.budgetUSD)
@@ -177,4 +182,3 @@ export async function getProviderCredentialsForBilling(
     lastSyncedAt: p.lastSyncedAt,
   };
 }
-

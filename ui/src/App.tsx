@@ -17,19 +17,25 @@ function Header() {
 
         <nav className="app-nav">
           <Link
-            className={active('/providers') ? 'app-nav__link is-active' : 'app-nav__link'}
+            className={
+              active('/providers') ? 'app-nav__link is-active' : 'app-nav__link'
+            }
             to="/providers"
           >
             Providers
           </Link>
           <Link
-            className={active('/usage') ? 'app-nav__link is-active' : 'app-nav__link'}
+            className={
+              active('/usage') ? 'app-nav__link is-active' : 'app-nav__link'
+            }
             to="/usage"
           >
             Usage
           </Link>
           <Link
-            className={active('/settings') ? 'app-nav__link is-active' : 'app-nav__link'}
+            className={
+              active('/settings') ? 'app-nav__link is-active' : 'app-nav__link'
+            }
             to="/settings"
           >
             Settings
@@ -56,4 +62,3 @@ export default function App() {
     </div>
   );
 }
-

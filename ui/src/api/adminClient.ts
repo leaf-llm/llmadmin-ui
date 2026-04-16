@@ -73,14 +73,19 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const msg =
-      payload?.message || payload?.error || payload?.status || `HTTP ${res.status}`;
+      payload?.message ||
+      payload?.error ||
+      payload?.status ||
+      `HTTP ${res.status}`;
     throw new Error(msg);
   }
 
   return payload as T;
 }
 
-export async function getProviders(): Promise<{ providers: ProviderSummary[] }> {
+export async function getProviders(): Promise<{
+  providers: ProviderSummary[];
+}> {
   return adminFetch<{ providers: ProviderSummary[] }>('/admin/providers');
 }
 
@@ -118,4 +123,3 @@ export async function getUsage(params: {
 export function setAdminToken(token: string) {
   localStorage.setItem(ADMIN_TOKEN_KEY, token);
 }
-

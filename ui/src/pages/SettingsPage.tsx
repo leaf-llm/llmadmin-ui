@@ -58,11 +58,14 @@ export default function SettingsPage() {
               Clear
             </button>
 
-            {saved ? <div className="muted">Saved.</div> : <div className="muted" />}
+            {saved ? (
+              <div className="muted">Saved.</div>
+            ) : (
+              <div className="muted" />
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
-

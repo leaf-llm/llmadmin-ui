@@ -33,7 +33,9 @@ export async function getOpenAIUsage(params: {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${params.apiKey}`,
-      ...(params.organizationId ? { 'OpenAI-Organization': params.organizationId } : {}),
+      ...(params.organizationId
+        ? { 'OpenAI-Organization': params.organizationId }
+        : {}),
     },
   });
 
@@ -56,10 +58,18 @@ export async function getOpenAIUsage(params: {
   const byModel: UsageByModel[] = rows.map((row) => {
     return {
       model: asModel(row),
-      requests: toNumber(row?.requests ?? row?.request_count ?? row?.requestCount),
-      inputTokens: toNumber(row?.input_tokens ?? row?.inputTokens ?? row?.input_token_count),
-      outputTokens: toNumber(row?.output_tokens ?? row?.outputTokens ?? row?.output_token_count),
-      costUSD: toNumber(row?.cost ?? row?.total_cost ?? row?.totalCost ?? row?.amount),
+      requests: toNumber(
+        row?.requests ?? row?.request_count ?? row?.requestCount
+      ),
+      inputTokens: toNumber(
+        row?.input_tokens ?? row?.inputTokens ?? row?.input_token_count
+      ),
+      outputTokens: toNumber(
+        row?.output_tokens ?? row?.outputTokens ?? row?.output_token_count
+      ),
+      costUSD: toNumber(
+        row?.cost ?? row?.total_cost ?? row?.totalCost ?? row?.amount
+      ),
     };
   });
 
@@ -73,4 +83,3 @@ export async function getOpenAIUsage(params: {
 
   return { totals, byModel };
 }
-

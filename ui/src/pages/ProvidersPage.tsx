@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getProviders, ProviderSummary, ProviderUpdateRequest, updateProvider } from '../api/adminClient';
+import {
+  getProviders,
+  ProviderSummary,
+  ProviderUpdateRequest,
+  updateProvider,
+} from '../api/adminClient';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string };
 
@@ -57,7 +62,10 @@ export default function ProvidersPage() {
       {loading ? <div className="muted">Loading providers...</div> : null}
 
       {!loading && providers.length === 0 && !error ? (
-        <div className="notice">No providers configured yet. Add providers in the backend config first.</div>
+        <div className="notice">
+          No providers configured yet. Add providers in the backend config
+          first.
+        </div>
       ) : null}
 
       <div className="grid grid-2">
@@ -76,13 +84,21 @@ export default function ProvidersPage() {
                 <div className="field">
                   <div className="label">API Key (update)</div>
                   <input
-                    placeholder={p.apiKeyMasked ? `Current: ${p.apiKeyMasked}` : 'Paste new API key'}
+                    placeholder={
+                      p.apiKeyMasked
+                        ? `Current: ${p.apiKeyMasked}`
+                        : 'Paste new API key'
+                    }
                     value={d.apiKey ?? ''}
                     onChange={(e) => {
                       const val = e.target.value;
                       setDrafts((prev) => ({
                         ...prev,
-                        [p.provider]: { ...(prev[p.provider] ?? {}), apiKey: val || undefined, apiKeyMasked: p.apiKeyMasked },
+                        [p.provider]: {
+                          ...(prev[p.provider] ?? {}),
+                          apiKey: val || undefined,
+                          apiKeyMasked: p.apiKeyMasked,
+                        },
                       }));
                     }}
                   />
@@ -97,7 +113,10 @@ export default function ProvidersPage() {
                       const val = e.target.value;
                       setDrafts((prev) => ({
                         ...prev,
-                        [p.provider]: { ...(prev[p.provider] ?? {}), organizationId: val },
+                        [p.provider]: {
+                          ...(prev[p.provider] ?? {}),
+                          organizationId: val,
+                        },
                       }));
                     }}
                   />
@@ -112,7 +131,10 @@ export default function ProvidersPage() {
                       const val = e.target.value;
                       setDrafts((prev) => ({
                         ...prev,
-                        [p.provider]: { ...(prev[p.provider] ?? {}), projectId: val },
+                        [p.provider]: {
+                          ...(prev[p.provider] ?? {}),
+                          projectId: val,
+                        },
                       }));
                     }}
                   />
@@ -129,7 +151,10 @@ export default function ProvidersPage() {
                       const val = raw === '' ? undefined : Number(raw);
                       setDrafts((prev) => ({
                         ...prev,
-                        [p.provider]: { ...(prev[p.provider] ?? {}), budgetUSD: val },
+                        [p.provider]: {
+                          ...(prev[p.provider] ?? {}),
+                          budgetUSD: val,
+                        },
                       }));
                     }}
                   />
@@ -185,4 +210,3 @@ export default function ProvidersPage() {
     </div>
   );
 }
-

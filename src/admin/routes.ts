@@ -12,7 +12,8 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? '';
 function tryParseBearerToken(authHeader: string | undefined) {
   if (!authHeader) return '';
   const parts = authHeader.trim().split(/\s+/);
-  if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') return parts[1];
+  if (parts.length === 2 && parts[0].toLowerCase() === 'bearer')
+    return parts[1];
   return '';
 }
 
@@ -64,7 +65,11 @@ adminApp.put('/providers/:provider', async (c) => {
   const parsed = ProviderUpdateSchema.safeParse(body);
   if (!parsed.success) {
     return c.json(
-      { ok: false, message: 'Invalid request body', issues: parsed.error.issues },
+      {
+        ok: false,
+        message: 'Invalid request body',
+        issues: parsed.error.issues,
+      },
       400
     );
   }
@@ -96,9 +101,12 @@ adminApp.get('/usage', async (c) => {
   }
 
   const provider = parsed.data.provider;
-  const res = await getUsage({ provider, from: parsed.data.from, to: parsed.data.to });
+  const res = await getUsage({
+    provider,
+    from: parsed.data.from,
+    to: parsed.data.to,
+  });
   return c.json(res);
 });
 
 export { adminApp };
-

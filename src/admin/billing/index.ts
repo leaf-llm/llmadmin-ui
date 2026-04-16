@@ -1,5 +1,8 @@
 import { UsageResponse, ProviderId, UsageTotals, UsageByModel } from '../types';
-import { getProviderCredentialsForBilling, SUPPORTED_PROVIDERS } from '../config/store';
+import {
+  getProviderCredentialsForBilling,
+  SUPPORTED_PROVIDERS,
+} from '../config/store';
 import { getOpenAIUsage } from './adapters/openai';
 import { getAnthropicUsage } from './adapters/anthropic';
 
@@ -70,4 +73,3 @@ export async function getUsage(params: {
     byModel,
   };
 }
-

@@ -103,16 +103,28 @@ export async function getAnthropicUsage(params: {
           ? payload.usage.models
           : [];
 
-  if (rows.length === 0 && payload?.usage && typeof payload.usage === 'object') {
+  if (
+    rows.length === 0 &&
+    payload?.usage &&
+    typeof payload.usage === 'object'
+  ) {
     // If we only have aggregate usage, return a single "unknown" row.
     const totals: UsageTotals = {};
     const byModel: UsageByModel[] = [
       {
         model: 'unknown',
         requests: toNumber((payload.usage as any)?.requests),
-        inputTokens: toNumber((payload.usage as any)?.input_tokens ?? (payload.usage as any)?.inputTokens),
-        outputTokens: toNumber((payload.usage as any)?.output_tokens ?? (payload.usage as any)?.outputTokens),
-        costUSD: toNumber((payload.usage as any)?.cost ?? (payload.usage as any)?.total_cost),
+        inputTokens: toNumber(
+          (payload.usage as any)?.input_tokens ??
+            (payload.usage as any)?.inputTokens
+        ),
+        outputTokens: toNumber(
+          (payload.usage as any)?.output_tokens ??
+            (payload.usage as any)?.outputTokens
+        ),
+        costUSD: toNumber(
+          (payload.usage as any)?.cost ?? (payload.usage as any)?.total_cost
+        ),
       },
     ];
     for (const r of byModel) {
@@ -126,14 +138,24 @@ export async function getAnthropicUsage(params: {
 
   const byModel: UsageByModel[] = rows.map((row) => ({
     model: asModel(row),
-    requests: toNumber(row?.requests ?? row?.request_count ?? row?.requestCount),
+    requests: toNumber(
+      row?.requests ?? row?.request_count ?? row?.requestCount
+    ),
     inputTokens: toNumber(
-      row?.input_tokens ?? row?.inputTokens ?? row?.input_token_count ?? row?.inputTokenCount
+      row?.input_tokens ??
+        row?.inputTokens ??
+        row?.input_token_count ??
+        row?.inputTokenCount
     ),
     outputTokens: toNumber(
-      row?.output_tokens ?? row?.outputTokens ?? row?.output_token_count ?? row?.outputTokenCount
+      row?.output_tokens ??
+        row?.outputTokens ??
+        row?.output_token_count ??
+        row?.outputTokenCount
     ),
-    costUSD: toNumber(row?.cost ?? row?.total_cost ?? row?.totalCost ?? row?.amount),
+    costUSD: toNumber(
+      row?.cost ?? row?.total_cost ?? row?.totalCost ?? row?.amount
+    ),
   }));
 
   const totals: UsageTotals = {};
@@ -146,4 +168,3 @@ export async function getAnthropicUsage(params: {
 
   return { totals, byModel };
 }
-

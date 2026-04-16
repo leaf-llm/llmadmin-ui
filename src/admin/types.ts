@@ -41,4 +41,3 @@ export type UsageResponse = {
   totals?: UsageTotals;
   byModel?: UsageByModel[];
 };
-
