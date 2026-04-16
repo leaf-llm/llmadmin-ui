@@ -32,7 +32,7 @@ jobs:
         run: bun run build:ui
 
       - name: Copy conf.json
-        run: cp conf.json conf.json  # Dereference symlink
+        run: cp conf.example.json conf.json  # Dereference symlink
 
       - name: Build executable
         run: BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
