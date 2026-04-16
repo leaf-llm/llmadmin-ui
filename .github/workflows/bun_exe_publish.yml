@@ -25,6 +25,9 @@ jobs:
 
       - run: bun install
 
+      - name: Install UI dependencies
+        run: cd ui && bun install
+
       - name: Build UI
         run: bun run build:ui
 
