@@ -28,6 +28,8 @@ import MoonshotConfig from './moonshot';
 import OpenrouterConfig from './openrouter';
 import LingYiConfig from './lingyi';
 import ZhipuConfig from './zhipu';
+import DoubaoConfig from './doubao';
+import MinimaxConfig from './minimax';
 import NovitaAIConfig from './novita-ai';
 import MonsterAPIConfig from './monsterapi';
 import DeepSeekAPIConfig from './deepseek';
@@ -76,6 +78,13 @@ import AIBadgrConfig from './aibadgr';
 import OVHcloudConfig from './ovhcloud';
 
 const Providers: { [key: string]: ProviderConfigs } = {
+  // Chinese AI providers first
+  zhipu: ZhipuConfig,
+  moonshot: MoonshotConfig,
+  dashscope: DashScopeConfig,
+  doubao: DoubaoConfig,
+  minimax: MinimaxConfig,
+  // Rest of providers
   openai: OpenAIConfig,
   cohere: CohereConfig,
   anthropic: AnthropicConfig,
@@ -101,10 +110,8 @@ const Providers: { [key: string]: ProviderConfigs } = {
   'fireworks-ai': FireworksAIConfig,
   'workers-ai': WorkersAiConfig,
   'reka-ai': RekaAIConfig,
-  moonshot: MoonshotConfig,
   openrouter: OpenrouterConfig,
   lingyi: LingYiConfig,
-  zhipu: ZhipuConfig,
   'novita-ai': NovitaAIConfig,
   monsterapi: MonsterAPIConfig,
   deepseek: DeepSeekAPIConfig,
@@ -121,7 +128,6 @@ const Providers: { [key: string]: ProviderConfigs } = {
   'lemonfox-ai': LemonfoxAIConfig,
   upstage: UpstageConfig,
   [LAMBDA]: LambdaProviderConfig,
-  dashscope: DashScopeConfig,
   'x-ai': XAIConfig,
   qdrant: QdrantConfig,
   sagemaker: SagemakerConfig,
