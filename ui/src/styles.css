@@ -49,6 +49,10 @@ body {
   text-decoration: none;
   padding: 8px 10px;
   border-radius: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
 }
 
 .app-nav__link:hover {

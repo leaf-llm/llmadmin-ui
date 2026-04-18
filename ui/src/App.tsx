@@ -1,13 +1,17 @@
-import React from 'react';
-import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import ProvidersPage from './pages/ProvidersPage';
 import UsagePage from './pages/UsagePage';
 import SettingsPage from './pages/SettingsPage';
 
-function Header() {
-  const location = useLocation();
-  const active = (path: string) => location.pathname === path;
+type Page = 'providers' | 'usage' | 'settings';
 
+function Header({
+  active,
+  onNavigate,
+}: {
+  active: Page;
+  onNavigate: (page: Page) => void;
+}) {
   return (
     <header className="app-header">
       <div className="app-header__inner">
@@ -16,30 +20,34 @@ function Header() {
         </div>
 
         <nav className="app-nav">
-          <Link
+          <button
             className={
-              active('/providers') ? 'app-nav__link is-active' : 'app-nav__link'
+              active === 'providers'
+                ? 'app-nav__link is-active'
+                : 'app-nav__link'
             }
-            to="/providers"
+            onClick={() => onNavigate('providers')}
           >
             Providers
-          </Link>
-          <Link
+          </button>
+          <button
             className={
-              active('/usage') ? 'app-nav__link is-active' : 'app-nav__link'
+              active === 'usage' ? 'app-nav__link is-active' : 'app-nav__link'
             }
-            to="/usage"
+            onClick={() => onNavigate('usage')}
           >
             Usage
-          </Link>
-          <Link
+          </button>
+          <button
             className={
-              active('/settings') ? 'app-nav__link is-active' : 'app-nav__link'
+              active === 'settings'
+                ? 'app-nav__link is-active'
+                : 'app-nav__link'
             }
-            to="/settings"
+            onClick={() => onNavigate('settings')}
           >
             Settings
-          </Link>
+          </button>
         </nav>
       </div>
     </header>
@@ -47,17 +55,31 @@ function Header() {
 }
 
 export default function App() {
+  const [activePage, setActivePage] = useState<Page>('providers');
+
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === '/providers') {
+      setActivePage('providers');
+    } else if (path === '/usage') {
+      setActivePage('usage');
+    } else if (path === '/settings') {
+      setActivePage('settings');
+    }
+    window.history.replaceState(null, '', '/');
+  }, []);
+
+  const handleNavigate = (page: Page) => {
+    setActivePage(page);
+  };
+
   return (
     <div className="app-root">
-      <Header />
+      <Header active={activePage} onNavigate={handleNavigate} />
       <main className="app-main">
-        <Routes>
-          <Route path="/" element={<Navigate to="/providers" replace />} />
-          <Route path="/providers" element={<ProvidersPage />} />
-          <Route path="/usage" element={<UsagePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/providers" replace />} />
-        </Routes>
+        {activePage === 'providers' && <ProvidersPage />}
+        {activePage === 'usage' && <UsagePage />}
+        {activePage === 'settings' && <SettingsPage />}
       </main>
     </div>
   );
