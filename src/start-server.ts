@@ -18,13 +18,7 @@ const port = portArg ? parseInt(portArg.split('=')[1]) : defaultPort;
 const isHeadless = args.includes('--headless');
 
 // Setup static file serving only if not in headless mode
-if (
-  !isHeadless &&
-  !(
-    process.env.NODE_ENV === 'production' ||
-    process.env.ENVIRONMENT === 'production'
-  )
-) {
+if (!isHeadless) {
   const setupStaticServing = async () => {
     const { join, dirname, extname, resolve } = await import('path');
     const { fileURLToPath } = await import('url');
