@@ -51,9 +51,9 @@ function getConfigPath() {
 
 async function loadUiConfig(): Promise<UiConfigFile> {
   const runtime = getRuntimeKey();
-  if (runtime !== 'node') {
+  if (runtime !== 'node' && runtime !== 'bun') {
     // Workers runtime has no fs access by default.
-    throw new Error('UI config store is only supported in node runtime');
+    throw new Error('UI config store is only supported in node or bun runtime');
   }
 
   const configPath = getConfigPath();
@@ -72,8 +72,8 @@ async function loadUiConfig(): Promise<UiConfigFile> {
 
 async function saveUiConfig(config: UiConfigFile) {
   const runtime = getRuntimeKey();
-  if (runtime !== 'node') {
-    throw new Error('UI config store is only supported in node runtime');
+  if (runtime !== 'node' && runtime !== 'bun') {
+    return; // silently no-op, config cannot be saved in non-node/bun runtimes
   }
   const configPath = getConfigPath();
   await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
