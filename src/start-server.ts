@@ -8,6 +8,7 @@ import { Context } from 'hono';
 import { createNodeWebSocket } from '@hono/node-ws';
 import { realTimeHandlerNode } from './handlers/realtimeHandlerNode';
 import { requestValidator } from './middlewares/requestValidator';
+import { addLogClient, removeLogClient } from './middlewares/log/index';
 
 // Extract the port number from the command line arguments
 const defaultPort = 8787;
@@ -18,191 +19,188 @@ const port = portArg ? parseInt(portArg.split('=')[1]) : defaultPort;
 const isHeadless = args.includes('--headless');
 
 // Setup static file serving only if not in headless mode
-if (!isHeadless) {
-  const setupStaticServing = async () => {
-    const { join, dirname, extname, resolve } = await import('path');
-    const { fileURLToPath } = await import('url');
-    const { readFileSync, existsSync, statSync } = await import('fs');
+// if (!isHeadless) {
+const setupStaticServing = async () => {
+  const { join, dirname, extname, resolve } = await import('path');
+  const { fileURLToPath } = await import('url');
+  const { readFileSync, existsSync, statSync } = await import('fs');
 
-    // Detect if running as compiled bun binary
-    const isBunBinary = import.meta.url.startsWith('file:///$bunfs/');
-    let publicDir: string;
+  // Detect if running as compiled bun binary
+  const isBunBinary = import.meta.url.startsWith('file:///$bunfs/');
+  let publicDir: string;
 
-    if (isBunBinary) {
-      // In compiled bun binary, look for public files alongside the binary
-      // or in /usr/local/share/portkey-gateway/public/
-      const binaryDir = dirname(process.execPath);
-      const installedPublicDir = '/usr/local/share/portkey-gateway/public';
-      publicDir = existsSync(join(installedPublicDir, 'index.html'))
-        ? installedPublicDir
-        : join(binaryDir, 'public');
-    } else {
-      const scriptDir = dirname(fileURLToPath(import.meta.url));
-      publicDir = join(scriptDir, 'public');
-    }
-
-    // Serve the index.html content directly for both routes
-    const indexPath = join(publicDir, 'index.html');
-    const indexContent = readFileSync(indexPath, 'utf-8');
-
-    const serveIndex = (c: Context) => {
-      return c.html(indexContent);
-    };
-
-    // Set up routes
-    app.get('/public/logs', serveIndex);
-    app.get('/public/', serveIndex);
-
-    // Serve admin UI static files (SPA)
-    const adminDir = join(publicDir, 'admin');
-    const adminIndexPath = join(adminDir, 'index.html');
-
-    const contentTypeByExt: Record<string, string> = {
-      '.html': 'text/html; charset=utf-8',
-      '.js': 'application/javascript; charset=utf-8',
-      '.css': 'text/css; charset=utf-8',
-      '.json': 'application/json; charset=utf-8',
-      '.svg': 'image/svg+xml',
-      '.png': 'image/png',
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.webp': 'image/webp',
-      '.woff2': 'font/woff2',
-      '.ttf': 'font/ttf',
-      '.map': 'application/json; charset=utf-8',
-    };
-
-    const serveAdminIndex = (c: Context) => {
-      if (!existsSync(adminIndexPath)) {
-        return c.text('Not Found', 404);
-      }
-      const html = readFileSync(adminIndexPath, 'utf-8');
-      return c.html(html);
-    };
-
-    app.get('/public/admin', (c: Context) => c.redirect('/public/admin/'));
-    app.get('/public/admin/', serveAdminIndex);
-    app.get('/public/admin/*', (c: Context) => {
-      const url = new URL(c.req.url);
-      const prefix = '/public/admin/';
-      const rel = url.pathname.startsWith(prefix)
-        ? url.pathname.slice(prefix.length)
-        : '';
-
-      const resolvedAdminDir = resolve(adminDir);
-      const filePath = resolve(join(adminDir, rel));
-      if (!filePath.startsWith(resolvedAdminDir)) {
-        return c.text('Not Found', 404);
-      }
-
-      if (!existsSync(filePath)) {
-        return c.text('Not Found', 404);
-      }
-
-      try {
-        const st = statSync(filePath);
-        if (!st.isFile()) return c.text('Not Found', 404);
-      } catch {
-        return c.text('Not Found', 404);
-      }
-
-      const ext = extname(filePath).toLowerCase();
-      const contentType = contentTypeByExt[ext] ?? 'application/octet-stream';
-      const data = readFileSync(filePath);
-      c.header('Content-Type', contentType);
-      return c.body(data);
-    });
-
-    // Redirect `/public` to `/public/`
-    app.get('/public', (c: Context) => {
-      return c.redirect('/public/');
-    });
-  };
-
-  // Initialize static file serving
-  await setupStaticServing();
-
-  /**
-   * A helper function to enforce a timeout on SSE sends.
-   * @param fn A function that returns a Promise (e.g. stream.writeSSE())
-   * @param timeoutMs The timeout in milliseconds (default: 2000)
-   */
-  async function sendWithTimeout(fn: () => Promise<void>, timeoutMs = 200) {
-    const timeoutPromise = new Promise<void>((_, reject) => {
-      const id = setTimeout(() => {
-        clearTimeout(id);
-        reject(new Error('Write timeout'));
-      }, timeoutMs);
-    });
-
-    return Promise.race([fn(), timeoutPromise]);
+  if (isBunBinary) {
+    // In compiled bun binary, look for public files alongside the binary
+    // or in /usr/local/share/portkey-gateway/public/
+    const binaryDir = dirname(process.execPath);
+    const installedPublicDir = '/usr/local/share/portkey-gateway/public';
+    publicDir = existsSync(join(installedPublicDir, 'index.html'))
+      ? installedPublicDir
+      : join(binaryDir, 'public');
+  } else {
+    const scriptDir = dirname(fileURLToPath(import.meta.url));
+    publicDir = join(scriptDir, 'public');
   }
 
-  app.get('/log/stream', (c: Context) => {
-    const clientId = Date.now().toString();
+  // Serve the index.html content directly for both routes
+  const indexPath = join(publicDir, 'index.html');
+  const indexContent = readFileSync(indexPath, 'utf-8');
 
-    // Set headers to prevent caching
-    c.header('Cache-Control', 'no-cache');
-    c.header('X-Accel-Buffering', 'no');
+  const serveIndex = (c: Context) => {
+    return c.html(indexContent);
+  };
 
-    return streamSSE(c, async (stream) => {
-      const addLogClient: any = c.get('addLogClient');
-      const removeLogClient: any = c.get('removeLogClient');
+  // Set up routes
+  app.get('/public/logs', serveIndex);
+  app.get('/public/', serveIndex);
 
-      const client = {
-        sendLog: (message: any) =>
-          sendWithTimeout(() => stream.writeSSE(message)),
-      };
-      // Add this client to the set of log clients
-      addLogClient(clientId, client);
+  // Serve admin UI static files (SPA)
+  const adminDir = join(publicDir, 'admin');
+  const adminIndexPath = join(adminDir, 'index.html');
 
-      // If the client disconnects (closes the tab, etc.), this signal will be aborted
-      const onAbort = () => {
-        removeLogClient(clientId);
-      };
-      c.req.raw.signal.addEventListener('abort', onAbort);
+  const contentTypeByExt: Record<string, string> = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.map': 'application/json; charset=utf-8',
+  };
 
-      try {
-        // Send an initial connection event
-        await sendWithTimeout(() =>
-          stream.writeSSE({ event: 'connected', data: clientId })
-        );
+  const serveAdminIndex = (c: Context) => {
+    if (!existsSync(adminIndexPath)) {
+      return c.text('Not Found', 404);
+    }
+    const html = readFileSync(adminIndexPath, 'utf-8');
+    return c.html(html);
+  };
 
-        // Use an interval instead of a while loop
-        const heartbeatInterval = setInterval(async () => {
-          if (c.req.raw.signal.aborted) {
-            clearInterval(heartbeatInterval);
-            return;
-          }
+  app.get('/public/admin', (c: Context) => c.redirect('/public/admin/'));
+  app.get('/public/admin/', serveAdminIndex);
+  app.get('/public/admin/*', (c: Context) => {
+    const url = new URL(c.req.url);
+    const prefix = '/public/admin/';
+    const rel = url.pathname.startsWith(prefix)
+      ? url.pathname.slice(prefix.length)
+      : '';
 
-          try {
-            await sendWithTimeout(() =>
-              stream.writeSSE({ event: 'heartbeat', data: 'pulse' })
-            );
-          } catch (error) {
-            // console.error(`Heartbeat failed for client ${clientId}:`, error);
-            clearInterval(heartbeatInterval);
-            removeLogClient(clientId);
-          }
-        }, 10000);
+    const resolvedAdminDir = resolve(adminDir);
+    const filePath = resolve(join(adminDir, rel));
+    if (!filePath.startsWith(resolvedAdminDir)) {
+      return c.text('Not Found', 404);
+    }
 
-        // Wait for abort signal
-        await new Promise((resolve) => {
-          c.req.raw.signal.addEventListener('abort', () => {
-            clearInterval(heartbeatInterval);
-            resolve(undefined);
-          });
-        });
-      } catch (error) {
-        // console.error(`Error in log stream for client ${clientId}:`, error);
-      } finally {
-        // Remove this client when the connection is closed
-        removeLogClient(clientId);
-        c.req.raw.signal.removeEventListener('abort', onAbort);
-      }
-    });
+    if (!existsSync(filePath)) {
+      return c.text('Not Found', 404);
+    }
+
+    try {
+      const st = statSync(filePath);
+      if (!st.isFile()) return c.text('Not Found', 404);
+    } catch {
+      return c.text('Not Found', 404);
+    }
+
+    const ext = extname(filePath).toLowerCase();
+    const contentType = contentTypeByExt[ext] ?? 'application/octet-stream';
+    const data = readFileSync(filePath);
+    c.header('Content-Type', contentType);
+    return c.body(data);
   });
+
+  // Redirect `/public` to `/public/`
+  app.get('/public', (c: Context) => {
+    return c.redirect('/public/');
+  });
+};
+
+// Initialize static file serving
+await setupStaticServing();
+
+/**
+ * A helper function to enforce a timeout on SSE sends.
+ * @param fn A function that returns a Promise (e.g. stream.writeSSE())
+ * @param timeoutMs The timeout in milliseconds (default: 2000)
+ */
+async function sendWithTimeout(fn: () => Promise<void>, timeoutMs = 200) {
+  const timeoutPromise = new Promise<void>((_, reject) => {
+    const id = setTimeout(() => {
+      clearTimeout(id);
+      reject(new Error('Write timeout'));
+    }, timeoutMs);
+  });
+
+  return Promise.race([fn(), timeoutPromise]);
 }
+
+app.get('/log/stream', (c: Context) => {
+  const clientId = Date.now().toString();
+
+  // Set headers to prevent caching
+  c.header('Cache-Control', 'no-cache');
+  c.header('X-Accel-Buffering', 'no');
+
+  return streamSSE(c, async (stream) => {
+    const client = {
+      sendLog: (message: any) =>
+        sendWithTimeout(() => stream.writeSSE(message)),
+    };
+    // Add this client to the set of log clients
+    addLogClient(clientId, client);
+
+    // If the client disconnects (closes the tab, etc.), this signal will be aborted
+    const onAbort = () => {
+      removeLogClient(clientId);
+    };
+    c.req.raw.signal.addEventListener('abort', onAbort);
+
+    try {
+      // Send an initial connection event
+      await sendWithTimeout(() =>
+        stream.writeSSE({ event: 'connected', data: clientId })
+      );
+
+      // Use an interval instead of a while loop
+      const heartbeatInterval = setInterval(async () => {
+        if (c.req.raw.signal.aborted) {
+          clearInterval(heartbeatInterval);
+          return;
+        }
+
+        try {
+          await sendWithTimeout(() =>
+            stream.writeSSE({ event: 'heartbeat', data: 'pulse' })
+          );
+        } catch (error) {
+          // console.error(`Heartbeat failed for client ${clientId}:`, error);
+          clearInterval(heartbeatInterval);
+          removeLogClient(clientId);
+        }
+      }, 10000);
+
+      // Wait for abort signal
+      await new Promise((resolve) => {
+        c.req.raw.signal.addEventListener('abort', () => {
+          clearInterval(heartbeatInterval);
+          resolve(undefined);
+        });
+      });
+    } catch (error) {
+      // console.error(`Error in log stream for client ${clientId}:`, error);
+    } finally {
+      // Remove this client when the connection is closed
+      removeLogClient(clientId);
+      c.req.raw.signal.removeEventListener('abort', onAbort);
+    }
+  });
+});
+// }
 
 const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 

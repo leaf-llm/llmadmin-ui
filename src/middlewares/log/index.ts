@@ -7,11 +7,11 @@ const MAX_RESPONSE_LENGTH = 100000;
 // Map to store all connected log clients
 const logClients: Map<string | number, any> = new Map();
 
-const addLogClient = (clientId: any, client: any) => {
+export const addLogClient = (clientId: any, client: any) => {
   logClients.set(clientId, client);
 };
 
-const removeLogClient = (clientId: any) => {
+export const removeLogClient = (clientId: any) => {
   logClients.delete(clientId);
 };
 
