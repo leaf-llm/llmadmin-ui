@@ -70,6 +70,8 @@ export const MOONSHOT: string = 'moonshot';
 export const OPENROUTER: string = 'openrouter';
 export const LINGYI: string = 'lingyi';
 export const ZHIPU: string = 'zhipu';
+export const DOUBO: string = 'doubao';
+export const MINIMAX: string = 'minimax';
 export const NOVITA_AI: string = 'novita-ai';
 export const MONSTERAPI: string = 'monsterapi';
 export const DEEPSEEK: string = 'deepseek';
@@ -143,6 +145,8 @@ export const VALID_PROVIDERS = [
   OPENROUTER,
   LINGYI,
   ZHIPU,
+  DOUBO,
+  MINIMAX,
   NOVITA_AI,
   MONSTERAPI,
   DEEPSEEK,
