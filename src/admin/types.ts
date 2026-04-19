@@ -8,11 +8,13 @@ export type ProviderSummary = {
   baseUrl?: string;
   status?: ProviderStatus;
   lastSyncedAt?: string;
+  isPrimary?: boolean;
 };
 
 export type ProviderUpdateRequest = {
   apiKey?: string;
   baseUrl?: string;
+  setAsPrimary?: boolean;
 };
 
 export type UsageByModel = {

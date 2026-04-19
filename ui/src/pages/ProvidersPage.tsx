@@ -189,9 +189,13 @@ export default function ProvidersPage() {
       ) : null}
 
       {(() => {
-        const pinnedProviders = providers.filter(
-          (p) => p.status === 'connected'
-        );
+        const pinnedProviders = providers
+          .filter((p) => p.status === 'connected')
+          .sort((a, b) => {
+            if (a.isPrimary && !b.isPrimary) return -1;
+            if (!a.isPrimary && b.isPrimary) return 1;
+            return 0;
+          });
         const otherProviders = providers.filter(
           (p) => p.status !== 'connected'
         );
@@ -206,13 +210,64 @@ export default function ProvidersPage() {
                     return (
                       <div className="provider-list-item" key={p.provider}>
                         <div className="provider-list-row">
-                          <span className="provider-name">{p.provider}</span>
-                          <button
-                            className="expand-btn"
-                            onClick={() => toggleExpanded(p.provider)}
-                          >
-                            {isExpanded ? '▲' : '▼'}
-                          </button>
+                          <div className="provider-info">
+                            {p.isPrimary && (
+                              <span
+                                className="primary-star"
+                                title="Primary Provider"
+                              >
+                                ★
+                              </span>
+                            )}
+                            <span className="provider-name">{p.provider}</span>
+                            {p.isPrimary && (
+                              <span className="primary-badge">Primary</span>
+                            )}
+                          </div>
+                          <div className="provider-actions">
+                            {!p.isPrimary && (
+                              <button
+                                className="secondary small"
+                                onClick={async () => {
+                                  try {
+                                    await updateProvider(p.provider, {
+                                      setAsPrimary: true,
+                                    });
+                                    const refreshed = await getProviders();
+                                    setProviders(refreshed.providers);
+                                  } catch (e: any) {
+                                    setError(e?.message ?? String(e));
+                                  }
+                                }}
+                              >
+                                Set as Primary
+                              </button>
+                            )}
+                            {p.isPrimary && (
+                              <button
+                                className="secondary small"
+                                onClick={async () => {
+                                  try {
+                                    await updateProvider(p.provider, {
+                                      setAsPrimary: false,
+                                    });
+                                    const refreshed = await getProviders();
+                                    setProviders(refreshed.providers);
+                                  } catch (e: any) {
+                                    setError(e?.message ?? String(e));
+                                  }
+                                }}
+                              >
+                                Remove Primary
+                              </button>
+                            )}
+                            <button
+                              className="expand-btn"
+                              onClick={() => toggleExpanded(p.provider)}
+                            >
+                              {isExpanded ? '▲' : '▼'}
+                            </button>
+                          </div>
                         </div>
                         {isExpanded && (
                           <div className="provider-expand-content">

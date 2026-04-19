@@ -39,6 +39,7 @@ type ProviderConfig = {
 
 type UiConfigFile = {
   providers: Record<ProviderId, ProviderConfig | undefined>;
+  primaryProvider: ProviderId | null;
 };
 
 const CONFIG_FILE_NAME = 'conf.ui.json';
@@ -71,7 +72,7 @@ async function loadUiConfig(): Promise<UiConfigFile> {
   } catch (e: any) {
     // If file does not exist, start with empty providers.
     if (e?.code === 'ENOENT') {
-      return { providers: {} };
+      return { providers: {}, primaryProvider: null };
     }
     throw e;
   }
@@ -102,6 +103,7 @@ export async function listProviderSummaries(): Promise<{
       baseUrl: p?.baseUrl ?? DEFAULT_BASE_URLS[provider],
       status,
       lastSyncedAt: p?.lastSyncedAt,
+      isPrimary: provider === config.primaryProvider,
     };
   });
 
@@ -137,6 +139,20 @@ export async function upsertProvider(
     baseUrl,
   };
 
+  // Handle setAsPrimary
+  if (update.setAsPrimary === true) {
+    // Verify provider is connected (has apiKey)
+    if (!apiKey) {
+      throw new Error('Cannot set inactive provider as primary');
+    }
+    config.primaryProvider = provider;
+  } else if (
+    update.setAsPrimary === false &&
+    config.primaryProvider === provider
+  ) {
+    config.primaryProvider = null;
+  }
+
   await saveUiConfig(config);
 
   // Return masked summary.
@@ -149,8 +165,40 @@ export async function upsertProvider(
       baseUrl,
       status,
       lastSyncedAt: config.providers[provider]?.lastSyncedAt,
+      isPrimary: config.primaryProvider === provider,
     },
   };
+}
+
+export async function setPrimaryProvider(
+  provider: ProviderId
+): Promise<{ primaryProvider: ProviderId | null }> {
+  if (!SUPPORTED_PROVIDERS.includes(provider)) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  const config = await loadUiConfig();
+  const p = config.providers?.[provider];
+
+  // Verify provider is connected (has apiKey)
+  if (!p?.apiKey?.trim()) {
+    throw new Error('Cannot set inactive provider as primary');
+  }
+
+  config.primaryProvider = provider;
+  await saveUiConfig(config);
+
+  return { primaryProvider: config.primaryProvider };
+}
+
+export async function unsetPrimaryProvider(): Promise<{
+  primaryProvider: null;
+}> {
+  const config = await loadUiConfig();
+  config.primaryProvider = null;
+  await saveUiConfig(config);
+
+  return { primaryProvider: null };
 }
 
 export async function getProviderCredentialsForBilling(
