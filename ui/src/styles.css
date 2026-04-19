@@ -237,3 +237,23 @@ button:disabled {
   color: rgba(17, 24, 39, 0.65);
 }
 
+.gateway-url-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 15px;
+  color: #1d4ed8;
+}
+
+.copy-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(37, 99, 235, 0.8);
+}
+

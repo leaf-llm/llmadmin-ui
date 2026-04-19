@@ -8,6 +8,8 @@ import {
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string };
 
+const GATEWAY_URL = 'http://127.0.0.1:8787';
+
 export default function ProvidersPage() {
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +19,13 @@ export default function ProvidersPage() {
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(
     new Set()
   );
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(GATEWAY_URL);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +168,14 @@ export default function ProvidersPage() {
 
   return (
     <div>
+      <div
+        className="gateway-url-banner"
+        onClick={handleCopyUrl}
+        style={{ cursor: 'pointer' }}
+      >
+        <span>网关地址: {GATEWAY_URL}</span>
+        <span className="copy-hint">{copied ? '已复制' : '点击复制'}</span>
+      </div>
       <h1 className="page-title">Providers</h1>
 
       {error ? <div className="error">{error}</div> : null}
