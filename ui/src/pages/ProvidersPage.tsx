@@ -209,19 +209,27 @@ export default function ProvidersPage() {
               </div>
             )}
 
-            <div className="grid">
-              {otherProviders.map((p) => (
-                <div className="card" key={p.provider}>
-                  <div className="card__title">
-                    {p.provider}{' '}
-                    <span className="muted" style={{ fontWeight: 400 }}>
-                      ({p.status ?? 'unknown'})
-                    </span>
-                  </div>
-                  {renderProviderForm(p)}
+            {otherProviders.length > 0 && (
+              <>
+                {pinnedProviders.length > 0 && (
+                  <div className="section-divider" />
+                )}
+                <h2 className="section-title">All Providers</h2>
+                <div className="grid">
+                  {otherProviders.map((p) => (
+                    <div className="card" key={p.provider}>
+                      <div className="card__title">
+                        {p.provider}{' '}
+                        <span className="muted" style={{ fontWeight: 400 }}>
+                          ({p.status ?? 'unknown'})
+                        </span>
+                      </div>
+                      {renderProviderForm(p)}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </>
         );
       })()}

@@ -176,6 +176,12 @@ button:disabled {
   text-align: left;
 }
 
+.section-divider {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.1);
+  margin: 20px 0;
+}
+
 .section-title {
   font-weight: 700;
   margin: 0 0 10px;
