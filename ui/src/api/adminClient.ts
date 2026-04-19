@@ -6,11 +6,13 @@ export type ProviderSummary = {
   baseUrl?: string;
   status?: 'connected' | 'disconnected' | 'unknown';
   lastSyncedAt?: string;
+  isPrimary?: boolean;
 };
 
 export type ProviderUpdateRequest = {
   apiKey?: string;
   baseUrl?: string;
+  setAsPrimary?: boolean;
 };
 
 export type UsageByModel = {
@@ -82,7 +84,11 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
 export async function getProviders(): Promise<{
   providers: ProviderSummary[];
 }> {
-  return adminFetch<{ providers: ProviderSummary[] }>('/admin/providers');
+  const res = await adminFetch<{ providers: ProviderSummary[] }>(
+    '/admin/providers'
+  );
+  // isPrimary is already set by the backend based on primaryProvider
+  return res;
 }
 
 export async function updateProvider(

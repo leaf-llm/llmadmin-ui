@@ -51,6 +51,7 @@ const ProviderUpdateSchema: z.ZodSchema<ProviderUpdateRequest> = z
   .object({
     apiKey: z.string().optional(),
     baseUrl: z.string().optional(),
+    setAsPrimary: z.boolean().optional(),
   })
   .partial();
 
