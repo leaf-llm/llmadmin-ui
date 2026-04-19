@@ -106,7 +106,7 @@ export default function ProvidersPage() {
                   <div className="label">请求地址 (可选)</div>
                   <input
                     value={d.baseUrl ?? ''}
-                    placeholder="e.g. https://api.openai.com/v1"
+                    placeholder={p.baseUrl}
                     onChange={(e) => {
                       const val = e.target.value;
                       setDrafts((prev) => ({
