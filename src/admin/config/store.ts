@@ -27,6 +27,8 @@ const DEFAULT_BASE_URLS: Partial<Record<ProviderId, string>> = {
   zhipu: 'https://open.bigmodel.cn/api/paas/v4',
   dashscope: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
   moonshot: 'https://api.moonshot.cn',
+  minimax: 'https://api.minimaxi.com/anthropic',
+  doubao: 'https://ark.cn-beijing.volces.com/api/v3',
 };
 
 type ProviderConfig = {
