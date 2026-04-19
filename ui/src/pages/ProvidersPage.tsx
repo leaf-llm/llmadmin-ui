@@ -28,9 +28,7 @@ export default function ProvidersPage() {
         for (const p of res.providers) {
           nextDrafts[p.provider] = {
             apiKey: undefined,
-            organizationId: p.organizationId ?? '',
-            projectId: p.projectId ?? '',
-            budgetUSD: p.budgetUSD ?? undefined,
+            baseUrl: p.baseUrl ?? '',
             apiKeyMasked: p.apiKeyMasked,
           };
         }
@@ -82,7 +80,7 @@ export default function ProvidersPage() {
 
               <div className="grid" style={{ gap: 10 }}>
                 <div className="field">
-                  <div className="label">API Key (update)</div>
+                  <div className="label">API Key (必填)</div>
                   <input
                     placeholder={
                       p.apiKeyMasked
@@ -105,55 +103,17 @@ export default function ProvidersPage() {
                 </div>
 
                 <div className="field">
-                  <div className="label">Organization ID (optional)</div>
+                  <div className="label">请求地址 (可选)</div>
                   <input
-                    value={d.organizationId ?? ''}
-                    placeholder="e.g. org_xxx"
+                    value={d.baseUrl ?? ''}
+                    placeholder="e.g. https://api.openai.com/v1"
                     onChange={(e) => {
                       const val = e.target.value;
                       setDrafts((prev) => ({
                         ...prev,
                         [p.provider]: {
                           ...(prev[p.provider] ?? {}),
-                          organizationId: val,
-                        },
-                      }));
-                    }}
-                  />
-                </div>
-
-                <div className="field">
-                  <div className="label">Project ID (optional)</div>
-                  <input
-                    value={d.projectId ?? ''}
-                    placeholder="e.g. proj_xxx"
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [p.provider]: {
-                          ...(prev[p.provider] ?? {}),
-                          projectId: val,
-                        },
-                      }));
-                    }}
-                  />
-                </div>
-
-                <div className="field">
-                  <div className="label">Budget USD (optional)</div>
-                  <input
-                    type="number"
-                    value={d.budgetUSD ?? ''}
-                    placeholder="e.g. 1000"
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      const val = raw === '' ? undefined : Number(raw);
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [p.provider]: {
-                          ...(prev[p.provider] ?? {}),
-                          budgetUSD: val,
+                          baseUrl: val,
                         },
                       }));
                     }}
@@ -170,9 +130,7 @@ export default function ProvidersPage() {
                         const draft = drafts[p.provider];
                         const req: ProviderUpdateRequest = {
                           apiKey: draft?.apiKey ? draft.apiKey : undefined,
-                          organizationId: draft?.organizationId || undefined,
-                          projectId: draft?.projectId || undefined,
-                          budgetUSD: draft?.budgetUSD,
+                          baseUrl: draft?.baseUrl || undefined,
                         };
                         await updateProvider(p.provider, req);
                         // Re-fetch to show new masked key/status.
@@ -182,9 +140,7 @@ export default function ProvidersPage() {
                         for (const pp of refreshed.providers) {
                           nextDrafts[pp.provider] = {
                             apiKey: undefined,
-                            organizationId: pp.organizationId ?? '',
-                            projectId: pp.projectId ?? '',
-                            budgetUSD: pp.budgetUSD ?? undefined,
+                            baseUrl: pp.baseUrl ?? '',
                             apiKeyMasked: pp.apiKeyMasked,
                           };
                         }

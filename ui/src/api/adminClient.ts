@@ -3,18 +3,14 @@ export type ProviderId = string;
 export type ProviderSummary = {
   provider: ProviderId;
   apiKeyMasked?: string;
-  organizationId?: string;
-  projectId?: string;
-  budgetUSD?: number;
+  baseUrl?: string;
   status?: 'connected' | 'disconnected' | 'unknown';
   lastSyncedAt?: string;
 };
 
 export type ProviderUpdateRequest = {
   apiKey?: string;
-  organizationId?: string;
-  projectId?: string;
-  budgetUSD?: number;
+  baseUrl?: string;
 };
 
 export type UsageByModel = {

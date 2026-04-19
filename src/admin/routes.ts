@@ -50,12 +50,7 @@ adminApp.get('/providers', async (c) => {
 const ProviderUpdateSchema: z.ZodSchema<ProviderUpdateRequest> = z
   .object({
     apiKey: z.string().optional(),
-    organizationId: z.string().optional(),
-    projectId: z.string().optional(),
-    budgetUSD: z
-      .union([z.number(), z.string()])
-      .transform((v) => (typeof v === 'string' ? Number(v) : v))
-      .optional(),
+    baseUrl: z.string().optional(),
   })
   .partial();
 
