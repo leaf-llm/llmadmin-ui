@@ -20,6 +20,15 @@ export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'doubao', // 豆包
 ];
 
+const DEFAULT_BASE_URLS: Partial<Record<ProviderId, string>> = {
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+  google: 'https://generativelanguage.googleapis.com',
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+  dashscope: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+  moonshot: 'https://api.moonshot.cn',
+};
+
 type ProviderConfig = {
   apiKey?: string;
   baseUrl?: string;
@@ -88,7 +97,7 @@ export async function listProviderSummaries(): Promise<{
     return {
       provider,
       apiKeyMasked: apiKey ? maskApiKey(apiKey) : undefined,
-      baseUrl: p?.baseUrl,
+      baseUrl: p?.baseUrl ?? DEFAULT_BASE_URLS[provider],
       status,
       lastSyncedAt: p?.lastSyncedAt,
     };
