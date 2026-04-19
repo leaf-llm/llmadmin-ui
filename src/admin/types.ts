@@ -5,18 +5,14 @@ export type ProviderStatus = 'connected' | 'disconnected' | 'unknown';
 export type ProviderSummary = {
   provider: ProviderId;
   apiKeyMasked?: string;
-  organizationId?: string;
-  projectId?: string;
-  budgetUSD?: number;
+  baseUrl?: string;
   status?: ProviderStatus;
   lastSyncedAt?: string;
 };
 
 export type ProviderUpdateRequest = {
   apiKey?: string;
-  organizationId?: string;
-  projectId?: string;
-  budgetUSD?: number;
+  baseUrl?: string;
 };
 
 export type UsageByModel = {

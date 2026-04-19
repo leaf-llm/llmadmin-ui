@@ -13,20 +13,27 @@ export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'openai',
   'anthropic',
   'google',
-  'azure-openai',
-  'groq',
-  'mistral',
-  'cohere',
-  'together-ai',
-  'perplexity-ai',
-  'bedrock',
+  'zhipu', // 智谱 GLM
+  'dashscope', // 通义千问 Qwen
+  'moonshot', // Kimi
+  'minimax', // MINIMAX
+  'doubao', // 豆包
 ];
+
+const DEFAULT_BASE_URLS: Partial<Record<ProviderId, string>> = {
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+  google: 'https://generativelanguage.googleapis.com',
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+  dashscope: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+  moonshot: 'https://api.moonshot.cn',
+  minimax: 'https://api.minimaxi.com/anthropic',
+  doubao: 'https://ark.cn-beijing.volces.com/api/v3',
+};
 
 type ProviderConfig = {
   apiKey?: string;
-  organizationId?: string;
-  projectId?: string;
-  budgetUSD?: number;
+  baseUrl?: string;
   lastSyncedAt?: string;
 };
 
@@ -92,9 +99,7 @@ export async function listProviderSummaries(): Promise<{
     return {
       provider,
       apiKeyMasked: apiKey ? maskApiKey(apiKey) : undefined,
-      organizationId: p?.organizationId,
-      projectId: p?.projectId,
-      budgetUSD: p?.budgetUSD,
+      baseUrl: p?.baseUrl ?? DEFAULT_BASE_URLS[provider],
       status,
       lastSyncedAt: p?.lastSyncedAt,
     };
@@ -121,26 +126,15 @@ export async function upsertProvider(
         ? undefined
         : update.apiKey.trim();
 
-  const organizationId =
-    update.organizationId === undefined
-      ? current.organizationId
-      : update.organizationId.trim() || undefined;
-  const projectId =
-    update.projectId === undefined
-      ? current.projectId
-      : update.projectId.trim() || undefined;
-
-  const budgetUSD =
-    update.budgetUSD === undefined || Number.isNaN(update.budgetUSD)
-      ? current.budgetUSD
-      : update.budgetUSD;
+  const baseUrl =
+    update.baseUrl === undefined
+      ? current.baseUrl
+      : update.baseUrl.trim() || undefined;
 
   config.providers[provider] = {
     ...current,
     apiKey,
-    organizationId,
-    projectId,
-    budgetUSD,
+    baseUrl,
   };
 
   await saveUiConfig(config);
@@ -152,9 +146,7 @@ export async function upsertProvider(
     provider: {
       provider,
       apiKeyMasked,
-      organizationId,
-      projectId,
-      budgetUSD,
+      baseUrl,
       status,
       lastSyncedAt: config.providers[provider]?.lastSyncedAt,
     },
@@ -165,9 +157,7 @@ export async function getProviderCredentialsForBilling(
   provider: ProviderId
 ): Promise<{
   apiKey?: string;
-  organizationId?: string;
-  projectId?: string;
-  budgetUSD?: number;
+  baseUrl?: string;
   lastSyncedAt?: string;
 } | null> {
   if (!SUPPORTED_PROVIDERS.includes(provider)) return null;
@@ -176,9 +166,7 @@ export async function getProviderCredentialsForBilling(
   if (!p) return null;
   return {
     apiKey: p.apiKey,
-    organizationId: p.organizationId,
-    projectId: p.projectId,
-    budgetUSD: p.budgetUSD,
+    baseUrl: p.baseUrl,
     lastSyncedAt: p.lastSyncedAt,
   };
 }

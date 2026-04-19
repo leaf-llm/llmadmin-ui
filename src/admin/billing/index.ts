@@ -39,8 +39,6 @@ export async function getUsage(params: {
       if (provider === 'openai') {
         const { totals: t, byModel: rows } = await getOpenAIUsage({
           apiKey: creds.apiKey,
-          organizationId: creds.organizationId,
-          projectId: creds.projectId,
           from: params.from,
           to: params.to,
         });
@@ -49,8 +47,6 @@ export async function getUsage(params: {
       } else if (provider === 'anthropic') {
         const { totals: t, byModel: rows } = await getAnthropicUsage({
           apiKey: creds.apiKey,
-          organizationId: creds.organizationId,
-          projectId: creds.projectId,
           from: params.from,
           to: params.to,
         });
