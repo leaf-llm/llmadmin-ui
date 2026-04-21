@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { setAdminToken } from '../api/adminClient';
+import { setAdminToken, getConfig, deleteConfig } from '../api/adminClient';
 
 const ADMIN_TOKEN_KEY = 'adminToken';
 
@@ -10,10 +10,27 @@ function getStoredToken() {
 export default function SettingsPage() {
   const [token, setTokenState] = useState('');
   const [saved, setSaved] = useState(false);
+  const [config, setConfig] = useState<Record<string, unknown> | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
 
   useEffect(() => {
     setTokenState(getStoredToken());
+    loadConfig();
   }, []);
+
+  async function loadConfig() {
+    setConfigLoading(true);
+    setConfigError(null);
+    try {
+      const res = await getConfig();
+      setConfig(res.config);
+    } catch (e: any) {
+      setConfigError(e?.message ?? String(e));
+    } finally {
+      setConfigLoading(false);
+    }
+  }
 
   return (
     <div>
@@ -64,6 +81,50 @@ export default function SettingsPage() {
               <div className="muted" />
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="card__title">Gateway Config</div>
+
+        {configLoading && <div className="muted">Loading...</div>}
+        {configError && <div className="error">{configError}</div>}
+
+        {!configLoading && !configError && config && (
+          <div className="muted" style={{ marginBottom: 10 }}>
+            Config is active (auto-generated from providers).
+          </div>
+        )}
+        {!configLoading && !configError && !config && (
+          <div className="muted" style={{ marginBottom: 10 }}>
+            No active config. Add providers and save to generate.
+          </div>
+        )}
+
+        <div className="row">
+          <button
+            className="secondary"
+            disabled={configLoading}
+            onClick={loadConfig}
+          >
+            Refresh
+          </button>
+          {config && (
+            <button
+              className="secondary"
+              disabled={configLoading}
+              onClick={async () => {
+                try {
+                  await deleteConfig();
+                  setConfig(null);
+                } catch (e: any) {
+                  setConfigError(e?.message ?? String(e));
+                }
+              }}
+            >
+              Delete Config
+            </button>
+          )}
         </div>
       </div>
     </div>

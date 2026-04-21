@@ -1,7 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 
-import { listProviderSummaries, upsertProvider } from './config/store';
+import {
+  listProviderSummaries,
+  upsertProvider,
+  loadUserConfig,
+  saveUserConfig,
+  loadUiConfig,
+} from './config/store';
 import { getUsage } from './billing';
 import { ProviderId, ProviderUpdateRequest } from './types';
 
@@ -41,6 +47,91 @@ async function adminAuth(c: any, next: any) {
 }
 
 adminApp.use('*', adminAuth);
+
+adminApp.get('/config', async (c) => {
+  const config = await loadUserConfig();
+  return c.json({ config });
+});
+
+/**
+ * Auto-generate Portkey config from active providers.
+ * - Has primary: primary as main, others as fallback (loadbalance on 429/500/503/504)
+ * - No primary: all active providers in loadbalance
+ */
+async function generateConfigFromProviders(): Promise<Record<string, unknown>> {
+  const uiConfig = await loadUiConfig();
+  const { providers, primaryProvider } = uiConfig;
+
+  const activeProviders: Array<{
+    provider: string;
+    apiKey: string;
+    baseUrl?: string;
+  }> = [];
+  for (const [provider, p] of Object.entries(providers)) {
+    if (p?.apiKey?.trim()) {
+      activeProviders.push({
+        provider,
+        apiKey: p.apiKey!.trim(),
+        baseUrl: p.baseUrl?.trim() || undefined,
+      });
+    }
+  }
+
+  if (activeProviders.length === 0) {
+    throw new Error(
+      'No active providers configured. Add provider API keys first.'
+    );
+  }
+
+  const targets = activeProviders.map((p) => {
+    const target: Record<string, unknown> = {
+      provider: p.provider,
+      api_key: p.apiKey,
+    };
+    if (p.baseUrl) {
+      target.custom_host = p.baseUrl;
+    }
+    return target;
+  });
+
+  // Has primary → fallback strategy with primary first
+  if (primaryProvider && activeProviders.length > 1) {
+    const primary = targets.find((t) => t.provider === primaryProvider);
+    if (primary) {
+      const fallbacks = targets.filter((t) => t.provider !== primaryProvider);
+      return {
+        strategy: {
+          mode: 'fallback',
+          on_status_codes: [429, 500, 502, 503, 504],
+        },
+        targets: [primary, ...fallbacks],
+      };
+    }
+  }
+
+  // No primary or single provider → loadbalance all
+  return {
+    strategy: {
+      mode: 'loadbalance',
+    },
+    targets,
+  };
+}
+
+adminApp.post('/config', async (c) => {
+  try {
+    const generatedConfig = await generateConfigFromProviders();
+    await saveUserConfig(generatedConfig);
+    return c.json({ ok: true, config: generatedConfig });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 400);
+  }
+});
+
+adminApp.delete('/config', async (c) => {
+  await saveUserConfig(null);
+  return c.json({ ok: true });
+});
 
 adminApp.get('/providers', async (c) => {
   const res = await listProviderSummaries();

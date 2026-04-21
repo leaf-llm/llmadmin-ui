@@ -15,6 +15,7 @@ import { getRuntimeKey } from 'hono/adapter';
 import { requestValidator } from './middlewares/requestValidator';
 import { hooks } from './middlewares/hooks';
 import { memoryCache } from './middlewares/cache';
+import { configInjector } from './middlewares/configInjector';
 
 // Handlers
 import { proxyHandler } from './handlers/proxyHandler';
@@ -112,6 +113,12 @@ if (conf.cache === true) {
 
 // Local admin UI APIs (providers config + usage stats).
 app.route('/admin', adminApp);
+
+// Auto-inject stored user config into requests (before requestValidator, skips admin routes).
+app.use('*', async (c, next) => {
+  if (c.req.path.startsWith('/admin')) return next();
+  return configInjector(c, next);
+});
 
 /**
  * Default route when no other route matches.

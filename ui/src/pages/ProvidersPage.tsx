@@ -4,6 +4,7 @@ import {
   ProviderSummary,
   ProviderUpdateRequest,
   updateProvider,
+  syncConfig,
 } from '../api/adminClient';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string };
@@ -89,6 +90,7 @@ export default function ProvidersPage() {
             baseUrl: draft?.baseUrl || undefined,
           };
           await updateProvider(p.provider, req);
+          await syncConfig();
           const refreshed = await getProviders();
           setProviders(refreshed.providers);
           const nextDrafts: Record<string, Draft> = {};
@@ -233,6 +235,7 @@ export default function ProvidersPage() {
                                     await updateProvider(p.provider, {
                                       setAsPrimary: true,
                                     });
+                                    await syncConfig();
                                     const refreshed = await getProviders();
                                     setProviders(refreshed.providers);
                                   } catch (e: any) {
@@ -251,6 +254,7 @@ export default function ProvidersPage() {
                                     await updateProvider(p.provider, {
                                       setAsPrimary: false,
                                     });
+                                    await syncConfig();
                                     const refreshed = await getProviders();
                                     setProviders(refreshed.providers);
                                   } catch (e: any) {
