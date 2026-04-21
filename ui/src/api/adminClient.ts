@@ -125,3 +125,27 @@ export async function getUsage(params: {
 export function setAdminToken(token: string) {
   localStorage.setItem(ADMIN_TOKEN_KEY, token);
 }
+
+export type UserConfig = Record<string, unknown> | null;
+
+export async function getConfig(): Promise<{ config: UserConfig }> {
+  return adminFetch<{ config: UserConfig }>('/admin/config');
+}
+
+export async function syncConfig(): Promise<{
+  ok: boolean;
+  config?: Record<string, unknown>;
+}> {
+  return adminFetch<{ ok: boolean; config?: Record<string, unknown> }>(
+    '/admin/config',
+    {
+      method: 'POST',
+    }
+  );
+}
+
+export async function deleteConfig(): Promise<{ ok: boolean }> {
+  return adminFetch<{ ok: boolean }>('/admin/config', {
+    method: 'DELETE',
+  });
+}

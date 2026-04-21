@@ -40,6 +40,7 @@ type ProviderConfig = {
 type UiConfigFile = {
   providers: Record<ProviderId, ProviderConfig | undefined>;
   primaryProvider: ProviderId | null;
+  userConfig: Record<string, unknown> | null;
 };
 
 const CONFIG_FILE_NAME = 'conf.ui.json';
@@ -57,7 +58,7 @@ function getConfigPath() {
   return path.join(process.cwd(), CONFIG_FILE_NAME);
 }
 
-async function loadUiConfig(): Promise<UiConfigFile> {
+export async function loadUiConfig(): Promise<UiConfigFile> {
   const runtime = getRuntimeKey();
   if (runtime !== 'node' && runtime !== 'bun') {
     // Workers runtime has no fs access by default.
@@ -72,7 +73,7 @@ async function loadUiConfig(): Promise<UiConfigFile> {
   } catch (e: any) {
     // If file does not exist, start with empty providers.
     if (e?.code === 'ENOENT') {
-      return { providers: {}, primaryProvider: null };
+      return { providers: {}, primaryProvider: null, userConfig: null };
     }
     throw e;
   }
@@ -85,6 +86,26 @@ async function saveUiConfig(config: UiConfigFile) {
   }
   const configPath = getConfigPath();
   await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+export async function loadUserConfig(): Promise<Record<
+  string,
+  unknown
+> | null> {
+  const config = await loadUiConfig();
+  return config.userConfig ?? null;
+}
+
+export async function saveUserConfig(
+  config: Record<string, unknown> | null
+): Promise<void> {
+  const runtime = getRuntimeKey();
+  if (runtime !== 'node' && runtime !== 'bun') {
+    return;
+  }
+  const current = await loadUiConfig();
+  current.userConfig = config;
+  await saveUiConfig(current);
 }
 
 export async function listProviderSummaries(): Promise<{
