@@ -9,7 +9,12 @@ import {
   loadUiConfig,
 } from './config/store';
 import { getUsage } from './billing';
-import { ProviderId, ProviderUpdateRequest } from './types';
+import {
+  ModelCategory,
+  MODEL_CATEGORIES,
+  ProviderId,
+  ProviderUpdateRequest,
+} from './types';
 
 const adminApp = new Hono();
 
@@ -48,8 +53,17 @@ async function adminAuth(c: any, next: any) {
 
 adminApp.use('*', adminAuth);
 
+function getCategoryParam(c: any): ModelCategory {
+  const category = c.req.query('category') as string;
+  if (category && MODEL_CATEGORIES.includes(category as ModelCategory)) {
+    return category as ModelCategory;
+  }
+  return 'text'; // default
+}
+
 adminApp.get('/config', async (c) => {
-  const config = await loadUserConfig();
+  const category = getCategoryParam(c);
+  const config = await loadUserConfig(category);
   return c.json({ config });
 });
 
@@ -58,9 +72,12 @@ adminApp.get('/config', async (c) => {
  * - Has primary: primary as main, others as fallback (loadbalance on 429/500/503/504)
  * - No primary: all active providers in loadbalance
  */
-async function generateConfigFromProviders(): Promise<Record<string, unknown>> {
+async function generateConfigFromProviders(
+  category: ModelCategory
+): Promise<Record<string, unknown>> {
   const uiConfig = await loadUiConfig();
-  const { providers, primaryProvider } = uiConfig;
+  const categoryConfig = uiConfig[category];
+  const { providers, primaryProvider } = categoryConfig;
 
   const activeProviders: Array<{
     provider: string;
@@ -120,8 +137,9 @@ async function generateConfigFromProviders(): Promise<Record<string, unknown>> {
 
 adminApp.post('/config', async (c) => {
   try {
-    const generatedConfig = await generateConfigFromProviders();
-    await saveUserConfig(generatedConfig);
+    const category = getCategoryParam(c);
+    const generatedConfig = await generateConfigFromProviders(category);
+    await saveUserConfig(category, generatedConfig);
     return c.json({ ok: true, config: generatedConfig });
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 400);
@@ -129,12 +147,14 @@ adminApp.post('/config', async (c) => {
 });
 
 adminApp.delete('/config', async (c) => {
-  await saveUserConfig(null);
+  const category = getCategoryParam(c);
+  await saveUserConfig(category, null);
   return c.json({ ok: true });
 });
 
 adminApp.get('/providers', async (c) => {
-  const res = await listProviderSummaries();
+  const category = getCategoryParam(c);
+  const res = await listProviderSummaries(category);
   return c.json(res);
 });
 
@@ -147,6 +167,7 @@ const ProviderUpdateSchema: z.ZodSchema<ProviderUpdateRequest> = z
   .partial();
 
 adminApp.put('/providers/:provider', async (c) => {
+  const category = getCategoryParam(c);
   const provider = c.req.param('provider') as ProviderId;
   const body = await c.req.json().catch(() => ({}));
   const parsed = ProviderUpdateSchema.safeParse(body);
@@ -161,7 +182,7 @@ adminApp.put('/providers/:provider', async (c) => {
     );
   }
 
-  const res = await upsertProvider(provider, parsed.data);
+  const res = await upsertProvider(category, provider, parsed.data);
   return c.json({ ok: true, ...res });
 });
 

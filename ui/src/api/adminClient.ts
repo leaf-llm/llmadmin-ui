@@ -81,27 +81,37 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-export async function getProviders(): Promise<{
+export async function getProviders(category?: string): Promise<{
   providers: ProviderSummary[];
 }> {
-  const res = await adminFetch<{ providers: ProviderSummary[] }>(
-    '/admin/providers'
-  );
-  // isPrimary is already set by the backend based on primaryProvider
+  const u = new URL('/admin/providers', window.location.origin);
+  if (category) {
+    u.searchParams.set('category', category);
+  }
+  const qs = u.searchParams.toString();
+  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
+  const res = await adminFetch<{ providers: ProviderSummary[] }>(path);
   return res;
 }
 
 export async function updateProvider(
+  category: string,
   provider: ProviderId,
   req: ProviderUpdateRequest
 ): Promise<{ ok: boolean; provider?: ProviderSummary }> {
-  return adminFetch<{ ok: boolean; provider?: ProviderSummary }>(
+  const u = new URL(
     `/admin/providers/${encodeURIComponent(provider)}`,
+    window.location.origin
+  );
+  u.searchParams.set('category', category);
+  const res = await adminFetch<{ ok: boolean; provider?: ProviderSummary }>(
+    u.pathname + u.search,
     {
       method: 'PUT',
       body: JSON.stringify(req),
     }
   );
+  return res;
 }
 
 export async function getUsage(params: {
@@ -128,24 +138,43 @@ export function setAdminToken(token: string) {
 
 export type UserConfig = Record<string, unknown> | null;
 
-export async function getConfig(): Promise<{ config: UserConfig }> {
-  return adminFetch<{ config: UserConfig }>('/admin/config');
+export async function getConfig(
+  category?: string
+): Promise<{ config: UserConfig }> {
+  const u = new URL('/admin/config', window.location.origin);
+  if (category) {
+    u.searchParams.set('category', category);
+  }
+  const qs = u.searchParams.toString();
+  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
+  return adminFetch<{ config: UserConfig }>(path);
 }
 
-export async function syncConfig(): Promise<{
+export async function syncConfig(category?: string): Promise<{
   ok: boolean;
   config?: Record<string, unknown>;
 }> {
-  return adminFetch<{ ok: boolean; config?: Record<string, unknown> }>(
-    '/admin/config',
-    {
-      method: 'POST',
-    }
-  );
+  const u = new URL('/admin/config', window.location.origin);
+  if (category) {
+    u.searchParams.set('category', category);
+  }
+  const qs = u.searchParams.toString();
+  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
+  return adminFetch<{ ok: boolean; config?: Record<string, unknown> }>(path, {
+    method: 'POST',
+  });
 }
 
-export async function deleteConfig(): Promise<{ ok: boolean }> {
-  return adminFetch<{ ok: boolean }>('/admin/config', {
+export async function deleteConfig(
+  category?: string
+): Promise<{ ok: boolean }> {
+  const u = new URL('/admin/config', window.location.origin);
+  if (category) {
+    u.searchParams.set('category', category);
+  }
+  const qs = u.searchParams.toString();
+  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
+  return adminFetch<{ ok: boolean }>(path, {
     method: 'DELETE',
   });
 }

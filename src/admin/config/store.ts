@@ -3,6 +3,8 @@ import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 
 import {
+  ModelCategory,
+  MODEL_CATEGORIES,
   ProviderId,
   ProviderSummary,
   ProviderStatus,
@@ -37,7 +39,16 @@ type ProviderConfig = {
   lastSyncedAt?: string;
 };
 
-type UiConfigFile = {
+type CategoryConfig = {
+  providers: Record<ProviderId, ProviderConfig | undefined>;
+  primaryProvider: ProviderId | null;
+  userConfig: Record<string, unknown> | null;
+};
+
+type UiConfigFile = Record<ModelCategory, CategoryConfig>;
+
+// Legacy format for migration
+type LegacyUiConfigFile = {
   providers: Record<ProviderId, ProviderConfig | undefined>;
   primaryProvider: ProviderId | null;
   userConfig: Record<string, unknown> | null;
@@ -68,15 +79,49 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
   const configPath = getConfigPath();
   try {
     const raw = await readFile(configPath, 'utf-8');
-    const parsed = JSON.parse(raw) as UiConfigFile;
-    return parsed;
+    const parsed = JSON.parse(raw);
+
+    // Check if it's legacy format (has providers directly) or new format (keyed by category)
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      'providers' in parsed &&
+      !('text' in parsed)
+    ) {
+      // Legacy format - migrate to per-category structure
+      const legacy = parsed as LegacyUiConfigFile;
+      const migrated: UiConfigFile = {
+        text: { ...legacy },
+        image: { providers: {}, primaryProvider: null, userConfig: null },
+        video: { providers: {}, primaryProvider: null, userConfig: null },
+        audio: { providers: {}, primaryProvider: null, userConfig: null },
+        mcp: { providers: {}, primaryProvider: null, userConfig: null },
+      };
+      // Save migrated format back
+      await saveUiConfig(migrated);
+      return migrated;
+    }
+
+    return parsed as UiConfigFile;
   } catch (e: any) {
     // If file does not exist, start with empty providers.
     if (e?.code === 'ENOENT') {
-      return { providers: {}, primaryProvider: null, userConfig: null };
+      // Return default per-category structure
+      const defaultConfig: UiConfigFile = {
+        text: { providers: {}, primaryProvider: null, userConfig: null },
+        image: { providers: {}, primaryProvider: null, userConfig: null },
+        video: { providers: {}, primaryProvider: null, userConfig: null },
+        audio: { providers: {}, primaryProvider: null, userConfig: null },
+        mcp: { providers: {}, primaryProvider: null, userConfig: null },
+      };
+      return defaultConfig;
     }
     throw e;
   }
+}
+
+function createEmptyCategoryConfig(): CategoryConfig {
+  return { providers: {}, primaryProvider: null, userConfig: null };
 }
 
 async function saveUiConfig(config: UiConfigFile) {
@@ -88,15 +133,15 @@ async function saveUiConfig(config: UiConfigFile) {
   await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
 }
 
-export async function loadUserConfig(): Promise<Record<
-  string,
-  unknown
-> | null> {
+export async function loadUserConfig(
+  category: ModelCategory
+): Promise<Record<string, unknown> | null> {
   const config = await loadUiConfig();
-  return config.userConfig ?? null;
+  return config[category]?.userConfig ?? null;
 }
 
 export async function saveUserConfig(
+  category: ModelCategory,
   config: Record<string, unknown> | null
 ): Promise<void> {
   const runtime = getRuntimeKey();
@@ -104,17 +149,18 @@ export async function saveUserConfig(
     return;
   }
   const current = await loadUiConfig();
-  current.userConfig = config;
+  current[category].userConfig = config;
   await saveUiConfig(current);
 }
 
-export async function listProviderSummaries(): Promise<{
+export async function listProviderSummaries(category: ModelCategory): Promise<{
   providers: ProviderSummary[];
 }> {
   const config = await loadUiConfig();
+  const categoryConfig = config[category];
 
   const providers: ProviderSummary[] = SUPPORTED_PROVIDERS.map((provider) => {
-    const p = config.providers?.[provider];
+    const p = categoryConfig?.providers?.[provider];
     const apiKey = p?.apiKey?.trim();
     const status: ProviderStatus = apiKey ? 'connected' : 'disconnected';
 
@@ -124,7 +170,7 @@ export async function listProviderSummaries(): Promise<{
       baseUrl: p?.baseUrl ?? DEFAULT_BASE_URLS[provider],
       status,
       lastSyncedAt: p?.lastSyncedAt,
-      isPrimary: provider === config.primaryProvider,
+      isPrimary: provider === categoryConfig?.primaryProvider,
     };
   });
 
@@ -132,6 +178,7 @@ export async function listProviderSummaries(): Promise<{
 }
 
 export async function upsertProvider(
+  category: ModelCategory,
   provider: ProviderId,
   update: ProviderUpdateRequest
 ): Promise<{ provider?: ProviderSummary }> {
@@ -140,7 +187,8 @@ export async function upsertProvider(
   }
 
   const config = await loadUiConfig();
-  const current = config.providers?.[provider] ?? {};
+  const categoryConfig = config[category];
+  const current = categoryConfig?.providers?.[provider] ?? {};
 
   const apiKey =
     update.apiKey === undefined
@@ -154,7 +202,13 @@ export async function upsertProvider(
       ? current.baseUrl
       : update.baseUrl.trim() || undefined;
 
-  config.providers[provider] = {
+  if (!config[category]) {
+    config[category] = createEmptyCategoryConfig();
+  }
+  if (!config[category].providers) {
+    config[category].providers = {};
+  }
+  config[category].providers[provider] = {
     ...current,
     apiKey,
     baseUrl,
@@ -166,12 +220,12 @@ export async function upsertProvider(
     if (!apiKey) {
       throw new Error('Cannot set inactive provider as primary');
     }
-    config.primaryProvider = provider;
+    config[category].primaryProvider = provider;
   } else if (
     update.setAsPrimary === false &&
-    config.primaryProvider === provider
+    config[category].primaryProvider === provider
   ) {
-    config.primaryProvider = null;
+    config[category].primaryProvider = null;
   }
 
   await saveUiConfig(config);
@@ -185,13 +239,14 @@ export async function upsertProvider(
       apiKeyMasked,
       baseUrl,
       status,
-      lastSyncedAt: config.providers[provider]?.lastSyncedAt,
-      isPrimary: config.primaryProvider === provider,
+      lastSyncedAt: config[category].providers[provider]?.lastSyncedAt,
+      isPrimary: config[category].primaryProvider === provider,
     },
   };
 }
 
 export async function setPrimaryProvider(
+  category: ModelCategory,
   provider: ProviderId
 ): Promise<{ primaryProvider: ProviderId | null }> {
   if (!SUPPORTED_PROVIDERS.includes(provider)) {
@@ -199,24 +254,24 @@ export async function setPrimaryProvider(
   }
 
   const config = await loadUiConfig();
-  const p = config.providers?.[provider];
+  const p = config[category]?.providers?.[provider];
 
   // Verify provider is connected (has apiKey)
   if (!p?.apiKey?.trim()) {
     throw new Error('Cannot set inactive provider as primary');
   }
 
-  config.primaryProvider = provider;
+  config[category].primaryProvider = provider;
   await saveUiConfig(config);
 
-  return { primaryProvider: config.primaryProvider };
+  return { primaryProvider: config[category].primaryProvider };
 }
 
-export async function unsetPrimaryProvider(): Promise<{
+export async function unsetPrimaryProvider(category: ModelCategory): Promise<{
   primaryProvider: null;
 }> {
   const config = await loadUiConfig();
-  config.primaryProvider = null;
+  config[category].primaryProvider = null;
   await saveUiConfig(config);
 
   return { primaryProvider: null };

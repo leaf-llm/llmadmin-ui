@@ -6,6 +6,9 @@ import {
   updateProvider,
   syncConfig,
 } from '../api/adminClient';
+import CategoryTabs from '../components/CategoryTabs';
+import { ModelCategory } from '../types/models';
+import { getModelsByProvider } from '../config/modelCategories';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string };
 
@@ -21,6 +24,7 @@ export default function ProvidersPage() {
     new Set()
   );
   const [copied, setCopied] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<ModelCategory>('text');
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(GATEWAY_URL);
@@ -34,7 +38,7 @@ export default function ProvidersPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await getProviders();
+        const res = await getProviders(activeCategory);
         if (cancelled) return;
         setProviders(res.providers);
         const nextDrafts: Record<string, Draft> = {};
@@ -58,7 +62,7 @@ export default function ProvidersPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeCategory]);
 
   const canSave = useMemo(() => {
     if (!savingProvider) return true;
@@ -89,9 +93,9 @@ export default function ProvidersPage() {
             apiKey: draft?.apiKey ? draft.apiKey : undefined,
             baseUrl: draft?.baseUrl || undefined,
           };
-          await updateProvider(p.provider, req);
-          await syncConfig();
-          const refreshed = await getProviders();
+          await updateProvider(activeCategory, p.provider, req);
+          await syncConfig(activeCategory);
+          const refreshed = await getProviders(activeCategory);
           setProviders(refreshed.providers);
           const nextDrafts: Record<string, Draft> = {};
           for (const pp of refreshed.providers) {
@@ -179,6 +183,10 @@ export default function ProvidersPage() {
         <span className="copy-hint">{copied ? '已复制' : '点击复制'}</span>
       </div>
       <h1 className="page-title">Providers</h1>
+      <CategoryTabs
+        activeCategory={activeCategory}
+        onCategoryChange={setActiveCategory}
+      />
 
       {error ? <div className="error">{error}</div> : null}
       {loading ? <div className="muted">Loading providers...</div> : null}
@@ -232,11 +240,16 @@ export default function ProvidersPage() {
                                 className="secondary small"
                                 onClick={async () => {
                                   try {
-                                    await updateProvider(p.provider, {
-                                      setAsPrimary: true,
-                                    });
-                                    await syncConfig();
-                                    const refreshed = await getProviders();
+                                    await updateProvider(
+                                      activeCategory,
+                                      p.provider,
+                                      {
+                                        setAsPrimary: true,
+                                      }
+                                    );
+                                    await syncConfig(activeCategory);
+                                    const refreshed =
+                                      await getProviders(activeCategory);
                                     setProviders(refreshed.providers);
                                   } catch (e: any) {
                                     setError(e?.message ?? String(e));
@@ -251,11 +264,16 @@ export default function ProvidersPage() {
                                 className="secondary small"
                                 onClick={async () => {
                                   try {
-                                    await updateProvider(p.provider, {
-                                      setAsPrimary: false,
-                                    });
-                                    await syncConfig();
-                                    const refreshed = await getProviders();
+                                    await updateProvider(
+                                      activeCategory,
+                                      p.provider,
+                                      {
+                                        setAsPrimary: false,
+                                      }
+                                    );
+                                    await syncConfig(activeCategory);
+                                    const refreshed =
+                                      await getProviders(activeCategory);
                                     setProviders(refreshed.providers);
                                   } catch (e: any) {
                                     setError(e?.message ?? String(e));
@@ -276,6 +294,33 @@ export default function ProvidersPage() {
                         {isExpanded && (
                           <div className="provider-expand-content">
                             {renderProviderForm(p)}
+                            <div className="provider-models">
+                              <div className="models-title">
+                                Available Models ({activeCategory})
+                              </div>
+                              <div className="models-list">
+                                {(() => {
+                                  const models = getModelsByProvider(
+                                    p.provider
+                                  );
+                                  const filtered = models.filter(
+                                    (m) => m.category === activeCategory
+                                  );
+                                  if (filtered.length === 0) {
+                                    return (
+                                      <span className="muted">
+                                        No {activeCategory} models available
+                                      </span>
+                                    );
+                                  }
+                                  return filtered.map((m) => (
+                                    <span key={m.model} className="model-badge">
+                                      {m.model}
+                                    </span>
+                                  ));
+                                })()}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
