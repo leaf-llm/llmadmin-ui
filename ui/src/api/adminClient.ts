@@ -1,5 +1,11 @@
 export type ProviderId = string;
 
+export type RoutingEntry = {
+  provider: ProviderId;
+  model: string;
+  isPrimary?: boolean;
+};
+
 export type ProviderSummary = {
   provider: ProviderId;
   apiKeyMasked?: string;
@@ -7,6 +13,7 @@ export type ProviderSummary = {
   status?: 'connected' | 'disconnected' | 'unknown';
   lastSyncedAt?: string;
   isPrimary?: boolean;
+  routing?: RoutingEntry[];
 };
 
 export type ProviderUpdateRequest = {
@@ -177,4 +184,72 @@ export async function deleteConfig(
   return adminFetch<{ ok: boolean }>(path, {
     method: 'DELETE',
   });
+}
+
+export async function getRouting(category?: string): Promise<{
+  routing: RoutingEntry[];
+}> {
+  const u = new URL('/admin/routing', window.location.origin);
+  if (category) {
+    u.searchParams.set('category', category);
+  }
+  const qs = u.searchParams.toString();
+  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
+  return adminFetch<{ routing: RoutingEntry[] }>(path);
+}
+
+export async function addRoutingModel(
+  category: string,
+  provider: ProviderId,
+  model: string,
+  isPrimary?: boolean
+): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
+  const u = new URL(
+    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}`,
+    window.location.origin
+  );
+  u.searchParams.set('category', category);
+  return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
+    u.pathname + u.search,
+    {
+      method: 'POST',
+      body: JSON.stringify({ isPrimary }),
+    }
+  );
+}
+
+export async function updateRoutingPrimary(
+  category: string,
+  provider: ProviderId,
+  model: string,
+  isPrimary: boolean
+): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
+  const u = new URL(
+    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}`,
+    window.location.origin
+  );
+  u.searchParams.set('category', category);
+  return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
+    u.pathname + u.search,
+    {
+      method: 'PUT',
+      body: JSON.stringify({ isPrimary }),
+    }
+  );
+}
+
+export async function removeRoutingModel(
+  category: string,
+  provider: ProviderId,
+  model: string
+): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
+  const u = new URL(
+    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}`,
+    window.location.origin
+  );
+  u.searchParams.set('category', category);
+  return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
+    u.pathname + u.search,
+    { method: 'DELETE' }
+  );
 }

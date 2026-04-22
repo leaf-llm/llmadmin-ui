@@ -9,6 +9,7 @@ import {
   ProviderSummary,
   ProviderStatus,
   ProviderUpdateRequest,
+  RoutingEntry,
 } from '../types';
 
 export const SUPPORTED_PROVIDERS: ProviderId[] = [
@@ -42,6 +43,7 @@ type ProviderConfig = {
 type CategoryConfig = {
   providers: Record<ProviderId, ProviderConfig | undefined>;
   primaryProvider: ProviderId | null;
+  routing: RoutingEntry[];
   userConfig: Record<string, unknown> | null;
 };
 
@@ -91,11 +93,31 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
       // Legacy format - migrate to per-category structure
       const legacy = parsed as LegacyUiConfigFile;
       const migrated: UiConfigFile = {
-        text: { ...legacy },
-        image: { providers: {}, primaryProvider: null, userConfig: null },
-        video: { providers: {}, primaryProvider: null, userConfig: null },
-        audio: { providers: {}, primaryProvider: null, userConfig: null },
-        mcp: { providers: {}, primaryProvider: null, userConfig: null },
+        text: { ...legacy, routing: [] },
+        image: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
+        video: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
+        audio: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
+        mcp: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
       };
       // Save migrated format back
       await saveUiConfig(migrated);
@@ -108,11 +130,36 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     if (e?.code === 'ENOENT') {
       // Return default per-category structure
       const defaultConfig: UiConfigFile = {
-        text: { providers: {}, primaryProvider: null, userConfig: null },
-        image: { providers: {}, primaryProvider: null, userConfig: null },
-        video: { providers: {}, primaryProvider: null, userConfig: null },
-        audio: { providers: {}, primaryProvider: null, userConfig: null },
-        mcp: { providers: {}, primaryProvider: null, userConfig: null },
+        text: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
+        image: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
+        video: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
+        audio: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
+        mcp: {
+          providers: {},
+          primaryProvider: null,
+          routing: [],
+          userConfig: null,
+        },
       };
       return defaultConfig;
     }
@@ -121,7 +168,12 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
 }
 
 function createEmptyCategoryConfig(): CategoryConfig {
-  return { providers: {}, primaryProvider: null, userConfig: null };
+  return {
+    providers: {},
+    primaryProvider: null,
+    routing: [],
+    userConfig: null,
+  };
 }
 
 async function saveUiConfig(config: UiConfigFile) {
@@ -164,6 +216,10 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
     const apiKey = p?.apiKey?.trim();
     const status: ProviderStatus = apiKey ? 'connected' : 'disconnected';
 
+    // Get routing entries for this provider
+    const routing =
+      categoryConfig?.routing?.filter((r) => r.provider === provider) ?? [];
+
     return {
       provider,
       apiKeyMasked: apiKey ? maskApiKey(apiKey) : undefined,
@@ -171,6 +227,7 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
       status,
       lastSyncedAt: p?.lastSyncedAt,
       isPrimary: provider === categoryConfig?.primaryProvider,
+      routing: routing.length > 0 ? routing : undefined,
     };
   });
 
@@ -275,6 +332,90 @@ export async function unsetPrimaryProvider(category: ModelCategory): Promise<{
   await saveUiConfig(config);
 
   return { primaryProvider: null };
+}
+
+export async function listRouting(category: ModelCategory): Promise<{
+  routing: RoutingEntry[];
+}> {
+  const config = await loadUiConfig();
+  return { routing: config[category]?.routing ?? [] };
+}
+
+export async function addToRouting(
+  category: ModelCategory,
+  provider: ProviderId,
+  model: string,
+  isPrimary?: boolean
+): Promise<{ routing: RoutingEntry[] }> {
+  if (!SUPPORTED_PROVIDERS.includes(provider)) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  const config = await loadUiConfig();
+  if (!config[category].routing) {
+    config[category].routing = [];
+  }
+
+  // Check if already exists
+  const exists = config[category].routing.some(
+    (r) => r.provider === provider && r.model === model
+  );
+  if (!exists) {
+    config[category].routing.push({ provider, model, isPrimary });
+  }
+
+  await saveUiConfig(config);
+  return { routing: config[category].routing };
+}
+
+export async function removeFromRouting(
+  category: ModelCategory,
+  provider: ProviderId,
+  model: string
+): Promise<{ routing: RoutingEntry[] }> {
+  if (!SUPPORTED_PROVIDERS.includes(provider)) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  const config = await loadUiConfig();
+  if (!config[category].routing) {
+    config[category].routing = [];
+  }
+
+  config[category].routing = config[category].routing.filter(
+    (r) => !(r.provider === provider && r.model === model)
+  );
+
+  await saveUiConfig(config);
+  return { routing: config[category].routing };
+}
+
+export async function updateRoutingPrimary(
+  category: ModelCategory,
+  provider: ProviderId,
+  model: string,
+  isPrimary: boolean
+): Promise<{ routing: RoutingEntry[] }> {
+  if (!SUPPORTED_PROVIDERS.includes(provider)) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  const config = await loadUiConfig();
+  if (!config[category].routing) {
+    config[category].routing = [];
+  }
+
+  const entry = config[category].routing.find(
+    (r) => r.provider === provider && r.model === model
+  );
+  if (entry) {
+    entry.isPrimary = isPrimary;
+  } else {
+    throw new Error('Routing entry not found');
+  }
+
+  await saveUiConfig(config);
+  return { routing: config[category].routing };
 }
 
 export async function getProviderCredentialsForBilling(

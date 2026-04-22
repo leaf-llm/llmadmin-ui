@@ -5,6 +5,11 @@ import {
   ProviderUpdateRequest,
   updateProvider,
   syncConfig,
+  getRouting,
+  addRoutingModel,
+  removeRoutingModel,
+  updateRoutingPrimary,
+  RoutingEntry,
 } from '../api/adminClient';
 import CategoryTabs from '../components/CategoryTabs';
 import { ModelCategory } from '../types/models';
@@ -16,6 +21,7 @@ const GATEWAY_URL = 'http://127.0.0.1:8787';
 
 export default function ProvidersPage() {
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
+  const [routing, setRouting] = useState<RoutingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingProvider, setSavingProvider] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +31,14 @@ export default function ProvidersPage() {
   );
   const [copied, setCopied] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ModelCategory>('text');
+
+  // Model selection dialog state
+  const [showModelDialog, setShowModelDialog] = useState(false);
+  const [modelDialogProvider, setModelDialogProvider] = useState<string | null>(
+    null
+  );
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [addingModels, setAddingModels] = useState(false);
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(GATEWAY_URL);
@@ -38,11 +52,15 @@ export default function ProvidersPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await getProviders(activeCategory);
+        const [providersRes, routingRes] = await Promise.all([
+          getProviders(activeCategory),
+          getRouting(activeCategory),
+        ]);
         if (cancelled) return;
-        setProviders(res.providers);
+        setProviders(providersRes.providers);
+        setRouting(routingRes.routing);
         const nextDrafts: Record<string, Draft> = {};
-        for (const p of res.providers) {
+        for (const p of providersRes.providers) {
           nextDrafts[p.provider] = {
             apiKey: undefined,
             baseUrl: p.baseUrl ?? '',
@@ -79,6 +97,76 @@ export default function ProvidersPage() {
       }
       return next;
     });
+  };
+
+  const openModelDialog = (provider: string) => {
+    setModelDialogProvider(provider);
+    setSelectedModels([]);
+    setShowModelDialog(true);
+  };
+
+  const closeModelDialog = () => {
+    setShowModelDialog(false);
+    setModelDialogProvider(null);
+    setSelectedModels([]);
+  };
+
+  const handleAddModels = async () => {
+    if (!modelDialogProvider || selectedModels.length === 0) return;
+    setAddingModels(true);
+    try {
+      for (const model of selectedModels) {
+        await addRoutingModel(activeCategory, modelDialogProvider, model);
+      }
+      const routingRes = await getRouting(activeCategory);
+      setRouting(routingRes.routing);
+      // Refresh providers to update their routing info
+      const providersRes = await getProviders(activeCategory);
+      setProviders(providersRes.providers);
+      closeModelDialog();
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setAddingModels(false);
+    }
+  };
+
+  const handleRemoveFromRouting = async (provider: string, model: string) => {
+    try {
+      await removeRoutingModel(activeCategory, provider, model);
+      const routingRes = await getRouting(activeCategory);
+      setRouting(routingRes.routing);
+      // Refresh providers to update their routing info
+      const providersRes = await getProviders(activeCategory);
+      setProviders(providersRes.providers);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    }
+  };
+
+  const handleTogglePrimary = async (
+    provider: string,
+    model: string,
+    currentIsPrimary: boolean
+  ) => {
+    try {
+      await updateRoutingPrimary(
+        activeCategory,
+        provider,
+        model,
+        !currentIsPrimary
+      );
+      const routingRes = await getRouting(activeCategory);
+      setRouting(routingRes.routing);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    }
+  };
+
+  const toggleModelSelection = (model: string) => {
+    setSelectedModels((prev) =>
+      prev.includes(model) ? prev.filter((m) => m !== model) : [...prev, model]
+    );
   };
 
   const renderSaveButton = (p: ProviderSummary) => (
@@ -199,90 +287,174 @@ export default function ProvidersPage() {
       ) : null}
 
       {(() => {
-        const pinnedProviders = providers
-          .filter((p) => p.status === 'connected')
-          .sort((a, b) => {
-            if (a.isPrimary && !b.isPrimary) return -1;
-            if (!a.isPrimary && b.isPrimary) return 1;
-            return 0;
-          });
-        const otherProviders = providers.filter(
+        // Providers with api_key configured
+        const activeProviders = providers.filter(
+          (p) => p.status === 'connected'
+        );
+        // Providers without api_key
+        const disconnectedProviders = providers.filter(
           (p) => p.status !== 'connected'
         );
+        // Get models already in routing for each provider
+        const routedProviderModels = new Map<string, string[]>();
+        for (const entry of routing) {
+          const existing = routedProviderModels.get(entry.provider) ?? [];
+          existing.push(entry.model);
+          routedProviderModels.set(entry.provider, existing);
+        }
         return (
           <>
-            {pinnedProviders.length > 0 && (
+            {/* Routing Section */}
+            {routing.length > 0 && (
+              <div className="pinned-section">
+                <h2 className="section-title">Routing</h2>
+                {(() => {
+                  const primaryEntries = routing.filter((e) => e.isPrimary);
+                  const lbEntries = routing.filter((e) => !e.isPrimary);
+                  return (
+                    <div className="routing-groups">
+                      {primaryEntries.length > 0 && (
+                        <div className="routing-group routing-group--primary">
+                          <div className="routing-group-header">
+                            <span className="routing-group-icon">★</span>
+                            <span className="routing-group-label">
+                              Primary / Fallback
+                            </span>
+                          </div>
+                          <div className="routing-list">
+                            {primaryEntries.map((entry) => (
+                              <div
+                                key={`${entry.provider}-${entry.model}`}
+                                className="routing-item is-primary"
+                              >
+                                <div className="routing-info">
+                                  <span className="routing-provider">
+                                    {entry.provider}
+                                  </span>
+                                  <span className="routing-separator">/</span>
+                                  <span className="routing-model">
+                                    {entry.model}
+                                  </span>
+                                </div>
+                                <div className="routing-actions">
+                                  <button
+                                    className="secondary small"
+                                    onClick={() =>
+                                      handleTogglePrimary(
+                                        entry.provider,
+                                        entry.model,
+                                        true
+                                      )
+                                    }
+                                  >
+                                    Remove Primary
+                                  </button>
+                                  <button
+                                    className="routing-delete"
+                                    onClick={() =>
+                                      handleRemoveFromRouting(
+                                        entry.provider,
+                                        entry.model
+                                      )
+                                    }
+                                    title="Remove from routing"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {lbEntries.length > 0 && (
+                        <div className="routing-group routing-group--lb">
+                          <div className="routing-group-header">
+                            <span className="routing-group-icon">⟳</span>
+                            <span className="routing-group-label">
+                              Load Balancing
+                            </span>
+                          </div>
+                          <div className="routing-list">
+                            {lbEntries.map((entry) => (
+                              <div
+                                key={`${entry.provider}-${entry.model}`}
+                                className="routing-item"
+                              >
+                                <div className="routing-info">
+                                  <span className="routing-provider">
+                                    {entry.provider}
+                                  </span>
+                                  <span className="routing-separator">/</span>
+                                  <span className="routing-model">
+                                    {entry.model}
+                                  </span>
+                                </div>
+                                <div className="routing-actions">
+                                  <button
+                                    className="secondary small"
+                                    onClick={() =>
+                                      handleTogglePrimary(
+                                        entry.provider,
+                                        entry.model,
+                                        false
+                                      )
+                                    }
+                                  >
+                                    Set as Primary
+                                  </button>
+                                  <button
+                                    className="routing-delete"
+                                    onClick={() =>
+                                      handleRemoveFromRouting(
+                                        entry.provider,
+                                        entry.model
+                                      )
+                                    }
+                                    title="Remove from routing"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Active Providers Section */}
+            {activeProviders.length > 0 && (
               <div className="pinned-section">
                 <h2 className="section-title">Active Providers</h2>
                 <div className="provider-list">
-                  {pinnedProviders.map((p) => {
+                  {activeProviders.map((p) => {
                     const isExpanded = expandedProviders.has(p.provider);
+                    const routedModels =
+                      routedProviderModels.get(p.provider) ?? [];
                     return (
                       <div className="provider-list-item" key={p.provider}>
                         <div className="provider-list-row">
                           <div className="provider-info">
-                            {p.isPrimary && (
-                              <span
-                                className="primary-star"
-                                title="Primary Provider"
-                              >
-                                ★
-                              </span>
-                            )}
                             <span className="provider-name">{p.provider}</span>
-                            {p.isPrimary && (
-                              <span className="primary-badge">Primary</span>
+                            {routedModels.length > 0 && (
+                              <span className="routed-badge">
+                                {routedModels.length} model
+                                {routedModels.length > 1 ? 's' : ''} in routing
+                              </span>
                             )}
                           </div>
                           <div className="provider-actions">
-                            {!p.isPrimary && (
-                              <button
-                                className="secondary small"
-                                onClick={async () => {
-                                  try {
-                                    await updateProvider(
-                                      activeCategory,
-                                      p.provider,
-                                      {
-                                        setAsPrimary: true,
-                                      }
-                                    );
-                                    await syncConfig(activeCategory);
-                                    const refreshed =
-                                      await getProviders(activeCategory);
-                                    setProviders(refreshed.providers);
-                                  } catch (e: any) {
-                                    setError(e?.message ?? String(e));
-                                  }
-                                }}
-                              >
-                                Set as Primary
-                              </button>
-                            )}
-                            {p.isPrimary && (
-                              <button
-                                className="secondary small"
-                                onClick={async () => {
-                                  try {
-                                    await updateProvider(
-                                      activeCategory,
-                                      p.provider,
-                                      {
-                                        setAsPrimary: false,
-                                      }
-                                    );
-                                    await syncConfig(activeCategory);
-                                    const refreshed =
-                                      await getProviders(activeCategory);
-                                    setProviders(refreshed.providers);
-                                  } catch (e: any) {
-                                    setError(e?.message ?? String(e));
-                                  }
-                                }}
-                              >
-                                Remove Primary
-                              </button>
-                            )}
+                            <button
+                              className="secondary small"
+                              onClick={() => openModelDialog(p.provider)}
+                            >
+                              Add to Routing
+                            </button>
                             <button
                               className="expand-btn"
                               onClick={() => toggleExpanded(p.provider)}
@@ -294,33 +466,6 @@ export default function ProvidersPage() {
                         {isExpanded && (
                           <div className="provider-expand-content">
                             {renderProviderForm(p)}
-                            <div className="provider-models">
-                              <div className="models-title">
-                                Available Models ({activeCategory})
-                              </div>
-                              <div className="models-list">
-                                {(() => {
-                                  const models = getModelsByProvider(
-                                    p.provider
-                                  );
-                                  const filtered = models.filter(
-                                    (m) => m.category === activeCategory
-                                  );
-                                  if (filtered.length === 0) {
-                                    return (
-                                      <span className="muted">
-                                        No {activeCategory} models available
-                                      </span>
-                                    );
-                                  }
-                                  return filtered.map((m) => (
-                                    <span key={m.model} className="model-badge">
-                                      {m.model}
-                                    </span>
-                                  ));
-                                })()}
-                              </div>
-                            </div>
                           </div>
                         )}
                       </div>
@@ -330,14 +475,15 @@ export default function ProvidersPage() {
               </div>
             )}
 
-            {otherProviders.length > 0 && (
+            {/* All Providers (disconnected) Section */}
+            {disconnectedProviders.length > 0 && (
               <>
-                {pinnedProviders.length > 0 && (
+                {(activeProviders.length > 0 || routing.length > 0) && (
                   <div className="section-divider" />
                 )}
                 <h2 className="section-title">All Providers</h2>
                 <div className="grid">
-                  {otherProviders.map((p) => (
+                  {disconnectedProviders.map((p) => (
                     <div className="card" key={p.provider}>
                       <div className="card__title">
                         {p.provider}{' '}
@@ -354,6 +500,69 @@ export default function ProvidersPage() {
           </>
         );
       })()}
+
+      {/* Model Selection Dialog */}
+      {showModelDialog && modelDialogProvider && (
+        <div className="dialog-overlay" onClick={closeModelDialog}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-header">
+              <h3>Select Models - {modelDialogProvider}</h3>
+              <button className="dialog-close" onClick={closeModelDialog}>
+                ×
+              </button>
+            </div>
+            <div className="dialog-body">
+              {(() => {
+                const allModels = getModelsByProvider(modelDialogProvider);
+                const filtered = allModels.filter(
+                  (m) => m.category === activeCategory
+                );
+                const routedModels = new Set(
+                  routing
+                    .filter((r) => r.provider === modelDialogProvider)
+                    .map((r) => r.model)
+                );
+                if (filtered.length === 0) {
+                  return (
+                    <div className="muted">
+                      No {activeCategory} models available for{' '}
+                      {modelDialogProvider}
+                    </div>
+                  );
+                }
+                return filtered.map((m) => (
+                  <label key={m.model} className="model-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedModels.includes(m.model)}
+                      onChange={() => toggleModelSelection(m.model)}
+                      disabled={routedModels.has(m.model)}
+                    />
+                    <span className="model-name">{m.model}</span>
+                    {routedModels.has(m.model) && (
+                      <span className="muted"> (already in routing)</span>
+                    )}
+                  </label>
+                ));
+              })()}
+            </div>
+            <div className="dialog-footer">
+              <button className="secondary" onClick={closeModelDialog}>
+                Cancel
+              </button>
+              <button
+                className="primary"
+                disabled={selectedModels.length === 0 || addingModels}
+                onClick={handleAddModels}
+              >
+                {addingModels
+                  ? 'Adding...'
+                  : `Add ${selectedModels.length} Model${selectedModels.length > 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

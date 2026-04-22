@@ -12,6 +12,12 @@ export const MODEL_CATEGORIES: ModelCategory[] = [
 
 export type ProviderStatus = 'connected' | 'disconnected' | 'unknown';
 
+export type RoutingEntry = {
+  provider: ProviderId;
+  model: string;
+  isPrimary?: boolean;
+};
+
 export type ProviderSummary = {
   provider: ProviderId;
   apiKeyMasked?: string;
@@ -19,12 +25,15 @@ export type ProviderSummary = {
   status?: ProviderStatus;
   lastSyncedAt?: string;
   isPrimary?: boolean;
+  routing?: RoutingEntry[];
 };
 
 export type ProviderUpdateRequest = {
   apiKey?: string;
   baseUrl?: string;
   setAsPrimary?: boolean;
+  addModels?: string[];
+  removeModels?: string[];
 };
 
 export type UsageByModel = {

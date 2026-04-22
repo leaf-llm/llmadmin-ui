@@ -351,3 +351,220 @@ button.secondary.small {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+/* Routing styles */
+.routing-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.routing-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.routing-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.routing-group--primary .routing-group-header {
+  color: #1d4ed8;
+}
+
+.routing-group--lb .routing-group-header {
+  color: rgba(17, 24, 39, 0.6);
+}
+
+.routing-group-icon {
+  font-size: 14px;
+}
+
+.routing-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.routing-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 6px;
+}
+
+.routing-item.is-primary {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(37, 99, 235, 0.08) 100%);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.routing-item.is-primary::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #1d4ed8;
+  border-radius: 6px 0 0 6px;
+}
+
+.routing-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.routing-provider {
+  font-weight: 600;
+  color: #1d4ed8;
+  white-space: nowrap;
+}
+
+.routing-separator {
+  color: rgba(17, 24, 39, 0.3);
+  flex-shrink: 0;
+}
+
+.routing-model {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.routing-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.routing-delete {
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  background: transparent;
+  color: #b91c1c;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.routing-delete:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.routed-badge {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Dialog styles */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.dialog {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.dialog-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.dialog-close {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.dialog-close:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.dialog-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.model-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.model-checkbox:hover {
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.model-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.model-checkbox .model-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+}
+
