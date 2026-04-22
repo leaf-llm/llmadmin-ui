@@ -295,12 +295,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                         </div>
                         <div className="provider-actions">
                           <button
-                            className="secondary small"
-                            onClick={() => openModelDialog(p.provider)}
-                          >
-                            Add to Routing
-                          </button>
-                          <button
                             className="expand-btn"
                             onClick={() => toggleExpanded(p.provider)}
                           >
