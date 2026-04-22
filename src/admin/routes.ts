@@ -7,6 +7,10 @@ import {
   loadUserConfig,
   saveUserConfig,
   loadUiConfig,
+  listRouting,
+  addToRouting,
+  removeFromRouting,
+  updateRoutingPrimary,
 } from './config/store';
 import { getUsage } from './billing';
 import {
@@ -14,6 +18,7 @@ import {
   MODEL_CATEGORIES,
   ProviderId,
   ProviderUpdateRequest,
+  RoutingEntry,
 } from './types';
 
 const adminApp = new Hono();
@@ -68,65 +73,64 @@ adminApp.get('/config', async (c) => {
 });
 
 /**
- * Auto-generate Portkey config from active providers.
- * - Has primary: primary as main, others as fallback (loadbalance on 429/500/503/504)
- * - No primary: all active providers in loadbalance
+ * Auto-generate Portkey config from routing entries.
+ * - Has primary models: primary models first, others as fallback (loadbalance on 429/500/503/504)
+ * - No primary: all routing models in loadbalance
  */
 async function generateConfigFromProviders(
   category: ModelCategory
 ): Promise<Record<string, unknown>> {
   const uiConfig = await loadUiConfig();
   const categoryConfig = uiConfig[category];
-  const { providers, primaryProvider } = categoryConfig;
+  const { providers, routing } = categoryConfig;
 
-  const activeProviders: Array<{
-    provider: string;
-    apiKey: string;
-    baseUrl?: string;
-  }> = [];
-  for (const [provider, p] of Object.entries(providers)) {
-    if (p?.apiKey?.trim()) {
-      activeProviders.push({
-        provider,
-        apiKey: p.apiKey!.trim(),
-        baseUrl: p.baseUrl?.trim() || undefined,
-      });
-    }
+  if (!routing || routing.length === 0) {
+    throw new Error('No models in routing. Add models to routing first.');
   }
 
-  if (activeProviders.length === 0) {
-    throw new Error(
-      'No active providers configured. Add provider API keys first.'
-    );
-  }
-
-  const targets = activeProviders.map((p) => {
-    const target: Record<string, unknown> = {
-      provider: p.provider,
-      api_key: p.apiKey,
-    };
-    if (p.baseUrl) {
-      target.custom_host = p.baseUrl;
-    }
-    return target;
+  // Sort: primary entries first
+  const sortedRouting = [...routing].sort((a, b) => {
+    if (a.isPrimary && !b.isPrimary) return -1;
+    if (!a.isPrimary && b.isPrimary) return 1;
+    return 0;
   });
 
-  // Has primary → fallback strategy with primary first
-  if (primaryProvider && activeProviders.length > 1) {
-    const primary = targets.find((t) => t.provider === primaryProvider);
-    if (primary) {
-      const fallbacks = targets.filter((t) => t.provider !== primaryProvider);
-      return {
-        strategy: {
-          mode: 'fallback',
-          on_status_codes: [429, 500, 502, 503, 504],
-        },
-        targets: [primary, ...fallbacks],
-      };
+  // Build targets from routing entries (sorted)
+  const targets: Record<string, unknown>[] = [];
+  for (const entry of sortedRouting) {
+    const p = providers[entry.provider];
+    if (!p?.apiKey?.trim()) {
+      continue; // Skip if provider has no apiKey
     }
+    const target: Record<string, unknown> = {
+      provider: entry.provider,
+      api_key: p.apiKey.trim(),
+    };
+    if (p.baseUrl?.trim()) {
+      target.custom_host = p.baseUrl.trim();
+    }
+    targets.push(target);
   }
 
-  // No primary or single provider → loadbalance all
+  if (targets.length === 0) {
+    throw new Error('No valid routing entries. Add models to routing first.');
+  }
+
+  // Check if there are primary entries
+  const hasPrimary = sortedRouting.some((r) => r.isPrimary);
+
+  // Has primary → fallback strategy with primary first
+  if (hasPrimary && targets.length > 1) {
+    return {
+      strategy: {
+        mode: 'fallback',
+        on_status_codes: [429, 500, 502, 503, 504],
+      },
+      targets,
+    };
+  }
+
+  // No primary → loadbalance all
   return {
     strategy: {
       mode: 'loadbalance',
@@ -163,6 +167,8 @@ const ProviderUpdateSchema: z.ZodSchema<ProviderUpdateRequest> = z
     apiKey: z.string().optional(),
     baseUrl: z.string().optional(),
     setAsPrimary: z.boolean().optional(),
+    addModels: z.array(z.string()).optional(),
+    removeModels: z.array(z.string()).optional(),
   })
   .partial();
 
@@ -184,6 +190,73 @@ adminApp.put('/providers/:provider', async (c) => {
 
   const res = await upsertProvider(category, provider, parsed.data);
   return c.json({ ok: true, ...res });
+});
+
+// Routing endpoints
+adminApp.get('/routing', async (c) => {
+  const category = getCategoryParam(c);
+  const res = await listRouting(category);
+  return c.json(res);
+});
+
+const RoutingPostSchema = z.object({
+  isPrimary: z.boolean().optional(),
+});
+
+adminApp.post('/routing/:provider/:model', async (c) => {
+  const category = getCategoryParam(c);
+  const provider = c.req.param('provider') as ProviderId;
+  const model = c.req.param('model');
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = RoutingPostSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ ok: false, message: 'Invalid request body' }, 400);
+  }
+  try {
+    const res = await addToRouting(
+      category,
+      provider,
+      model,
+      parsed.data.isPrimary
+    );
+    return c.json({ ok: true, routing: res.routing });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 400);
+  }
+});
+
+adminApp.put('/routing/:provider/:model', async (c) => {
+  const category = getCategoryParam(c);
+  const provider = c.req.param('provider') as ProviderId;
+  const model = c.req.param('model');
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = RoutingPostSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ ok: false, message: 'Invalid request body' }, 400);
+  }
+  try {
+    const res = await updateRoutingPrimary(
+      category,
+      provider,
+      model,
+      parsed.data.isPrimary ?? false
+    );
+    return c.json({ ok: true, routing: res.routing });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 400);
+  }
+});
+
+adminApp.delete('/routing/:provider/:model', async (c) => {
+  const category = getCategoryParam(c);
+  const provider = c.req.param('provider') as ProviderId;
+  const model = c.req.param('model');
+  try {
+    const res = await removeFromRouting(category, provider, model);
+    return c.json({ ok: true, routing: res.routing });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 400);
+  }
 });
 
 const UsageQuerySchema = z.object({
