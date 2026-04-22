@@ -568,3 +568,65 @@ button.secondary.small {
   font-size: 13px;
 }
 
+/* Section title row (title + action button) */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.section-title-row .section-title {
+  margin-bottom: 0;
+}
+
+/* Back button */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  color: rgba(17, 24, 39, 0.8);
+}
+
+.back-btn:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+/* Status badge */
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-badge--connected {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+/* Small primary button */
+button.primary.small {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+/* Full-page mode (AllProvidersPage) */
+.app-main--full {
+  max-width: 100%;
+  padding: 0;
+}
+
+.all-providers-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 18px 16px;
+}
+
