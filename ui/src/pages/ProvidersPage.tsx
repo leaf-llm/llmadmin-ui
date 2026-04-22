@@ -19,7 +19,13 @@ type Draft = ProviderUpdateRequest & { apiKeyMasked?: string };
 
 const GATEWAY_URL = 'http://127.0.0.1:8787';
 
-export default function ProvidersPage() {
+interface ProvidersPageProps {
+  onNavigateAllProviders: () => void;
+}
+
+export default function ProvidersPage({
+  onNavigateAllProviders,
+}: ProvidersPageProps) {
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [routing, setRouting] = useState<RoutingEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -428,9 +434,21 @@ export default function ProvidersPage() {
             )}
 
             {/* Active Providers Section */}
-            {activeProviders.length > 0 && (
-              <div className="pinned-section">
+            <div className="pinned-section">
+              <div className="section-title-row">
                 <h2 className="section-title">Active Providers</h2>
+                <button
+                  className="primary small"
+                  onClick={onNavigateAllProviders}
+                >
+                  ＋ Add Provider
+                </button>
+              </div>
+              {activeProviders.length === 0 ? (
+                <div className="notice">
+                  No active providers. Click "＋ Add Provider" to configure one.
+                </div>
+              ) : (
                 <div className="provider-list">
                   {activeProviders.map((p) => {
                     const isExpanded = expandedProviders.has(p.provider);
@@ -472,31 +490,8 @@ export default function ProvidersPage() {
                     );
                   })}
                 </div>
-              </div>
-            )}
-
-            {/* All Providers (disconnected) Section */}
-            {disconnectedProviders.length > 0 && (
-              <>
-                {(activeProviders.length > 0 || routing.length > 0) && (
-                  <div className="section-divider" />
-                )}
-                <h2 className="section-title">All Providers</h2>
-                <div className="grid">
-                  {disconnectedProviders.map((p) => (
-                    <div className="card" key={p.provider}>
-                      <div className="card__title">
-                        {p.provider}{' '}
-                        <span className="muted" style={{ fontWeight: 400 }}>
-                          ({p.status ?? 'unknown'})
-                        </span>
-                      </div>
-                      {renderProviderForm(p)}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+              )}
+            </div>
           </>
         );
       })()}

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ProvidersPage from './pages/ProvidersPage';
+import AllProvidersPage from './pages/AllProvidersPage';
 import UsagePage from './pages/UsagePage';
 import SettingsPage from './pages/SettingsPage';
 
-type Page = 'providers' | 'usage' | 'settings';
+type Page = 'providers' | 'all-providers' | 'usage' | 'settings';
 
 function Header({
   active,
@@ -75,9 +76,24 @@ export default function App() {
 
   return (
     <div className="app-root">
-      <Header active={activePage} onNavigate={handleNavigate} />
-      <main className="app-main">
-        {activePage === 'providers' && <ProvidersPage />}
+      {activePage !== 'all-providers' && (
+        <Header active={activePage} onNavigate={handleNavigate} />
+      )}
+      <main
+        className={
+          activePage === 'all-providers'
+            ? 'app-main app-main--full'
+            : 'app-main'
+        }
+      >
+        {activePage === 'providers' && (
+          <ProvidersPage
+            onNavigateAllProviders={() => setActivePage('all-providers')}
+          />
+        )}
+        {activePage === 'all-providers' && (
+          <AllProvidersPage onBack={() => setActivePage('providers')} />
+        )}
         {activePage === 'usage' && <UsagePage />}
         {activePage === 'settings' && <SettingsPage />}
       </main>
