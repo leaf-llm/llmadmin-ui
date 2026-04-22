@@ -276,7 +276,7 @@ export default function ProvidersPage({
         <span>网关地址: {GATEWAY_URL}</span>
         <span className="copy-hint">{copied ? '已复制' : '点击复制'}</span>
       </div>
-      <h1 className="page-title">Providers</h1>
+      <h1 className="page-title">Routing</h1>
       <CategoryTabs
         activeCategory={activeCategory}
         onCategoryChange={setActiveCategory}
@@ -472,12 +472,6 @@ export default function ProvidersPage({
                               onClick={() => openModelDialog(p.provider)}
                             >
                               Add to Routing
-                            </button>
-                            <button
-                              className="expand-btn"
-                              onClick={() => toggleExpanded(p.provider)}
-                            >
-                              {isExpanded ? '▲' : '▼'}
                             </button>
                           </div>
                         </div>
