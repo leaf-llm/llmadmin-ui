@@ -1,5 +1,15 @@
 export type ProviderId = string;
 
+export type ModelCategory = 'text' | 'image' | 'video' | 'audio' | 'mcp';
+
+export const MODEL_CATEGORIES: ModelCategory[] = [
+  'text',
+  'image',
+  'video',
+  'audio',
+  'mcp',
+];
+
 export type ProviderStatus = 'connected' | 'disconnected' | 'unknown';
 
 export type ProviderSummary = {
