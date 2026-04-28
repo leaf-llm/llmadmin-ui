@@ -15,7 +15,7 @@ import CategoryTabs from '../components/CategoryTabs';
 import { ModelCategory } from '../types/models';
 import { getModelsByProvider } from '../config/modelCategories';
 
-type Draft = ProviderUpdateRequest & { apiKeyMasked?: string };
+type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
 const GATEWAY_URL = 'http://127.0.0.1:8787';
 
@@ -71,6 +71,7 @@ export default function ProvidersPage({
             apiKey: undefined,
             baseUrl: p.baseUrl ?? '',
             apiKeyMasked: p.apiKeyMasked,
+            remark: p.remark,
           };
         }
         setDrafts(nextDrafts);
@@ -186,9 +187,10 @@ export default function ProvidersPage({
           const req: ProviderUpdateRequest = {
             apiKey: draft?.apiKey ? draft.apiKey : undefined,
             baseUrl: draft?.baseUrl || undefined,
+            remark: draft?.remark || undefined,
           };
           await updateProvider(activeCategory, p.provider, req);
-          await syncConfig(activeCategory);
+          // Note: Do NOT auto-syncConfig here. User should add models to routing first, then sync manually.
           const refreshed = await getProviders(activeCategory);
           setProviders(refreshed.providers);
           const nextDrafts: Record<string, Draft> = {};
@@ -197,6 +199,7 @@ export default function ProvidersPage({
               apiKey: undefined,
               baseUrl: pp.baseUrl ?? '',
               apiKeyMasked: pp.apiKeyMasked,
+              remark: pp.remark,
             };
           }
           setDrafts(nextDrafts);
@@ -232,6 +235,7 @@ export default function ProvidersPage({
                   ...(prev[p.provider] ?? {}),
                   apiKey: val || undefined,
                   apiKeyMasked: p.apiKeyMasked,
+                  remark: prev[p.provider]?.remark,
                 },
               }));
             }}
@@ -250,6 +254,24 @@ export default function ProvidersPage({
                 [p.provider]: {
                   ...(prev[p.provider] ?? {}),
                   baseUrl: val,
+                },
+              }));
+            }}
+          />
+        </div>
+
+        <div className="field">
+          <div className="label">备注 (可选，不填则自动生成)</div>
+          <input
+            value={d.remark ?? ''}
+            placeholder={p.remark ?? '自动生成'}
+            onChange={(e) => {
+              const val = e.target.value;
+              setDrafts((prev) => ({
+                ...prev,
+                [p.provider]: {
+                  ...(prev[p.provider] ?? {}),
+                  remark: val || undefined,
                 },
               }));
             }}
@@ -293,14 +315,14 @@ export default function ProvidersPage({
       ) : null}
 
       {(() => {
-        // Providers with api_key configured
-        const activeProviders = providers.filter(
-          (p) => p.status === 'connected'
-        );
-        // Providers without api_key
-        const disconnectedProviders = providers.filter(
-          (p) => p.status !== 'connected'
-        );
+        // Show only ONE entry per provider (first config with apiKey)
+        const activeMap = new Map<string, ProviderSummary>();
+        for (const p of providers) {
+          if (p.status === 'connected' && !activeMap.has(p.provider)) {
+            activeMap.set(p.provider, p);
+          }
+        }
+        const activeProviders = Array.from(activeMap.values());
         // Get models already in routing for each provider
         const routedProviderModels = new Map<string, string[]>();
         for (const entry of routing) {

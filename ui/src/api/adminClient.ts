@@ -1,5 +1,16 @@
 export type ProviderId = string;
 
+export const SUPPORTED_PROVIDERS: ProviderId[] = [
+  'openai',
+  'anthropic',
+  'google',
+  'zhipu',
+  'dashscope',
+  'moonshot',
+  'minimax',
+  'doubao',
+];
+
 export type RoutingEntry = {
   provider: ProviderId;
   model: string;
@@ -14,12 +25,16 @@ export type ProviderSummary = {
   lastSyncedAt?: string;
   isPrimary?: boolean;
   routing?: RoutingEntry[];
+  remark?: string;
+  configCount: number;
+  configId?: string;
 };
 
 export type ProviderUpdateRequest = {
   apiKey?: string;
   baseUrl?: string;
   setAsPrimary?: boolean;
+  remark?: string;
 };
 
 export type UsageByModel = {

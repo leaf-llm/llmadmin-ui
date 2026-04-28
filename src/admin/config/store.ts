@@ -35,13 +35,15 @@ const DEFAULT_BASE_URLS: Partial<Record<ProviderId, string>> = {
 };
 
 type ProviderConfig = {
+  id: string;
   apiKey?: string;
   baseUrl?: string;
   lastSyncedAt?: string;
+  remark?: string;
 };
 
 type CategoryConfig = {
-  providers: Record<ProviderId, ProviderConfig | undefined>;
+  providers: Record<ProviderId, ProviderConfig[]>;
   primaryProvider: ProviderId | null;
   routing: RoutingEntry[];
   userConfig: Record<string, unknown> | null;
@@ -92,8 +94,27 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     ) {
       // Legacy format - migrate to per-category structure
       const legacy = parsed as LegacyUiConfigFile;
+      // Convert legacy single-config providers to array format
+      const migratedProviders: Record<ProviderId, ProviderConfig[]> = {};
+      for (const [providerId, p] of Object.entries(legacy.providers)) {
+        if (p) {
+          migratedProviders[providerId as ProviderId] = [
+            {
+              id:
+                Date.now().toString(36) +
+                Math.random().toString(36).slice(2, 6),
+              ...p,
+            },
+          ];
+        }
+      }
       const migrated: UiConfigFile = {
-        text: { ...legacy, routing: [] },
+        text: {
+          providers: migratedProviders,
+          primaryProvider: legacy.primaryProvider,
+          routing: [],
+          userConfig: legacy.userConfig,
+        },
         image: {
           providers: {},
           primaryProvider: null,
@@ -211,25 +232,45 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
   const config = await loadUiConfig();
   const categoryConfig = config[category];
 
-  const providers: ProviderSummary[] = SUPPORTED_PROVIDERS.map((provider) => {
-    const p = categoryConfig?.providers?.[provider];
-    const apiKey = p?.apiKey?.trim();
-    const status: ProviderStatus = apiKey ? 'connected' : 'disconnected';
+  // Return one entry per config, so the same provider can appear multiple times
+  const providers: ProviderSummary[] = [];
+
+  for (const provider of SUPPORTED_PROVIDERS) {
+    const configs = categoryConfig?.providers?.[provider] ?? [];
+    const hasApiKey = configs.some((c) => c.apiKey?.trim());
+    const status: ProviderStatus = hasApiKey ? 'connected' : 'disconnected';
 
     // Get routing entries for this provider
     const routing =
       categoryConfig?.routing?.filter((r) => r.provider === provider) ?? [];
 
-    return {
-      provider,
-      apiKeyMasked: apiKey ? maskApiKey(apiKey) : undefined,
-      baseUrl: p?.baseUrl ?? DEFAULT_BASE_URLS[provider],
-      status,
-      lastSyncedAt: p?.lastSyncedAt,
-      isPrimary: provider === categoryConfig?.primaryProvider,
-      routing: routing.length > 0 ? routing : undefined,
-    };
-  });
+    if (configs.length === 0) {
+      // No configs yet - show as disconnected
+      providers.push({
+        provider,
+        status: 'disconnected',
+        baseUrl: DEFAULT_BASE_URLS[provider],
+        configCount: 0,
+        configId: provider, // Use provider name as id for disconnected entries
+      });
+    } else {
+      // Show each config as a separate entry
+      for (const cfg of configs) {
+        providers.push({
+          provider,
+          apiKeyMasked: cfg.apiKey ? maskApiKey(cfg.apiKey) : undefined,
+          baseUrl: cfg.baseUrl ?? DEFAULT_BASE_URLS[provider],
+          status,
+          lastSyncedAt: cfg.lastSyncedAt,
+          isPrimary: provider === categoryConfig?.primaryProvider,
+          routing: routing.length > 0 ? routing : undefined,
+          remark: cfg.remark,
+          configCount: configs.length,
+          configId: cfg.id,
+        });
+      }
+    }
+  }
 
   return { providers };
 }
@@ -244,20 +285,6 @@ export async function upsertProvider(
   }
 
   const config = await loadUiConfig();
-  const categoryConfig = config[category];
-  const current = categoryConfig?.providers?.[provider] ?? {};
-
-  const apiKey =
-    update.apiKey === undefined
-      ? current.apiKey
-      : update.apiKey.trim() === ''
-        ? undefined
-        : update.apiKey.trim();
-
-  const baseUrl =
-    update.baseUrl === undefined
-      ? current.baseUrl
-      : update.baseUrl.trim() || undefined;
 
   if (!config[category]) {
     config[category] = createEmptyCategoryConfig();
@@ -265,11 +292,35 @@ export async function upsertProvider(
   if (!config[category].providers) {
     config[category].providers = {};
   }
-  config[category].providers[provider] = {
-    ...current,
+  if (!config[category].providers[provider]) {
+    config[category].providers[provider] = [];
+  }
+
+  const apiKey =
+    update.apiKey === undefined
+      ? undefined
+      : update.apiKey.trim() === ''
+        ? undefined
+        : update.apiKey.trim();
+
+  const baseUrl =
+    update.baseUrl === undefined
+      ? undefined
+      : update.baseUrl.trim() || undefined;
+
+  const remark =
+    update.remark?.trim() ||
+    `Config ${config[category].providers[provider].length + 1}`;
+
+  const newConfig: ProviderConfig = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     apiKey,
     baseUrl,
+    lastSyncedAt: new Date().toISOString(),
+    remark,
   };
+
+  config[category].providers[provider].push(newConfig);
 
   // Handle setAsPrimary
   if (update.setAsPrimary === true) {
@@ -290,14 +341,19 @@ export async function upsertProvider(
   // Return masked summary.
   const apiKeyMasked = apiKey ? maskApiKey(apiKey) : undefined;
   const status: ProviderStatus = apiKey ? 'connected' : 'disconnected';
+  const savedConfig =
+    config[category].providers[provider][
+      config[category].providers[provider].length - 1
+    ];
   return {
     provider: {
       provider,
       apiKeyMasked,
       baseUrl,
       status,
-      lastSyncedAt: config[category].providers[provider]?.lastSyncedAt,
+      lastSyncedAt: savedConfig?.lastSyncedAt,
       isPrimary: config[category].primaryProvider === provider,
+      remark: savedConfig?.remark,
     },
   };
 }
@@ -311,10 +367,11 @@ export async function setPrimaryProvider(
   }
 
   const config = await loadUiConfig();
-  const p = config[category]?.providers?.[provider];
+  const configs = config[category]?.providers?.[provider] ?? [];
+  const hasApiKey = configs.some((c) => c.apiKey?.trim());
 
   // Verify provider is connected (has apiKey)
-  if (!p?.apiKey?.trim()) {
+  if (!hasApiKey) {
     throw new Error('Cannot set inactive provider as primary');
   }
 
@@ -427,11 +484,17 @@ export async function getProviderCredentialsForBilling(
 } | null> {
   if (!SUPPORTED_PROVIDERS.includes(provider)) return null;
   const config = await loadUiConfig();
-  const p = config.providers?.[provider];
-  if (!p) return null;
-  return {
-    apiKey: p.apiKey,
-    baseUrl: p.baseUrl,
-    lastSyncedAt: p.lastSyncedAt,
-  };
+  // Use first config entry for billing - iterate through categories to find this provider
+  for (const cat of MODEL_CATEGORIES) {
+    const configs = config[cat]?.providers?.[provider];
+    const p = configs?.[0];
+    if (p) {
+      return {
+        apiKey: p.apiKey,
+        baseUrl: p.baseUrl,
+        lastSyncedAt: p.lastSyncedAt,
+      };
+    }
+  }
+  return null;
 }
