@@ -98,7 +98,8 @@ async function generateConfigFromProviders(
   // Build targets from routing entries (sorted)
   const targets: Record<string, unknown>[] = [];
   for (const entry of sortedRouting) {
-    const p = providers[entry.provider];
+    const configs = providers[entry.provider];
+    const p = configs?.[0]; // Use first config entry
     if (!p?.apiKey?.trim()) {
       continue; // Skip if provider has no apiKey
     }

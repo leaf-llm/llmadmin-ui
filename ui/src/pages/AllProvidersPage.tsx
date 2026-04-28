@@ -10,11 +10,12 @@ import {
   removeRoutingModel,
   updateRoutingPrimary,
   RoutingEntry,
+  SUPPORTED_PROVIDERS,
 } from '../api/adminClient';
 import { ModelCategory } from '../types/models';
 import { getModelsByProvider } from '../config/modelCategories';
 
-type Draft = ProviderUpdateRequest & { apiKeyMasked?: string };
+type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
 interface AllProvidersPageProps {
   onBack: () => void;
@@ -55,10 +56,12 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         setRouting(routingRes.routing);
         const nextDrafts: Record<string, Draft> = {};
         for (const p of providersRes.providers) {
-          nextDrafts[p.provider] = {
+          const key = p.configId ?? p.provider;
+          nextDrafts[key] = {
             apiKey: undefined,
             baseUrl: p.baseUrl ?? '',
             apiKeyMasked: p.apiKeyMasked,
+            remark: p.remark,
           };
         }
         setDrafts(nextDrafts);
@@ -76,11 +79,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     };
   }, [activeCategory]);
 
-  const toggleExpanded = (provider: string) => {
+  const toggleExpanded = (configId: string) => {
     setExpandedProviders((prev) => {
       const next = new Set(prev);
-      if (next.has(provider)) next.delete(provider);
-      else next.add(provider);
+      if (next.has(configId)) next.delete(configId);
+      else next.add(configId);
       return next;
     });
   };
@@ -153,28 +156,34 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     );
   };
 
-  const renderSaveButton = (p: ProviderSummary) => (
+  const renderSaveButton = (p: ProviderSummary, isNew: boolean = false) => {
+    const key = p.configId ?? p.provider;
+    const buttonText = isNew ? '新增' : '保存';
+    return (
     <button
       className="primary"
-      disabled={savingProvider === p.provider}
+      disabled={savingProvider === key}
       onClick={async () => {
-        setSavingProvider(p.provider);
+        setSavingProvider(key);
         try {
-          const draft = drafts[p.provider];
+          const draft = drafts[key];
           const req: ProviderUpdateRequest = {
             apiKey: draft?.apiKey ? draft.apiKey : undefined,
             baseUrl: draft?.baseUrl || undefined,
+            remark: draft?.remark || undefined,
           };
           await updateProvider(activeCategory, p.provider, req);
-          await syncConfig(activeCategory);
+          // Note: Do NOT auto-syncConfig here. User should add models to routing first, then sync manually.
           const refreshed = await getProviders(activeCategory);
           setProviders(refreshed.providers);
           const nextDrafts: Record<string, Draft> = {};
           for (const pp of refreshed.providers) {
-            nextDrafts[pp.provider] = {
+            const ppKey = pp.configId ?? pp.provider;
+            nextDrafts[ppKey] = {
               apiKey: undefined,
               baseUrl: pp.baseUrl ?? '',
               apiKeyMasked: pp.apiKeyMasked,
+              remark: pp.remark,
             };
           }
           setDrafts(nextDrafts);
@@ -185,19 +194,21 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         }
       }}
     >
-      {savingProvider === p.provider ? 'Saving...' : 'Save'}
+      {savingProvider === key ? 'Saving...' : buttonText}
     </button>
   );
+};
 
-  const renderProviderForm = (p: ProviderSummary) => {
-    const d = drafts[p.provider] ?? {};
+  const renderProviderForm = (p: ProviderSummary, isNew: boolean = false) => {
+    const key = p.configId ?? p.provider;
+    const d = drafts[key] ?? {};
     return (
       <div className="grid" style={{ gap: 10 }}>
         <div className="field">
           <div className="label">API Key (必填)</div>
           <input
             placeholder={
-              p.apiKeyMasked
+              p.apiKeyMasked && !isNew
                 ? `Current: ${p.apiKeyMasked}`
                 : 'Paste new API key'
             }
@@ -206,10 +217,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               const val = e.target.value;
               setDrafts((prev) => ({
                 ...prev,
-                [p.provider]: {
-                  ...(prev[p.provider] ?? {}),
+                [key]: {
+                  ...(prev[key] ?? {}),
                   apiKey: val || undefined,
                   apiKeyMasked: p.apiKeyMasked,
+                  remark: prev[key]?.remark,
                 },
               }));
             }}
@@ -224,16 +236,33 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               const val = e.target.value;
               setDrafts((prev) => ({
                 ...prev,
-                [p.provider]: {
-                  ...(prev[p.provider] ?? {}),
+                [key]: {
+                  ...(prev[key] ?? {}),
                   baseUrl: val,
                 },
               }));
             }}
           />
         </div>
+        <div className="field">
+          <div className="label">备注 (可选，不填则自动生成)</div>
+          <input
+            value={d.remark ?? ''}
+            placeholder={p.remark ?? '自动生成'}
+            onChange={(e) => {
+              const val = e.target.value;
+              setDrafts((prev) => ({
+                ...prev,
+                [key]: {
+                  ...(prev[key] ?? {}),
+                  remark: val || undefined,
+                },
+              }));
+            }}
+          />
+        </div>
         <div className="row">
-          {renderSaveButton(p)}
+          {renderSaveButton(p, isNew)}
           <div className="muted">
             {p.lastSyncedAt ? `Last sync: ${p.lastSyncedAt}` : ''}
           </div>
@@ -249,10 +278,22 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     routedProviderModels.set(entry.provider, existing);
   }
 
+  // Connected: show ALL configs (each config as separate entry) so user can modify them
   const connectedProviders = providers.filter((p) => p.status === 'connected');
-  const disconnectedProviders = providers.filter(
-    (p) => p.status !== 'connected'
-  );
+  // Not Configured: ALL providers (including those already in Connected), so user can add MORE configs
+  const allProvidersSet = new Set(SUPPORTED_PROVIDERS);
+  const disconnectedProviders = Array.from(allProvidersSet).map((provider) => {
+    const existingConfigs = providers.filter((p) => p.provider === provider);
+    const firstConfig = existingConfigs[0];
+    const hasApiKey = existingConfigs.some((c) => c.status === 'connected');
+    return {
+      provider,
+      status: hasApiKey ? 'connected' as const : 'disconnected' as const,
+      baseUrl: firstConfig?.baseUrl ?? '',
+      configCount: existingConfigs.length,
+      configId: provider + '-new', // unique key for new config
+    } as ProviderSummary;
+  });
 
   return (
     <div className="all-providers-page">
@@ -268,35 +309,37 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         <div className="notice">No providers found.</div>
       )}
 
-      {!loading && (
+      {!loading && providers.length > 0 && (
         <>
           {connectedProviders.length > 0 && (
             <div className="pinned-section">
               <h2 className="section-title">Connected</h2>
               <div className="provider-list">
                 {connectedProviders.map((p) => {
-                  const isExpanded = expandedProviders.has(p.provider);
-                  const routedModels =
-                    routedProviderModels.get(p.provider) ?? [];
+                  const isExpanded = expandedProviders.has(p.configId ?? p.provider);
+                  const routedModels = routedProviderModels.get(p.provider) ?? [];
                   return (
-                    <div className="provider-list-item" key={p.provider}>
+                    <div className="provider-list-item" key={p.configId ?? p.provider}>
                       <div className="provider-list-row">
                         <div className="provider-info">
                           <span className="provider-name">{p.provider}</span>
-                          <span className="status-badge status-badge--connected">
-                            Connected
-                          </span>
+                          <span className="status-badge status-badge--connected">Connected</span>
+                          {p.remark && (
+                            <span className="routed-badge">{p.remark}</span>
+                          )}
+                          {p.configCount > 1 && (
+                            <span className="routed-badge">{p.configCount} configs</span>
+                          )}
                           {routedModels.length > 0 && (
                             <span className="routed-badge">
-                              {routedModels.length} model
-                              {routedModels.length > 1 ? 's' : ''} in routing
+                              {routedModels.length} model{routedModels.length > 1 ? 's' : ''} in routing
                             </span>
                           )}
                         </div>
                         <div className="provider-actions">
                           <button
                             className="expand-btn"
-                            onClick={() => toggleExpanded(p.provider)}
+                            onClick={() => toggleExpanded(p.configId ?? p.provider)}
                           >
                             {isExpanded ? '▲' : '▼'}
                           </button>
@@ -316,20 +359,21 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
 
           {disconnectedProviders.length > 0 && (
             <>
-              {connectedProviders.length > 0 && (
-                <div className="section-divider" />
-              )}
+              {connectedProviders.length > 0 && <div className="section-divider" />}
               <h2 className="section-title">Not Configured</h2>
               <div className="grid">
                 {disconnectedProviders.map((p) => (
-                  <div className="card" key={p.provider}>
+                  <div className="card" key={p.configId ?? p.provider}>
                     <div className="card__title">
-                      {p.provider}{' '}
-                      <span className="muted" style={{ fontWeight: 400 }}>
-                        ({p.status ?? 'unknown'})
-                      </span>
+                      {p.provider}
+                      {p.status === 'connected' && (
+                        <span className="status-badge status-badge--connected" style={{ marginLeft: 8 }}>Has Config</span>
+                      )}
+                      {p.configCount > 0 && (
+                        <span className="routed-badge" style={{ marginLeft: 8 }}>{p.configCount} config{p.configCount > 1 ? 's' : ''}</span>
+                      )}
                     </div>
-                    {renderProviderForm(p)}
+                    {renderProviderForm(p, true)}
                   </div>
                 ))}
               </div>

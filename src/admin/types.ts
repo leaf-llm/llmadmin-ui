@@ -26,6 +26,9 @@ export type ProviderSummary = {
   lastSyncedAt?: string;
   isPrimary?: boolean;
   routing?: RoutingEntry[];
+  remark?: string;
+  configCount: number;
+  configId?: string;
 };
 
 export type ProviderUpdateRequest = {
@@ -34,6 +37,7 @@ export type ProviderUpdateRequest = {
   setAsPrimary?: boolean;
   addModels?: string[];
   removeModels?: string[];
+  remark?: string;
 };
 
 export type UsageByModel = {
