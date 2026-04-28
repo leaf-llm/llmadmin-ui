@@ -9,6 +9,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    host: '::',
     proxy: {
       // In local-dev mode, forward admin API calls to the gateway.
       '/admin': {
