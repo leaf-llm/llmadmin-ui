@@ -16,7 +16,7 @@ jobs:
             artifact: portkey-gateway
           - os: macos-latest
             artifact: portkey-gateway-macos
-          - os: macos-13
+          - os: macos-15
             artifact: portkey-gateway-macos-intel
     runs-on: ${{ matrix.os }}
     steps:
@@ -38,7 +38,7 @@ jobs:
 
       - name: Build executable
         run: |
-          if [ "${{ matrix.os }}" = "macos-13" ]; then
+          if [ "${{ matrix.os }}" = "macos-15" ]; then
             bun build src/start-server.ts --compile --target=bun-macos-x64 --outfile=build/${{ matrix.artifact }}
           else
             BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
