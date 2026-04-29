@@ -28,6 +28,7 @@ const setupStaticServing = async () => {
   // Detect if running as compiled bun binary
   const isBunBinary = import.meta.url.startsWith('file:///$bunfs/');
   let publicDir: string;
+  let scriptDir: string;
 
   if (isBunBinary) {
     // In compiled bun binary, look for public files alongside the binary
@@ -37,8 +38,9 @@ const setupStaticServing = async () => {
     publicDir = existsSync(join(installedPublicDir, 'index.html'))
       ? installedPublicDir
       : join(binaryDir, 'public');
+    scriptDir = binaryDir;
   } else {
-    const scriptDir = dirname(fileURLToPath(import.meta.url));
+    scriptDir = dirname(fileURLToPath(import.meta.url));
     publicDir = join(scriptDir, 'public');
   }
 
@@ -55,7 +57,11 @@ const setupStaticServing = async () => {
   app.get('/public/', serveIndex);
 
   // Serve admin UI static files (SPA)
-  const adminDir = join(publicDir, 'admin');
+  // First check build/public/admin/ (production build), fallback to src/public/admin/ (dev mode)
+  const buildAdminDir = join(scriptDir, '..', 'build', 'public', 'admin');
+  const adminDir = existsSync(join(buildAdminDir, 'index.html'))
+    ? buildAdminDir
+    : join(publicDir, 'admin');
   const adminIndexPath = join(adminDir, 'index.html');
 
   const contentTypeByExt: Record<string, string> = {
