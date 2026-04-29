@@ -361,21 +361,38 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             <>
               {connectedProviders.length > 0 && <div className="section-divider" />}
               <h2 className="section-title">Not Configured</h2>
-              <div className="grid">
-                {disconnectedProviders.map((p) => (
-                  <div className="card" key={p.configId ?? p.provider}>
-                    <div className="card__title">
-                      {p.provider}
-                      {p.status === 'connected' && (
-                        <span className="status-badge status-badge--connected" style={{ marginLeft: 8 }}>Has Config</span>
-                      )}
-                      {p.configCount > 0 && (
-                        <span className="routed-badge" style={{ marginLeft: 8 }}>{p.configCount} config{p.configCount > 1 ? 's' : ''}</span>
+              <div className="provider-list">
+                {disconnectedProviders.map((p) => {
+                  const isExpanded = expandedProviders.has(p.configId ?? p.provider);
+                  return (
+                    <div className="provider-list-item" key={p.configId ?? p.provider}>
+                      <div className="provider-list-row">
+                        <div className="provider-info">
+                          <span className="provider-name">{p.provider}</span>
+                          {p.status === 'connected' && (
+                            <span className="status-badge status-badge--connected" style={{ marginLeft: 8 }}>Has Config</span>
+                          )}
+                          {p.configCount > 0 && (
+                            <span className="routed-badge" style={{ marginLeft: 8 }}>{p.configCount} config{p.configCount > 1 ? 's' : ''}</span>
+                          )}
+                        </div>
+                        <div className="provider-actions">
+                          <button
+                            className="expand-btn"
+                            onClick={() => toggleExpanded(p.configId ?? p.provider)}
+                          >
+                            {isExpanded ? '▲' : '▼'}
+                          </button>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="provider-expand-content">
+                          {renderProviderForm(p, true)}
+                        </div>
                       )}
                     </div>
-                    {renderProviderForm(p, true)}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
