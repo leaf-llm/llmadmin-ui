@@ -236,26 +236,33 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
   const providers: ProviderSummary[] = [];
 
   for (const provider of SUPPORTED_PROVIDERS) {
-    const configs = categoryConfig?.providers?.[provider] ?? [];
-    const hasApiKey = configs.some((c) => c.apiKey?.trim());
+    // Collect configs from ALL categories to show all provider configs
+    const allConfigs: ProviderConfig[] = [];
+    for (const cat of MODEL_CATEGORIES) {
+      const catConfigs = config[cat]?.providers?.[provider] ?? [];
+      allConfigs.push(...catConfigs);
+    }
+
+    // Provider-level status: connected if ANY config has API key
+    const hasApiKey = allConfigs.some((c) => c.apiKey?.trim());
     const status: ProviderStatus = hasApiKey ? 'connected' : 'disconnected';
 
-    // Get routing entries for this provider
+    // Get routing entries for this provider (only from current category)
     const routing =
       categoryConfig?.routing?.filter((r) => r.provider === provider) ?? [];
 
-    if (configs.length === 0) {
-      // No configs yet - show as disconnected
+    if (allConfigs.length === 0) {
+      // No configs at all - show as disconnected
       providers.push({
         provider,
         status: 'disconnected',
         baseUrl: DEFAULT_BASE_URLS[provider],
         configCount: 0,
-        configId: provider, // Use provider name as id for disconnected entries
+        configId: provider,
       });
     } else {
       // Show each config as a separate entry
-      for (const cfg of configs) {
+      for (const cfg of allConfigs) {
         providers.push({
           provider,
           apiKeyMasked: cfg.apiKey ? maskApiKey(cfg.apiKey) : undefined,
@@ -265,7 +272,7 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
           isPrimary: provider === categoryConfig?.primaryProvider,
           routing: routing.length > 0 ? routing : undefined,
           remark: cfg.remark,
-          configCount: configs.length,
+          configCount: allConfigs.length,
           configId: cfg.id,
         });
       }
