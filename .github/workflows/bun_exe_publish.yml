@@ -16,6 +16,8 @@ jobs:
             artifact: portkey-gateway
           - os: macos-latest
             artifact: portkey-gateway-macos
+          - os: macos-13
+            artifact: portkey-gateway-macos-intel
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +37,12 @@ jobs:
         run: cp conf.example.json conf.json  # Dereference symlink
 
       - name: Build executable
-        run: BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
+        run: |
+          if [ "${{ matrix.os }}" = "macos-13" ]; then
+            bun build src/start-server.ts --compile --target=bun-macos-x64 --outfile=build/${{ matrix.artifact }}
+          else
+            BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
+          fi
         shell: bash
 
       - name: Upload to Release
