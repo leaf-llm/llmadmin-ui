@@ -315,14 +315,8 @@ export default function ProvidersPage({
       ) : null}
 
       {(() => {
-        // Show only ONE entry per provider (first config with apiKey)
-        const activeMap = new Map<string, ProviderSummary>();
-        for (const p of providers) {
-          if (p.status === 'connected' && !activeMap.has(p.provider)) {
-            activeMap.set(p.provider, p);
-          }
-        }
-        const activeProviders = Array.from(activeMap.values());
+        // Show all configs with apiKey (each config is a separate entry)
+        const activeProviders = providers.filter((p) => p.status === 'connected');
         // Get models already in routing for each provider
         const routedProviderModels = new Map<string, string[]>();
         for (const entry of routing) {
@@ -477,10 +471,11 @@ export default function ProvidersPage({
                     const routedModels =
                       routedProviderModels.get(p.provider) ?? [];
                     return (
-                      <div className="provider-list-item" key={p.provider}>
+                      <div className="provider-list-item" key={p.configId}>
                         <div className="provider-list-row">
                           <div className="provider-info">
                             <span className="provider-name">{p.provider}</span>
+                            {p.remark && <span className="provider-remark"> ({p.remark})</span>}
                             {routedModels.length > 0 && (
                               <span className="routed-badge">
                                 {routedModels.length} model
