@@ -1,21 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { setAdminToken, getConfig, deleteConfig } from '../api/adminClient';
-
-const ADMIN_TOKEN_KEY = 'adminToken';
-
-function getStoredToken() {
-  return localStorage.getItem(ADMIN_TOKEN_KEY) ?? '';
-}
+import { getConfig, deleteConfig } from '../api/adminClient';
 
 export default function SettingsPage() {
-  const [token, setTokenState] = useState('');
-  const [saved, setSaved] = useState(false);
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
 
   useEffect(() => {
-    setTokenState(getStoredToken());
     loadConfig();
   }, []);
 
@@ -37,54 +28,6 @@ export default function SettingsPage() {
       <h1 className="page-title">Settings</h1>
 
       <div className="card">
-        <div className="card__title">Admin Authentication</div>
-
-        <div className="grid">
-          <div className="field">
-            <div className="label">ADMIN_TOKEN (optional)</div>
-            <input
-              value={token}
-              placeholder="Paste token to authorize /admin/* calls"
-              onChange={(e) => {
-                setTokenState(e.target.value);
-                setSaved(false);
-              }}
-            />
-          </div>
-
-          <div className="row">
-            <button
-              className="primary"
-              disabled={saved}
-              onClick={() => {
-                setAdminToken(token.trim());
-                setSaved(true);
-              }}
-            >
-              Save
-            </button>
-
-            <button
-              disabled={!token}
-              onClick={() => {
-                localStorage.removeItem(ADMIN_TOKEN_KEY);
-                setTokenState('');
-                setSaved(false);
-              }}
-            >
-              Clear
-            </button>
-
-            {saved ? (
-              <div className="muted">Saved.</div>
-            ) : (
-              <div className="muted" />
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: 20 }}>
         <div className="card__title">Gateway Config</div>
 
         {configLoading && <div className="muted">Loading...</div>}
