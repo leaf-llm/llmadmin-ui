@@ -12,10 +12,20 @@ jobs:
         include:
           - os: windows-latest
             artifact: portkey-gateway.exe
+            neutralino-platform: win
+            output-path: desktop/dist/win-x64/*
           - os: ubuntu-latest
             artifact: portkey-gateway
+            neutralino-platform: linux
+            output-path: desktop/dist/linux-x64/*
           - os: macos-latest
             artifact: portkey-gateway-macos
+            neutralino-platform: mac
+            output-path: desktop/dist/mac-arm64/*
+          - os: macos-13
+            artifact: portkey-gateway-macos-intel
+            neutralino-platform: mac
+            output-path: desktop/dist/mac-x64/*
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -35,15 +45,26 @@ jobs:
         run: cp conf.example.json conf.json  # Dereference symlink
 
       - name: Build executable
-        run: BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
+        run: |
+          if [ "${{ matrix.os }}" = "macos-13" ]; then
+            bun build src/start-server.ts --compile --target=bun-macos-x64 --outfile=build/${{ matrix.artifact }}
+          else
+            BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
+          fi
         shell: bash
+
+      - name: Build Neutralino desktop app
+        run: |
+          npm install -g @neutralinojs/neu
+          cd desktop
+          neu build --platform ${{ matrix.neutralino-platform }}
 
       - name: Upload to Release
         if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./build/${{ matrix.artifact }}
+          asset_path: ${{ matrix.output-path }}
           asset_name: ${{ matrix.artifact }}
           asset_content_type: application/octet-stream
 
@@ -52,4 +73,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ./build/${{ matrix.artifact }}
+          path: ${{ matrix.output-path }}
