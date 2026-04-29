@@ -344,6 +344,7 @@ export async function upsertProvider(
   }
 
   await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
 
   // Return masked summary.
   const apiKeyMasked = apiKey ? maskApiKey(apiKey) : undefined;
@@ -429,6 +430,7 @@ export async function addToRouting(
   }
 
   await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
   return { routing: config[category].routing };
 }
 
@@ -451,6 +453,7 @@ export async function removeFromRouting(
   );
 
   await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
   return { routing: config[category].routing };
 }
 
@@ -479,7 +482,77 @@ export async function updateRoutingPrimary(
   }
 
   await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
   return { routing: config[category].routing };
+}
+
+export async function syncUserConfigFromRouting(
+  category: ModelCategory
+): Promise<void> {
+  const config = await loadUiConfig();
+  const categoryConfig = config[category];
+  const { providers, routing } = categoryConfig;
+
+  if (!routing || routing.length === 0) {
+    categoryConfig.userConfig = null;
+    await saveUiConfig(config);
+    return;
+  }
+
+  // Sort: primary entries first
+  const sortedRouting = [...routing].sort((a, b) => {
+    if (a.isPrimary && !b.isPrimary) return -1;
+    if (!a.isPrimary && b.isPrimary) return 1;
+    return 0;
+  });
+
+  // Build targets from routing entries (sorted)
+  const targets: Record<string, unknown>[] = [];
+  for (const entry of sortedRouting) {
+    const pconfigs = providers[entry.provider];
+    const p = pconfigs?.[0];
+    if (!p?.apiKey?.trim()) {
+      continue;
+    }
+    const target: Record<string, unknown> = {
+      provider: entry.provider,
+      api_key: p.apiKey.trim(),
+    };
+    if (p.baseUrl?.trim()) {
+      target.custom_host = p.baseUrl.trim();
+    }
+    targets.push(target);
+  }
+
+  if (targets.length === 0) {
+    categoryConfig.userConfig = null;
+    await saveUiConfig(config);
+    return;
+  }
+
+  // Check if there are primary entries
+  const hasPrimary = sortedRouting.some((r) => r.isPrimary);
+
+  // Has primary → fallback strategy with primary first
+  if (hasPrimary && targets.length > 1) {
+    categoryConfig.userConfig = {
+      strategy: {
+        mode: 'fallback',
+        on_status_codes: [429, 500, 502, 503, 504],
+      },
+      targets,
+    };
+  } else {
+    // No primary → loadbalance all
+    categoryConfig.userConfig = {
+      strategy: {
+        mode: 'loadbalance',
+      },
+      targets,
+    };
+  }
+
+  await saveUiConfig(config);
 }
 
 export async function getProviderCredentialsForBilling(
