@@ -47,7 +47,24 @@ export const ZhipuChatCompleteConfig: ProviderConfig = {
     param: 'stream',
     default: false,
   },
+  tools: {
+    param: 'tools',
+    default: null,
+  },
+  tool_choice: {
+    param: 'tool_choice',
+    default: null,
+  },
 };
+
+interface ZhipuToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
 
 interface ZhipuChatCompleteResponse extends ChatCompletionResponse {
   id: string;
@@ -59,6 +76,15 @@ interface ZhipuChatCompleteResponse extends ChatCompletionResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+  choices: {
+    index: number;
+    message: {
+      role: string;
+      content: string | null;
+      tool_calls?: ZhipuToolCall[];
+    };
+    finish_reason: string | null;
+  }[];
 }
 
 export interface ZhipuErrorResponse {
@@ -77,7 +103,8 @@ interface ZhipuStreamChunk {
   choices: {
     delta: {
       role?: string | null;
-      content?: string;
+      content?: string | null;
+      tool_calls?: ZhipuToolCall[];
     };
     index: number;
     finish_reason: string | null;
@@ -112,6 +139,7 @@ export const ZhipuChatCompleteResponseTransform: (
         message: {
           role: c.message.role,
           content: c.message.content,
+          tool_calls: c.message.tool_calls,
         },
         finish_reason: c.finish_reason,
       })),
