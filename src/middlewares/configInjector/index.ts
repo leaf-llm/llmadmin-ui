@@ -1,11 +1,25 @@
 import { Context } from 'hono';
 import { POWERED_BY } from '../../globals';
 import { loadUserConfig } from '../../admin/config/store';
+import { ModelCategory } from '../../admin/types';
+
+const PATH_TO_CATEGORY: Record<string, ModelCategory> = {
+  '/v1/chat/completions': 'text',
+  '/v1/completions': 'text',
+  '/v1/embeddings': 'text',
+  '/v1/images/generations': 'image',
+  '/v1/images/variations': 'image',
+  '/v1/audio/transcriptions': 'audio',
+  '/v1/audio/speech': 'audio',
+  '/v1/video/generations': 'video',
+};
 
 export const configInjector = async (c: Context, next: any) => {
   const configHeader = c.req.header(`x-${POWERED_BY}-config`);
   if (!configHeader) {
-    const userConfig = await loadUserConfig();
+    const path = c.req.path;
+    const category: ModelCategory = PATH_TO_CATEGORY[path] ?? 'text';
+    const userConfig = await loadUserConfig(category);
     if (userConfig) {
       c.req.raw.headers.set(
         `x-${POWERED_BY}-config`,

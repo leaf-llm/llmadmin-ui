@@ -82,7 +82,8 @@ async function generateConfigFromProviders(
 ): Promise<Record<string, unknown>> {
   const uiConfig = await loadUiConfig();
   const categoryConfig = uiConfig[category];
-  const { providers, routing } = categoryConfig;
+  const { routing } = categoryConfig;
+  const { providers } = uiConfig;
 
   if (!routing || routing.length === 0) {
     throw new Error('No models in routing. Add models to routing first.');
