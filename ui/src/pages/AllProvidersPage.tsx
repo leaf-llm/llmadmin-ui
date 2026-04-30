@@ -222,7 +222,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                   ...(prev[key] ?? {}),
                   apiKey: val || undefined,
                   apiKeyMasked: p.apiKeyMasked,
-                  remark: prev[key]?.remark,
+                  remark: (prev[key] ?? {}).remark,
+                  baseUrl: (prev[key] ?? {}).baseUrl,
                 },
               }));
             }}
@@ -239,6 +240,9 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 ...prev,
                 [key]: {
                   ...(prev[key] ?? {}),
+                  apiKey: (prev[key] ?? {}).apiKey,
+                  apiKeyMasked: (prev[key] ?? {}).apiKeyMasked,
+                  remark: (prev[key] ?? {}).remark,
                   baseUrl: val,
                 },
               }));

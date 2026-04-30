@@ -287,10 +287,6 @@ export async function upsertProvider(
   provider: ProviderId,
   update: ProviderUpdateRequest
 ): Promise<{ provider?: ProviderSummary }> {
-  if (!SUPPORTED_PROVIDERS.includes(provider)) {
-    throw new Error(`Unsupported provider: ${provider}`);
-  }
-
   const config = await loadUiConfig();
 
   if (!config[category]) {
