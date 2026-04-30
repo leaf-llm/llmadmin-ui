@@ -12,6 +12,17 @@ import {
   RoutingEntry,
 } from '../types';
 
+export const DEFAULT_BASE_URLS: Partial<Record<ProviderId, string>> = {
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+  google: 'https://generativelanguage.googleapis.com',
+  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
+  dashscope: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+  moonshot: 'https://api.moonshot.cn',
+  minimax: 'https://api.minimaxi.com/anthropic',
+  doubao: 'https://ark.cn-beijing.volces.com/api/v3',
+};
+
 export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'openai',
   'anthropic',
@@ -22,17 +33,6 @@ export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'minimax', // MINIMAX
   'doubao', // 豆包
 ];
-
-const DEFAULT_BASE_URLS: Partial<Record<ProviderId, string>> = {
-  openai: 'https://api.openai.com/v1',
-  anthropic: 'https://api.anthropic.com/v1',
-  google: 'https://generativelanguage.googleapis.com',
-  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
-  dashscope: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
-  moonshot: 'https://api.moonshot.cn',
-  minimax: 'https://api.minimaxi.com/anthropic',
-  doubao: 'https://ark.cn-beijing.volces.com/api/v3',
-};
 
 type ProviderConfig = {
   id: string;
@@ -220,10 +220,12 @@ export async function syncUserConfigFromRouting(
     const target: Record<string, unknown> = {
       provider: entry.provider,
       api_key: p.apiKey.trim(),
+      override_params: {
+        model: entry.model,
+      },
     };
-    if (p.baseUrl?.trim()) {
-      target.custom_host = p.baseUrl.trim();
-    }
+    target.custom_host =
+      p.baseUrl?.trim() || DEFAULT_BASE_URLS[entry.provider] || '';
     targets.push(target);
   }
 
@@ -355,8 +357,8 @@ export async function upsertProvider(
 
   const baseUrl =
     update.baseUrl === undefined
-      ? undefined
-      : update.baseUrl.trim() || undefined;
+      ? DEFAULT_BASE_URLS[provider]
+      : update.baseUrl.trim() || DEFAULT_BASE_URLS[provider];
 
   let savedConfig: ProviderConfig | undefined;
 

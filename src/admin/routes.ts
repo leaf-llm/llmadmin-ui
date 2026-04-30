@@ -11,6 +11,7 @@ import {
   addToRouting,
   removeFromRouting,
   updateRoutingPrimary,
+  DEFAULT_BASE_URLS,
 } from './config/store';
 import { getUsage } from './billing';
 import {
@@ -107,6 +108,9 @@ async function generateConfigFromProviders(
     const target: Record<string, unknown> = {
       provider: entry.provider,
       api_key: p.apiKey.trim(),
+      override_params: {
+        model: entry.model,
+      },
     };
     if (p.baseUrl?.trim()) {
       target.custom_host = p.baseUrl.trim();
