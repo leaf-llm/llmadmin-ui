@@ -171,6 +171,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             apiKey: draft?.apiKey ? draft.apiKey : undefined,
             baseUrl: draft?.baseUrl || undefined,
             remark: draft?.remark || undefined,
+            configId: p.configId,
           };
           await updateProvider(activeCategory, p.provider, req);
           // Note: Do NOT auto-syncConfig here. User should add models to routing first, then sync manually.

@@ -35,6 +35,7 @@ export type ProviderUpdateRequest = {
   baseUrl?: string;
   setAsPrimary?: boolean;
   remark?: string;
+  configId?: string;
 };
 
 export type UsageByModel = {
