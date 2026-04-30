@@ -38,6 +38,7 @@ export type ProviderUpdateRequest = {
   addModels?: string[];
   removeModels?: string[];
   remark?: string;
+  configId?: string;
 };
 
 export type UsageByModel = {

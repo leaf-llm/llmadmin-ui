@@ -315,19 +315,42 @@ export async function upsertProvider(
       ? undefined
       : update.baseUrl.trim() || undefined;
 
-  const remark =
-    update.remark?.trim() ||
-    `Config ${config[category].providers[provider].length + 1}`;
+  let savedConfig: ProviderConfig | undefined;
 
-  const newConfig: ProviderConfig = {
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    apiKey,
-    baseUrl,
-    lastSyncedAt: new Date().toISOString(),
-    remark,
-  };
+  // If configId is provided and is a real ID (not ending with -new), update existing config
+  // If configId ends with -new or is not provided, create new config
+  const isNewConfig = !update.configId || update.configId.endsWith('-new');
+  if (!isNewConfig && update.configId) {
+    const configs = config[category].providers[provider];
+    const idx = configs.findIndex((c) => c.id === update.configId);
+    if (idx === -1) {
+      throw new Error(`Config not found: ${update.configId}`);
+    }
+    // Update existing config in place
+    savedConfig = {
+      ...configs[idx],
+      apiKey: apiKey !== undefined ? apiKey : configs[idx].apiKey,
+      baseUrl: baseUrl !== undefined ? baseUrl : configs[idx].baseUrl,
+      lastSyncedAt: new Date().toISOString(),
+      remark: update.remark?.trim() || configs[idx].remark,
+    };
+    config[category].providers[provider][idx] = savedConfig;
+  } else {
+    const remark =
+      update.remark?.trim() ||
+      `Config ${config[category].providers[provider].length + 1}`;
 
-  config[category].providers[provider].push(newConfig);
+    const newConfig: ProviderConfig = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      apiKey,
+      baseUrl,
+      lastSyncedAt: new Date().toISOString(),
+      remark,
+    };
+
+    config[category].providers[provider].push(newConfig);
+    savedConfig = newConfig;
+  }
 
   // Handle setAsPrimary
   if (update.setAsPrimary === true) {
@@ -346,17 +369,17 @@ export async function upsertProvider(
   await saveUiConfig(config);
 
   // Return masked summary.
-  const apiKeyMasked = apiKey ? maskApiKey(apiKey) : undefined;
-  const status: ProviderStatus = apiKey ? 'connected' : 'disconnected';
-  const savedConfig =
-    config[category].providers[provider][
-      config[category].providers[provider].length - 1
-    ];
+  const apiKeyMasked = savedConfig?.apiKey
+    ? maskApiKey(savedConfig.apiKey)
+    : undefined;
+  const status: ProviderStatus = savedConfig?.apiKey
+    ? 'connected'
+    : 'disconnected';
   return {
     provider: {
       provider,
       apiKeyMasked,
-      baseUrl,
+      baseUrl: savedConfig?.baseUrl,
       status,
       lastSyncedAt: savedConfig?.lastSyncedAt,
       isPrimary: config[category].primaryProvider === provider,
