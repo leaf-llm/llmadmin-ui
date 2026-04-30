@@ -290,9 +290,7 @@ export async function upsertProvider(
   if (!SUPPORTED_PROVIDERS.includes(provider)) {
     throw new Error(`Unsupported provider: ${provider}`);
   }
-
   const config = await loadUiConfig();
-
   if (!config[category]) {
     config[category] = createEmptyCategoryConfig();
   }

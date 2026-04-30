@@ -171,6 +171,7 @@ const ProviderUpdateSchema: z.ZodSchema<ProviderUpdateRequest> = z
     addModels: z.array(z.string()).optional(),
     removeModels: z.array(z.string()).optional(),
     configId: z.string().optional(),
+    remark: z.string().optional(),
   })
   .partial();
 
