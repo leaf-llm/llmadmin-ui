@@ -43,20 +43,13 @@ type ProviderConfig = {
 };
 
 type CategoryConfig = {
-  providers: Record<ProviderId, ProviderConfig[]>;
-  primaryProvider: ProviderId | null;
   routing: RoutingEntry[];
   userConfig: Record<string, unknown> | null;
 };
 
-type UiConfigFile = Record<ModelCategory, CategoryConfig>;
-
-// Legacy format for migration
-type LegacyUiConfigFile = {
-  providers: Record<ProviderId, ProviderConfig | undefined>;
-  primaryProvider: ProviderId | null;
-  userConfig: Record<string, unknown> | null;
-};
+type UiConfigFile = {
+  providers: Record<ProviderId, ProviderConfig[]>;
+} & Record<ModelCategory, CategoryConfig>;
 
 const CONFIG_FILE_NAME = 'conf.ui.json';
 
@@ -85,62 +78,61 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     const raw = await readFile(configPath, 'utf-8');
     const parsed = JSON.parse(raw);
 
-    // Check if it's legacy format (has providers directly) or new format (keyed by category)
+    // Check if it's legacy format (has providers per category) or new format (providers at top level)
     if (
       parsed &&
       typeof parsed === 'object' &&
       'providers' in parsed &&
       !('text' in parsed)
     ) {
-      // Legacy format - migrate to per-category structure
-      const legacy = parsed as LegacyUiConfigFile;
-      // Convert legacy single-config providers to array format
+      // Legacy format - migrate to new structure with top-level providers
       const migratedProviders: Record<ProviderId, ProviderConfig[]> = {};
-      for (const [providerId, p] of Object.entries(legacy.providers)) {
-        if (p) {
-          migratedProviders[providerId as ProviderId] = [
-            {
-              id:
-                Date.now().toString(36) +
-                Math.random().toString(36).slice(2, 6),
-              ...p,
-            },
-          ];
+      // Legacy had providers nested in categories - collect first available config per provider
+      for (const cat of MODEL_CATEGORIES) {
+        const catProviders = (parsed as any)[cat]?.providers;
+        if (catProviders) {
+          for (const [providerId, cfgArr] of Object.entries(catProviders)) {
+            if (Array.isArray(cfgArr)) {
+              for (const cfg of cfgArr) {
+                if (cfg && !migratedProviders[providerId as ProviderId]) {
+                  migratedProviders[providerId as ProviderId] = [];
+                }
+                if (
+                  cfg &&
+                  Array.isArray(migratedProviders[providerId as ProviderId])
+                ) {
+                  migratedProviders[providerId as ProviderId].push(
+                    cfg as ProviderConfig
+                  );
+                }
+              }
+            }
+          }
         }
       }
       const migrated: UiConfigFile = {
+        providers: migratedProviders,
         text: {
-          providers: migratedProviders,
-          primaryProvider: legacy.primaryProvider,
-          routing: [],
-          userConfig: legacy.userConfig,
+          routing: (parsed as any).text?.routing ?? [],
+          userConfig: (parsed as any).text?.userConfig ?? null,
         },
         image: {
-          providers: {},
-          primaryProvider: null,
-          routing: [],
+          routing: (parsed as any).image?.routing ?? [],
           userConfig: null,
         },
         video: {
-          providers: {},
-          primaryProvider: null,
-          routing: [],
+          routing: (parsed as any).video?.routing ?? [],
           userConfig: null,
         },
         audio: {
-          providers: {},
-          primaryProvider: null,
-          routing: [],
+          routing: (parsed as any).audio?.routing ?? [],
           userConfig: null,
         },
         mcp: {
-          providers: {},
-          primaryProvider: null,
-          routing: [],
+          routing: (parsed as any).mcp?.routing ?? [],
           userConfig: null,
         },
       };
-      // Save migrated format back
       await saveUiConfig(migrated);
       return migrated;
     }
@@ -149,35 +141,26 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
   } catch (e: any) {
     // If file does not exist, start with empty providers.
     if (e?.code === 'ENOENT') {
-      // Return default per-category structure
+      // Return default structure with providers at top level
       const defaultConfig: UiConfigFile = {
+        providers: {},
         text: {
-          providers: {},
-          primaryProvider: null,
           routing: [],
           userConfig: null,
         },
         image: {
-          providers: {},
-          primaryProvider: null,
           routing: [],
           userConfig: null,
         },
         video: {
-          providers: {},
-          primaryProvider: null,
           routing: [],
           userConfig: null,
         },
         audio: {
-          providers: {},
-          primaryProvider: null,
           routing: [],
           userConfig: null,
         },
         mcp: {
-          providers: {},
-          primaryProvider: null,
           routing: [],
           userConfig: null,
         },
@@ -190,8 +173,6 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
 
 function createEmptyCategoryConfig(): CategoryConfig {
   return {
-    providers: {},
-    primaryProvider: null,
     routing: [],
     userConfig: null,
   };
@@ -204,6 +185,68 @@ async function saveUiConfig(config: UiConfigFile) {
   }
   const configPath = getConfigPath();
   await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+export async function syncUserConfigFromRouting(
+  category: ModelCategory
+): Promise<void> {
+  const runtime = getRuntimeKey();
+  if (runtime !== 'node' && runtime !== 'bun') {
+    return;
+  }
+  const config = await loadUiConfig();
+  const { routing } = config[category];
+  const { providers } = config;
+
+  if (!routing || routing.length === 0) {
+    config[category].userConfig = null;
+    await saveUiConfig(config);
+    return;
+  }
+
+  // Sort: primary entries first
+  const sortedRouting = [...routing].sort((a, b) => {
+    if (a.isPrimary && !b.isPrimary) return -1;
+    if (!a.isPrimary && b.isPrimary) return 1;
+    return 0;
+  });
+
+  // Build targets from routing entries
+  const targets: Record<string, unknown>[] = [];
+  for (const entry of sortedRouting) {
+    const cfgs = providers[entry.provider];
+    const p = cfgs?.[0];
+    if (!p?.apiKey?.trim()) continue;
+    const target: Record<string, unknown> = {
+      provider: entry.provider,
+      api_key: p.apiKey.trim(),
+    };
+    if (p.baseUrl?.trim()) {
+      target.custom_host = p.baseUrl.trim();
+    }
+    targets.push(target);
+  }
+
+  if (targets.length === 0) {
+    config[category].userConfig = null;
+    await saveUiConfig(config);
+    return;
+  }
+
+  const hasPrimary = sortedRouting.some((r) => r.isPrimary);
+  const userConfig =
+    hasPrimary && targets.length > 1
+      ? {
+          strategy: {
+            mode: 'fallback',
+            on_status_codes: [429, 500, 502, 503, 504],
+          },
+          targets,
+        }
+      : { strategy: { mode: 'loadbalance' }, targets };
+
+  config[category].userConfig = userConfig;
+  await saveUiConfig(config);
 }
 
 export async function loadUserConfig(
@@ -236,12 +279,8 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
   const providers: ProviderSummary[] = [];
 
   for (const provider of SUPPORTED_PROVIDERS) {
-    // Collect configs from ALL categories to show all provider configs
-    const allConfigs: ProviderConfig[] = [];
-    for (const cat of MODEL_CATEGORIES) {
-      const catConfigs = config[cat]?.providers?.[provider] ?? [];
-      allConfigs.push(...catConfigs);
-    }
+    // All configs are now at top level
+    const allConfigs: ProviderConfig[] = config.providers?.[provider] ?? [];
 
     // Provider-level status: connected if ANY config has API key
     const hasApiKey = allConfigs.some((c) => c.apiKey?.trim());
@@ -250,6 +289,12 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
     // Get routing entries for this provider (only from current category)
     const routing =
       categoryConfig?.routing?.filter((r) => r.provider === provider) ?? [];
+
+    // Derive isPrimary from routing - primary is the one with isPrimary=true
+    const isPrimary =
+      categoryConfig?.routing?.some(
+        (r) => r.provider === provider && r.isPrimary
+      ) ?? false;
 
     if (allConfigs.length === 0) {
       // No configs at all - show as disconnected
@@ -269,7 +314,7 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
           baseUrl: cfg.baseUrl ?? DEFAULT_BASE_URLS[provider],
           status,
           lastSyncedAt: cfg.lastSyncedAt,
-          isPrimary: provider === categoryConfig?.primaryProvider,
+          isPrimary,
           routing: routing.length > 0 ? routing : undefined,
           remark: cfg.remark,
           configCount: allConfigs.length,
@@ -294,11 +339,11 @@ export async function upsertProvider(
   if (!config[category]) {
     config[category] = createEmptyCategoryConfig();
   }
-  if (!config[category].providers) {
-    config[category].providers = {};
+  if (!config.providers) {
+    config.providers = {};
   }
-  if (!config[category].providers[provider]) {
-    config[category].providers[provider] = [];
+  if (!config.providers[provider]) {
+    config.providers[provider] = [];
   }
 
   const apiKey =
@@ -319,7 +364,7 @@ export async function upsertProvider(
   // If configId ends with -new or is not provided, create new config
   const isNewConfig = !update.configId || update.configId.endsWith('-new');
   if (!isNewConfig && update.configId) {
-    const configs = config[category].providers[provider];
+    const configs = config.providers[provider];
     const idx = configs.findIndex((c) => c.id === update.configId);
     if (idx === -1) {
       throw new Error(`Config not found: ${update.configId}`);
@@ -332,11 +377,11 @@ export async function upsertProvider(
       lastSyncedAt: new Date().toISOString(),
       remark: update.remark?.trim() || configs[idx].remark,
     };
-    config[category].providers[provider][idx] = savedConfig;
+    config.providers[provider][idx] = savedConfig;
   } else {
     const remark =
       update.remark?.trim() ||
-      `Config ${config[category].providers[provider].length + 1}`;
+      `Config ${config.providers[provider].length + 1}`;
 
     const newConfig: ProviderConfig = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
@@ -346,25 +391,36 @@ export async function upsertProvider(
       remark,
     };
 
-    config[category].providers[provider].push(newConfig);
+    config.providers[provider].push(newConfig);
     savedConfig = newConfig;
   }
 
-  // Handle setAsPrimary
+  // Handle setAsPrimary - update routing to mark this provider's entries as primary
   if (update.setAsPrimary === true) {
-    // Verify provider is connected (has apiKey)
     if (!apiKey) {
       throw new Error('Cannot set inactive provider as primary');
     }
-    config[category].primaryProvider = provider;
-  } else if (
-    update.setAsPrimary === false &&
-    config[category].primaryProvider === provider
-  ) {
-    config[category].primaryProvider = null;
+    // Mark all routing entries for this provider as non-primary first
+    for (const entry of config[category].routing) {
+      if (entry.provider === provider) {
+        entry.isPrimary = true;
+      } else {
+        entry.isPrimary = false;
+      }
+    }
+  } else if (update.setAsPrimary === false) {
+    // Unset primary for all entries of this provider
+    for (const entry of config[category].routing) {
+      if (entry.provider === provider) {
+        entry.isPrimary = false;
+      }
+    }
   }
 
   await saveUiConfig(config);
+
+  // Sync userConfig from routing
+  await syncUserConfigFromRouting(category);
 
   // Return masked summary.
   const apiKeyMasked = savedConfig?.apiKey
@@ -373,6 +429,10 @@ export async function upsertProvider(
   const status: ProviderStatus = savedConfig?.apiKey
     ? 'connected'
     : 'disconnected';
+  const isPrimary = config[category].routing.some(
+    (r) => r.provider === provider && r.isPrimary
+  );
+  const configCount = config.providers[provider]?.length ?? 0;
   return {
     provider: {
       provider,
@@ -380,8 +440,9 @@ export async function upsertProvider(
       baseUrl: savedConfig?.baseUrl,
       status,
       lastSyncedAt: savedConfig?.lastSyncedAt,
-      isPrimary: config[category].primaryProvider === provider,
+      isPrimary,
       remark: savedConfig?.remark,
+      configCount,
     },
   };
 }
@@ -395,7 +456,7 @@ export async function setPrimaryProvider(
   }
 
   const config = await loadUiConfig();
-  const configs = config[category]?.providers?.[provider] ?? [];
+  const configs = config.providers?.[provider] ?? [];
   const hasApiKey = configs.some((c) => c.apiKey?.trim());
 
   // Verify provider is connected (has apiKey)
@@ -403,18 +464,34 @@ export async function setPrimaryProvider(
     throw new Error('Cannot set inactive provider as primary');
   }
 
-  config[category].primaryProvider = provider;
-  await saveUiConfig(config);
+  // Update routing: set all entries for this provider as primary, others as non-primary
+  for (const entry of config[category].routing) {
+    if (entry.provider === provider) {
+      entry.isPrimary = true;
+    } else {
+      entry.isPrimary = false;
+    }
+  }
 
-  return { primaryProvider: config[category].primaryProvider };
+  await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
+
+  const primaryProvider = config[category].routing.some((r) => r.isPrimary)
+    ? provider
+    : null;
+  return { primaryProvider };
 }
 
 export async function unsetPrimaryProvider(category: ModelCategory): Promise<{
   primaryProvider: null;
 }> {
   const config = await loadUiConfig();
-  config[category].primaryProvider = null;
+  // Clear isPrimary on all routing entries
+  for (const entry of config[category].routing) {
+    entry.isPrimary = false;
+  }
   await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
 
   return { primaryProvider: null };
 }
@@ -450,6 +527,7 @@ export async function addToRouting(
   }
 
   await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
   return { routing: config[category].routing };
 }
 
@@ -472,6 +550,7 @@ export async function removeFromRouting(
   );
 
   await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
   return { routing: config[category].routing };
 }
 
@@ -500,6 +579,7 @@ export async function updateRoutingPrimary(
   }
 
   await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
   return { routing: config[category].routing };
 }
 
@@ -512,17 +592,15 @@ export async function getProviderCredentialsForBilling(
 } | null> {
   if (!SUPPORTED_PROVIDERS.includes(provider)) return null;
   const config = await loadUiConfig();
-  // Use first config entry for billing - iterate through categories to find this provider
-  for (const cat of MODEL_CATEGORIES) {
-    const configs = config[cat]?.providers?.[provider];
-    const p = configs?.[0];
-    if (p) {
-      return {
-        apiKey: p.apiKey,
-        baseUrl: p.baseUrl,
-        lastSyncedAt: p.lastSyncedAt,
-      };
-    }
+  // Use first config entry for billing from top-level providers
+  const configs = config.providers?.[provider];
+  const p = configs?.[0];
+  if (p) {
+    return {
+      apiKey: p.apiKey,
+      baseUrl: p.baseUrl,
+      lastSyncedAt: p.lastSyncedAt,
+    };
   }
   return null;
 }
