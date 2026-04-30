@@ -633,6 +633,32 @@ button.primary.small {
   font-size: 12px;
 }
 
+/* Top notification banner */
+.top-notification {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  max-width: 500px;
+  width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    top: -60px;
+    opacity: 0;
+  }
+  to {
+    top: 16px;
+    opacity: 1;
+  }
+}
+
 /* Full-page mode (AllProvidersPage) */
 .app-main--full {
   max-width: 100%;

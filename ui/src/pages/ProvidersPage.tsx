@@ -12,6 +12,7 @@ import {
   RoutingEntry,
 } from '../api/adminClient';
 import CategoryTabs from '../components/CategoryTabs';
+import TopNotification from '../components/TopNotification';
 import { ModelCategory } from '../types/models';
 import { getModelsByProvider } from '../config/modelCategories';
 
@@ -45,6 +46,7 @@ export default function ProvidersPage({
   );
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [addingModels, setAddingModels] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'notice' } | null>(null);
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(GATEWAY_URL);
@@ -181,6 +183,12 @@ export default function ProvidersPage({
       className="primary"
       disabled={!canSave || savingProvider === p.provider}
       onClick={async () => {
+        const draft = drafts[p.provider];
+        // Validate required fields for new provider
+        if (!p.apiKeyMasked && (!draft?.apiKey || draft.apiKey.trim() === '')) {
+          setNotification({ message: 'API Key 为必填项', type: 'error' });
+          return;
+        }
         setSavingProvider(p.provider);
         try {
           const draft = drafts[p.provider];
@@ -290,6 +298,13 @@ export default function ProvidersPage({
 
   return (
     <div>
+      {notification && (
+        <TopNotification
+          message={notification.message}
+          type={notification.type}
+          onDismiss={() => setNotification(null)}
+        />
+      )}
       <div
         className="gateway-url-banner"
         onClick={handleCopyUrl}

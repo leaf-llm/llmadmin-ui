@@ -14,6 +14,7 @@ import {
 } from '../api/adminClient';
 import { ModelCategory } from '../types/models';
 import { getModelsByProvider } from '../config/modelCategories';
+import TopNotification from '../components/TopNotification';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
@@ -40,6 +41,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   );
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [addingModels, setAddingModels] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'notice' } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,6 +166,12 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       className="primary"
       disabled={savingProvider === key}
       onClick={async () => {
+        const draft = drafts[key];
+        // Validate required fields
+        if (isNew && (!draft?.apiKey || draft.apiKey.trim() === '')) {
+          setNotification({ message: 'API Key 为必填项', type: 'error' });
+          return;
+        }
         setSavingProvider(key);
         try {
           const draft = drafts[key];
@@ -302,6 +310,13 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
 
   return (
     <div className="all-providers-page">
+      {notification && (
+        <TopNotification
+          message={notification.message}
+          type={notification.type}
+          onDismiss={() => setNotification(null)}
+        />
+      )}
       <button className="back-btn" onClick={onBack}>
         ← Back
       </button>
