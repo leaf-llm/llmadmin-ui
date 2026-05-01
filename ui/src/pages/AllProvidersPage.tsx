@@ -245,7 +245,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           <div className="label">请求地址 (可选)</div>
           <input
             value={d.baseUrl ?? ''}
-            placeholder={p.baseUrl}
+            placeholder={PROVIDER_DEFAULT_BASE_URLS[p.provider] ?? p.baseUrl}
             onChange={(e) => {
               const val = e.target.value;
               setDrafts((prev) => ({
@@ -303,11 +303,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     const existingConfigs = providers.filter((p) => p.provider === provider);
     const firstConfig = existingConfigs[0];
     const hasApiKey = existingConfigs.some((c) => c.status === 'connected');
-    const defaultBaseUrl = PROVIDER_DEFAULT_BASE_URLS[provider] ?? '';
     return {
       provider,
       status: hasApiKey ? 'connected' as const : 'disconnected' as const,
-      baseUrl: firstConfig?.baseUrl ?? defaultBaseUrl,
+      baseUrl: firstConfig?.baseUrl ?? '',
       configCount: existingConfigs.length,
       configId: provider + '-new', // unique key for new config
     } as ProviderSummary;
