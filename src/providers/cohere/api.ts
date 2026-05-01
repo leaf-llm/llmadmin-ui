@@ -35,6 +35,8 @@ const CohereAPIConfig: ProviderAPIConfig = {
         return `/v1/embed-jobs/${gatewayRequestURL.split('/').pop()}`;
       case 'cancelBatch':
         return `/v1/embed-jobs/${gatewayRequestURL.split('batches/').pop()}`;
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

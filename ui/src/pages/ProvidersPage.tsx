@@ -8,6 +8,7 @@ import {
   getRouting,
   addRoutingModel,
   removeRoutingModel,
+  getProviderModels,
   updateRoutingPrimary,
   RoutingEntry,
 } from '../api/adminClient';
@@ -41,9 +42,8 @@ export default function ProvidersPage({
 
   // Model selection dialog state
   const [showModelDialog, setShowModelDialog] = useState(false);
-  const [modelDialogProvider, setModelDialogProvider] = useState<string | null>(
-    null
-  );
+  const [modelDialogProvider, setModelDialogProvider] = useState<string | null>(null);
+  const [providerModels, setProviderModels] = useState<string[]>([]);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [addingModels, setAddingModels] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: 'error' | 'notice' } | null>(null);
@@ -108,10 +108,22 @@ export default function ProvidersPage({
     });
   };
 
-  const openModelDialog = (provider: string) => {
+  const openModelDialog = async (provider: string) => {
     setModelDialogProvider(provider);
     setSelectedModels([]);
     setShowModelDialog(true);
+    try {
+      const result = await getProviderModels(provider);
+      if (result.data) {
+        const modelIds = result.data.map(m => m.id || m).filter(Boolean);
+        setProviderModels(modelIds);
+      } else {
+        setProviderModels([]);
+      }
+    } catch (e) {
+      console.error('Failed to fetch provider models:', e);
+      setProviderModels([]);
+    }
   };
 
   const closeModelDialog = () => {
@@ -251,10 +263,9 @@ export default function ProvidersPage({
         </div>
 
         <div className="field">
-          <div className="label">请求地址 (可选)</div>
+          <div className="label">请求地址</div>
           <input
-            value={d.baseUrl ?? ''}
-            placeholder={p.baseUrl}
+            value={d.baseUrl ?? p.baseUrl ?? ''}
             onChange={(e) => {
               const val = e.target.value;
               setDrafts((prev) => ({
@@ -534,8 +545,9 @@ export default function ProvidersPage({
             </div>
             <div className="dialog-body">
               {(() => {
-                const allModels = getModelsByProvider(modelDialogProvider);
-                const filtered = allModels.filter(
+                const modelIds = providerModels.length > 0 ? providerModels : [];
+                const filtered = modelIds.map(id => ({ model: id, category: activeCategory as any }));
+                const filtered2 = filtered.filter(
                   (m) => m.category === activeCategory
                 );
                 const routedModels = new Set(

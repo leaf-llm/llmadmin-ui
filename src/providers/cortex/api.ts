@@ -13,6 +13,8 @@ const CortexAPIConfig: ProviderAPIConfig = {
     switch (fn) {
       case 'chatComplete':
         return '/cortex/inference:complete';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

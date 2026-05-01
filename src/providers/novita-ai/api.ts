@@ -11,6 +11,8 @@ const NovitaAIApiConfig: ProviderAPIConfig = {
         return '/v1/completions';
       case 'chatComplete':
         return '/v1/chat/completions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

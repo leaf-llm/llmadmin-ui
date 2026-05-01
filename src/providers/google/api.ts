@@ -23,6 +23,9 @@ export const GoogleApiConfig: ProviderAPIConfig = {
       case 'embed': {
         return `/${routeVersion}/models/${model}:embedContent?key=${apiKey}`;
       }
+      case 'listModels': {
+        return `/${routeVersion}/models?key=${apiKey}`;
+      }
       default:
         return '';
     }

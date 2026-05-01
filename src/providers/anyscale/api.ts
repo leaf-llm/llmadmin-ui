@@ -13,6 +13,8 @@ const AnyscaleAPIConfig: ProviderAPIConfig = {
         return '/completions';
       case 'embed':
         return '/embeddings';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

@@ -67,6 +67,8 @@ const FireworksAIAPIConfig: ProviderAPIConfig = {
         return `/supervisedFineTuningJobs?pageToken=${page}&pageSize=${size}`;
       case 'cancelFinetune':
         return `/supervisedFineTuningJobs/${jobId}`;
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

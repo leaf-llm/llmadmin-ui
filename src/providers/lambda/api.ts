@@ -17,6 +17,9 @@ export const LambdaAPIConfig: ProviderAPIConfig = {
       case 'complete': {
         return '/completions';
       }
+      case 'listModels': {
+        return '/models';
+      }
       default:
         return '';
     }

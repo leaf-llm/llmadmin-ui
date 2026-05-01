@@ -9,6 +9,8 @@ const RekaAIApiConfig: ProviderAPIConfig = {
     switch (fn) {
       case 'chatComplete':
         return '/chat';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

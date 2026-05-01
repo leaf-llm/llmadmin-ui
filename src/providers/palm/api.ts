@@ -18,6 +18,8 @@ export const PalmApiConfig: ProviderAPIConfig = {
       case 'embed': {
         return `/models/${model}:embedText?key=${apiKey}`;
       }
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }
