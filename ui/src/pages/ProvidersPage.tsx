@@ -263,10 +263,9 @@ export default function ProvidersPage({
         </div>
 
         <div className="field">
-          <div className="label">请求地址 (可选)</div>
+          <div className="label">请求地址</div>
           <input
-            value={d.baseUrl ?? ''}
-            placeholder={p.baseUrl}
+            value={d.baseUrl ?? p.baseUrl ?? ''}
             onChange={(e) => {
               const val = e.target.value;
               setDrafts((prev) => ({
