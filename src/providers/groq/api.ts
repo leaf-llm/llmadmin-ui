@@ -22,6 +22,8 @@ const GroqAPIConfig: ProviderAPIConfig = {
         return '/audio/speech';
       case 'createModelResponse':
         return '/chat/completions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

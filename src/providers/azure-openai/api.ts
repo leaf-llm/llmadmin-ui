@@ -195,6 +195,8 @@ const AzureOpenAIAPIConfig: ProviderAPIConfig = {
       case 'cancelBatch':
       case 'listBatches':
         return `${pathname}?${searchParams.toString()}`;
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

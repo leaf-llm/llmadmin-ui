@@ -16,6 +16,8 @@ const HyperbolicAPIConfig: ProviderAPIConfig = {
         return '/v1/chat/completions';
       case 'imageGenerate':
         return '/v1/image/generation';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

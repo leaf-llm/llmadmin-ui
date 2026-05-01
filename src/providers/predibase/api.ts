@@ -21,6 +21,8 @@ const PredibaseAPIConfig: ProviderAPIConfig = {
         (version_number is required).
         */
         return `/${user}/deployments/v2/llms/${base_model}/v1/chat/completions`;
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

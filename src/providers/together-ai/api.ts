@@ -13,6 +13,8 @@ const TogetherAIApiConfig: ProviderAPIConfig = {
         return '/v1/chat/completions';
       case 'embed':
         return '/v1/embeddings';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

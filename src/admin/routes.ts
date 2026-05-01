@@ -14,6 +14,8 @@ import {
   DEFAULT_BASE_URLS,
 } from './config/store';
 import { getUsage } from './billing';
+import Providers from '../providers/index';
+
 import {
   ModelCategory,
   MODEL_CATEGORIES,
@@ -296,6 +298,66 @@ adminApp.get('/usage', async (c) => {
     to: parsed.data.to,
   });
   return c.json(res);
+});
+
+
+// Provider model catalog - fetch available models from provider's /models endpoint
+adminApp.get('/provider-models', async (c) => {
+  const provider = c.req.query('provider');
+  if (!provider) {
+    return c.json({ ok: false, message: 'provider is required' }, 400);
+  }
+
+  const providerConfig = Providers[provider];
+  if (!providerConfig?.api) {
+    return c.json({ ok: false, message: 'Unknown provider' }, 404);
+  }
+
+  try {
+    // Get apiKey from provider config in store
+    const uiConfig = await loadUiConfig();
+    const providerConfigs = uiConfig.providers?.[provider as ProviderId];
+    const firstConfig = providerConfigs?.[0];
+    const apiKey = firstConfig?.apiKey || '';
+
+    const providerOptions = { apiKey };
+    
+    const baseURL = providerConfig.api.getBaseURL({
+      providerOptions,
+      fn: 'listModels',
+      c: c,
+      gatewayRequestURL: '',
+      requestHeaders: {},
+      params: {},
+    });
+    
+    const endpoint = providerConfig.api.getEndpoint({
+      c: c,
+      providerOptions,
+      fn: 'listModels',
+      gatewayRequestBodyJSON: {},
+      gatewayRequestBody: {},
+      gatewayRequestURL: baseURL + '/models',
+    });
+    
+    const url = baseURL + endpoint;
+    const headers = await providerConfig.api.headers({
+      c: c,
+      providerOptions,
+      fn: 'listModels',
+      transformedRequestBody: {},
+      transformedRequestUrl: url,
+      gatewayRequestBody: {},
+      headers: {},
+    });
+
+    const response = await fetch(url, { headers });
+    const data = await response.json();
+    
+    return c.json(data);
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 500);
+  }
 });
 
 export { adminApp };

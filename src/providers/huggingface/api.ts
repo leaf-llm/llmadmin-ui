@@ -20,6 +20,8 @@ const HuggingfaceAPIConfig: ProviderAPIConfig = {
         return `${modelPath}/v1/chat/completions`;
       case 'complete':
         return `${modelPath}/v1/completions`;
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

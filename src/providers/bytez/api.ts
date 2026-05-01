@@ -13,8 +13,12 @@ const BytezInferenceAPI: ProviderAPIConfig = {
 
     return headers;
   },
-  getEndpoint: ({ gatewayRequestBodyJSON: { version = 2, model } }) =>
-    `/models/v${version}/${model}`,
+  getEndpoint: ({ fn, gatewayRequestBodyJSON }) => {
+    const version = (gatewayRequestBodyJSON as any)?.version ?? 2;
+    const model = (gatewayRequestBodyJSON as any)?.model;
+    if (fn === 'listModels') return '/models';
+    return `/models/v${version}/${model}`;
+  },
 };
 
 export default BytezInferenceAPI;

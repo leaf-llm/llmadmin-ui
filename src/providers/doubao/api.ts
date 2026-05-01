@@ -9,6 +9,8 @@ const DoubaoAPIConfig: ProviderAPIConfig = {
     switch (fn) {
       case 'chatComplete':
         return '/chat/completions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

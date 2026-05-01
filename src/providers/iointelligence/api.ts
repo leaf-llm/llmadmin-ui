@@ -16,6 +16,8 @@ const IOIntelligenceAPIConfig: ProviderAPIConfig = {
         return '/embeddings';
       case 'createModelResponse':
         return '/chat/completions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

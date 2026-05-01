@@ -18,6 +18,8 @@ const LemonfoxAIAPIConfig: ProviderAPIConfig = {
         return '/images/generations';
       case 'createTranscription':
         return '/audio/transcriptions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

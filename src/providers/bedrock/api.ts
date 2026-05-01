@@ -310,7 +310,9 @@ const BedrockAPIConfig: BedrockAPIConfigInterface = {
       }
       case 'messagesCountTokens': {
         return `/model/${uriEncodedModelWithoutRegion}/count-tokens`;
-      }
+      }      case 'listModels':
+        return '/models';
+
       default:
         return '';
     }

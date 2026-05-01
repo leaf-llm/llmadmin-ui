@@ -9,6 +9,8 @@ const MinimaxAPIConfig: ProviderAPIConfig = {
     switch (fn) {
       case 'chatComplete':
         return '/messages';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

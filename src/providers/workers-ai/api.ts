@@ -24,6 +24,8 @@ const WorkersAiAPIConfig: ProviderAPIConfig = {
       case 'imageGenerate': {
         return `/${model}`;
       }
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

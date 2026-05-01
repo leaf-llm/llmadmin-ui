@@ -269,3 +269,23 @@ export async function removeRoutingModel(
     { method: 'DELETE' }
   );
 }
+
+export type ProviderModelsResponse = {
+  object?: string;
+  data?: Array<{
+    id?: string;
+    object?: string;
+    created?: number;
+    owned_by?: string;
+  }>;
+};
+
+export async function getProviderModels(
+  provider: ProviderId
+): Promise<ProviderModelsResponse> {
+  const u = new URL('/admin/provider-models', window.location.origin);
+  u.searchParams.set('provider', provider);
+  const qs = u.searchParams.toString();
+  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
+  return adminFetch<ProviderModelsResponse>(path);
+}

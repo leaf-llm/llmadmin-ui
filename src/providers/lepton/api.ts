@@ -23,6 +23,8 @@ const LeptonAPIConfig: ProviderAPIConfig = {
         return '/api/v1/completions';
       case 'createTranscription':
         return '/api/v1/audio/transcriptions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

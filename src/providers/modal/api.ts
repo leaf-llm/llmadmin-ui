@@ -14,6 +14,8 @@ export const ModalAPIConfig: ProviderAPIConfig = {
       case 'chatComplete': {
         return '/chat/completions';
       }
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }
