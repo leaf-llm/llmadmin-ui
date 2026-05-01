@@ -16,6 +16,10 @@ import { ModelCategory } from '../types/models';
 import { getModelsByProvider } from '../config/modelCategories';
 import TopNotification from '../components/TopNotification';
 
+const PROVIDER_DEFAULT_BASE_URLS: Record<string, string> = {
+  deepseek: 'https://api.deepseek.com',
+};
+
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
 interface AllProvidersPageProps {
@@ -299,10 +303,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     const existingConfigs = providers.filter((p) => p.provider === provider);
     const firstConfig = existingConfigs[0];
     const hasApiKey = existingConfigs.some((c) => c.status === 'connected');
+    const defaultBaseUrl = PROVIDER_DEFAULT_BASE_URLS[provider] ?? '';
     return {
       provider,
       status: hasApiKey ? 'connected' as const : 'disconnected' as const,
-      baseUrl: firstConfig?.baseUrl ?? '',
+      baseUrl: firstConfig?.baseUrl ?? defaultBaseUrl,
       configCount: existingConfigs.length,
       configId: provider + '-new', // unique key for new config
     } as ProviderSummary;
