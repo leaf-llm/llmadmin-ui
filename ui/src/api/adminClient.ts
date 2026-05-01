@@ -9,6 +9,7 @@ export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'moonshot',
   'minimax',
   'doubao',
+  'deepseek',
 ];
 
 export type RoutingEntry = {

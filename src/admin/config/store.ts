@@ -21,6 +21,7 @@ export const DEFAULT_BASE_URLS: Partial<Record<ProviderId, string>> = {
   moonshot: 'https://api.moonshot.cn',
   minimax: 'https://api.minimaxi.com/anthropic',
   doubao: 'https://ark.cn-beijing.volces.com/api/v3',
+  deepseek: 'https://api.deepseek.com',
 };
 
 export const SUPPORTED_PROVIDERS: ProviderId[] = [
@@ -32,6 +33,7 @@ export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'moonshot', // Kimi
   'minimax', // MINIMAX
   'doubao', // 豆包
+  'deepseek',
 ];
 
 type ProviderConfig = {

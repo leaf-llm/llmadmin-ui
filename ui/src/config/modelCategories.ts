@@ -86,6 +86,9 @@ export const MODEL_CATEGORY_MAP: Record<string, ModelCategory> = {
   'doubao-pro-128k': 'text',
   'doubao-pro-256k': 'text',
   'doubao-lite-32k': 'text',
+  // DeepSeek
+  'deepseek-chat': 'text',
+  'deepseek-coder': 'text',
   // LM Studio / Ollama / LocalAI
   'ollama-llama3': 'text',
   'ollama-mistral': 'text',
@@ -110,6 +113,7 @@ const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
   moonshot: ['moonshot-'],
   minimax: ['minimax-'],
   doubao: ['doubao-'],
+  deepseek: ['deepseek-'],
 };
 
 export function getModelsByProvider(
