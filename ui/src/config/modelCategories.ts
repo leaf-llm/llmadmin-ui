@@ -110,6 +110,7 @@ const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
   moonshot: ['moonshot-'],
   minimax: ['minimax-'],
   doubao: ['doubao-'],
+  deepseek: ['deepseek-'],
 };
 
 export function getModelsByProvider(
