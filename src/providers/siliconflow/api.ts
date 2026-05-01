@@ -16,6 +16,8 @@ const SiliconFlowAPIConfig: ProviderAPIConfig = {
         return '/embeddings';
       case 'imageGenerate':
         return `/${model}/text-to-image`;
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

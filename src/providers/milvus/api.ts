@@ -9,6 +9,8 @@ const MilvusAPIConfig: ProviderAPIConfig = {
   },
   getEndpoint: ({ fn }) => {
     switch (fn) {
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

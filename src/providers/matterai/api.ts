@@ -14,6 +14,8 @@ const MatterAIAPIConfig: ProviderAPIConfig = {
       case 'chatComplete':
       case 'stream-chatComplete':
         return '/chat/completions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

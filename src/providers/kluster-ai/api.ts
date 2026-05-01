@@ -14,6 +14,8 @@ const KlusterAIAPIConfig: ProviderAPIConfig = {
         return '/embeddings';
       case 'uploadFile':
         return '/files';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

@@ -23,6 +23,8 @@ const DeepbricksAPIConfig: ProviderAPIConfig = {
         return '/chat/completions';
       case 'imageGenerate':
         return '/images/generations';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

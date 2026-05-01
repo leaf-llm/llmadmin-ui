@@ -27,6 +27,8 @@ const OllamaAPIConfig: ProviderAPIConfig = {
       case 'embed': {
         return `/api/embeddings`;
       }
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

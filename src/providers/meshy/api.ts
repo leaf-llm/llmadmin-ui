@@ -11,7 +11,10 @@ const MeshyAPIConfig: ProviderAPIConfig = {
       'Content-Type': 'application/json',
     };
   },
-  getEndpoint: () => '',
+  getEndpoint: ({ fn }) => {
+    if (fn === 'listModels') return '/models';
+    return '';
+  },
 };
 
 export default MeshyAPIConfig;

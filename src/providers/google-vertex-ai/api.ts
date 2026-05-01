@@ -209,6 +209,8 @@ export const GoogleApiConfig: ProviderAPIConfig = {
         return `${projectRoute}/endpoints/${model}/chat/completions`;
       }
 
+      case 'listModels':
+        return `${projectRoute}/publishers/google/models`;
       default:
         return `${projectRoute}`;
     }

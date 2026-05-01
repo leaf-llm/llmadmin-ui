@@ -13,6 +13,8 @@ const TritonAPIConfig: ProviderAPIConfig = {
       case 'complete': {
         return `/generate`;
       }
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

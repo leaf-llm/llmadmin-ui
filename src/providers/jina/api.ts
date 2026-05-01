@@ -9,6 +9,8 @@ const JinaAPIConfig: ProviderAPIConfig = {
     switch (fn) {
       case 'embed':
         return '/embeddings';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

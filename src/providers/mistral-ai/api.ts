@@ -15,6 +15,8 @@ const MistralAIAPIConfig: ProviderAPIConfig = {
         return '/chat/completions';
       case 'embed':
         return '/embeddings';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

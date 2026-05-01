@@ -117,7 +117,8 @@ export type endpointStrings =
   | 'deleteModelResponse'
   | 'listResponseInputItems'
   | 'messages'
-  | 'messagesCountTokens';
+  | 'messagesCountTokens'
+  | 'listModels';
 
 /**
  * A collection of API configurations for multiple AI providers.

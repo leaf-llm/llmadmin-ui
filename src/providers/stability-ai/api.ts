@@ -30,6 +30,8 @@ const StabilityAIAPIConfig: ProviderAPIConfig = {
           return `/v1/generation/${gatewayRequestBodyJSON.model}/text-to-image`;
         return `/v2beta/stable-image/generate/${gatewayRequestBodyJSON.model}`;
       }
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

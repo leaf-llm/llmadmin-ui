@@ -14,6 +14,8 @@ export const nebiusAPIConfig: ProviderAPIConfig = {
         return `/embeddings`;
       case 'complete':
         return '/completions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

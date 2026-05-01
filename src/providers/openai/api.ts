@@ -83,6 +83,8 @@ const OpenAIAPIConfig: ProviderAPIConfig = {
         return basePath;
       case 'listResponseInputItems':
         return basePath;
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

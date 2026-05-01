@@ -107,7 +107,10 @@ const SagemakerAPIConfig: ProviderAPIConfig = {
     }
     return awsHeaders;
   },
-  getEndpoint: ({ gatewayRequestURL }) => gatewayRequestURL.split('/v1')[1],
+  getEndpoint: ({ fn, gatewayRequestURL }) => {
+    if (fn === 'listModels') return '/models';
+    return gatewayRequestURL.split('/v1')[1];
+  },
 };
 
 export default SagemakerAPIConfig;

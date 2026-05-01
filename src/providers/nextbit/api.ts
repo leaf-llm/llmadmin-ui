@@ -12,6 +12,8 @@ export const nextBitAPIConfig: ProviderAPIConfig = {
         return '/chat/completions';
       case 'complete':
         return '/completions';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

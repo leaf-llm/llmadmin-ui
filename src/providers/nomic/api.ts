@@ -9,6 +9,8 @@ const NomicAPIConfig: ProviderAPIConfig = {
     switch (fn) {
       case 'embed':
         return '/embedding/text';
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }

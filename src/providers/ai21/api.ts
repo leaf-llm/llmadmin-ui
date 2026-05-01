@@ -20,6 +20,8 @@ const AI21APIConfig: ProviderAPIConfig = {
       case 'embed': {
         return `/embed`;
       }
+      case 'listModels':
+        return '/models';
       default:
         return '';
     }
