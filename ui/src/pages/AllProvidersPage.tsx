@@ -16,7 +16,7 @@ import { ModelCategory } from '../types/models';
 import { getModelsByProvider } from '../config/modelCategories';
 import TopNotification from '../components/TopNotification';
 
-const PROVIDER_DEFAULT_BASE_URLS: Record<string, string> = {
+const DEFAULT_BASE_URLS: Record<string, string> = {
   deepseek: 'https://api.deepseek.com',
 };
 
@@ -245,7 +245,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           <div className="label">请求地址 (可选)</div>
           <input
             value={d.baseUrl ?? ''}
-            placeholder={PROVIDER_DEFAULT_BASE_URLS[p.provider] ?? p.baseUrl}
+            placeholder={DEFAULT_BASE_URLS[p.provider] ?? p.baseUrl}
             onChange={(e) => {
               const val = e.target.value;
               setDrafts((prev) => ({
