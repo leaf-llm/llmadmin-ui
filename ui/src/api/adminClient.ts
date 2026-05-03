@@ -15,6 +15,7 @@ export const SUPPORTED_PROVIDERS: ProviderId[] = [
 export type RoutingEntry = {
   provider: ProviderId;
   model: string;
+  configId: string;
   isPrimary?: boolean;
 };
 
@@ -219,6 +220,7 @@ export async function addRoutingModel(
   category: string,
   provider: ProviderId,
   model: string,
+  configId: string,
   isPrimary?: boolean
 ): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
   const u = new URL(
@@ -230,7 +232,7 @@ export async function addRoutingModel(
     u.pathname + u.search,
     {
       method: 'POST',
-      body: JSON.stringify({ isPrimary }),
+      body: JSON.stringify({ configId, isPrimary }),
     }
   );
 }
@@ -239,6 +241,7 @@ export async function updateRoutingPrimary(
   category: string,
   provider: ProviderId,
   model: string,
+  configId: string,
   isPrimary: boolean
 ): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
   const u = new URL(
@@ -250,7 +253,7 @@ export async function updateRoutingPrimary(
     u.pathname + u.search,
     {
       method: 'PUT',
-      body: JSON.stringify({ isPrimary }),
+      body: JSON.stringify({ configId, isPrimary }),
     }
   );
 }
@@ -258,13 +261,17 @@ export async function updateRoutingPrimary(
 export async function removeRoutingModel(
   category: string,
   provider: ProviderId,
-  model: string
+  model: string,
+  configId?: string
 ): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
   const u = new URL(
     `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}`,
     window.location.origin
   );
   u.searchParams.set('category', category);
+  if (configId) {
+    u.searchParams.set('configId', configId);
+  }
   return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
     u.pathname + u.search,
     { method: 'DELETE' }
@@ -289,4 +296,19 @@ export async function getProviderModels(
   const qs = u.searchParams.toString();
   const path = qs ? `${u.pathname}?${qs}` : u.pathname;
   return adminFetch<ProviderModelsResponse>(path);
+}
+
+export async function deleteProviderConfig(
+  category: string,
+  provider: ProviderId,
+  configId: string
+): Promise<{ ok: boolean }> {
+  const u = new URL(
+    `/admin/providers/${encodeURIComponent(provider)}/config/${encodeURIComponent(configId)}`,
+    window.location.origin
+  );
+  u.searchParams.set('category', category);
+  return adminFetch<{ ok: boolean }>(u.pathname + u.search, {
+    method: 'DELETE',
+  });
 }

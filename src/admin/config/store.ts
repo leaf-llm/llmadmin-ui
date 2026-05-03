@@ -139,6 +139,28 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
       return migrated;
     }
 
+    // Migrate routing entries without configId
+    const needsMigration = (parsed as UiConfigFile).text?.routing?.some(
+      (r: RoutingEntry) => !r.configId
+    );
+    if (needsMigration) {
+      // Migrate routing entries: add configId from provider's primary config
+      for (const cat of MODEL_CATEGORIES) {
+        const catRouting = (parsed as UiConfigFile)[cat]?.routing;
+        if (catRouting) {
+          for (const entry of catRouting as RoutingEntry[]) {
+            if (!entry.configId) {
+              const providerConfigs = (parsed as UiConfigFile).providers?.[
+                entry.provider
+              ];
+              entry.configId = providerConfigs?.[0]?.id ?? '';
+            }
+          }
+        }
+      }
+      await saveUiConfig(parsed as UiConfigFile);
+    }
+
     return parsed as UiConfigFile;
   } catch (e: any) {
     // If file does not exist, start with empty providers.
@@ -217,7 +239,16 @@ export async function syncUserConfigFromRouting(
   const targets: Record<string, unknown>[] = [];
   for (const entry of sortedRouting) {
     const cfgs = providers[entry.provider];
-    const p = cfgs?.[0];
+    let p: ProviderConfig | undefined;
+
+    if (entry.configId) {
+      // Find the specific config by configId
+      p = cfgs?.find((c) => c.id === entry.configId);
+    }
+
+    // Fallback to first config if configId not found or not specified (legacy data)
+    p = p || cfgs?.[0];
+
     if (!p?.apiKey?.trim()) continue;
     const target: Record<string, unknown> = {
       provider: entry.provider,
@@ -511,6 +542,7 @@ export async function addToRouting(
   category: ModelCategory,
   provider: ProviderId,
   model: string,
+  configId: string,
   isPrimary?: boolean
 ): Promise<{ routing: RoutingEntry[] }> {
   if (!SUPPORTED_PROVIDERS.includes(provider)) {
@@ -522,12 +554,13 @@ export async function addToRouting(
     config[category].routing = [];
   }
 
-  // Check if already exists
+  // Check if already exists (provider + model + configId)
   const exists = config[category].routing.some(
-    (r) => r.provider === provider && r.model === model
+    (r) =>
+      r.provider === provider && r.model === model && r.configId === configId
   );
   if (!exists) {
-    config[category].routing.push({ provider, model, isPrimary });
+    config[category].routing.push({ provider, model, configId, isPrimary });
   }
 
   await saveUiConfig(config);
@@ -538,7 +571,8 @@ export async function addToRouting(
 export async function removeFromRouting(
   category: ModelCategory,
   provider: ProviderId,
-  model: string
+  model: string,
+  configId?: string
 ): Promise<{ routing: RoutingEntry[] }> {
   if (!SUPPORTED_PROVIDERS.includes(provider)) {
     throw new Error(`Unsupported provider: ${provider}`);
@@ -549,9 +583,20 @@ export async function removeFromRouting(
     config[category].routing = [];
   }
 
-  config[category].routing = config[category].routing.filter(
-    (r) => !(r.provider === provider && r.model === model)
-  );
+  if (configId) {
+    config[category].routing = config[category].routing.filter(
+      (r) =>
+        !(
+          r.provider === provider &&
+          r.model === model &&
+          r.configId === configId
+        )
+    );
+  } else {
+    config[category].routing = config[category].routing.filter(
+      (r) => !(r.provider === provider && r.model === model)
+    );
+  }
 
   await saveUiConfig(config);
   await syncUserConfigFromRouting(category);
@@ -562,6 +607,7 @@ export async function updateRoutingPrimary(
   category: ModelCategory,
   provider: ProviderId,
   model: string,
+  configId: string,
   isPrimary: boolean
 ): Promise<{ routing: RoutingEntry[] }> {
   if (!SUPPORTED_PROVIDERS.includes(provider)) {
@@ -574,7 +620,8 @@ export async function updateRoutingPrimary(
   }
 
   const entry = config[category].routing.find(
-    (r) => r.provider === provider && r.model === model
+    (r) =>
+      r.provider === provider && r.model === model && r.configId === configId
   );
   if (entry) {
     entry.isPrimary = isPrimary;
@@ -607,4 +654,30 @@ export async function getProviderCredentialsForBilling(
     };
   }
   return null;
+}
+
+export async function deleteProviderConfig(
+  category: ModelCategory,
+  provider: ProviderId,
+  configId: string
+): Promise<{ success: boolean }> {
+  const config = await loadUiConfig();
+
+  // Remove the specific config
+  if (config.providers?.[provider]) {
+    config.providers[provider] = config.providers[provider].filter(
+      (c) => c.id !== configId
+    );
+  }
+
+  // Clean up routing entries that reference this configId
+  if (config[category]?.routing) {
+    config[category].routing = config[category].routing.filter(
+      (r) => !(r.provider === provider && r.configId === configId)
+    );
+  }
+
+  await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
+  return { success: true };
 }

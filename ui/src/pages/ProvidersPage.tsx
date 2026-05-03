@@ -39,10 +39,13 @@ export default function ProvidersPage({
   );
   const [copied, setCopied] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ModelCategory>('text');
+  // Map from configId to config info (remark, apiKeyMasked, baseUrl)
+  const [configInfo, setConfigInfo] = useState<Map<string, { remark?: string; apiKeyMasked?: string; baseUrl?: string }>>(new Map());
 
   // Model selection dialog state
   const [showModelDialog, setShowModelDialog] = useState(false);
   const [modelDialogProvider, setModelDialogProvider] = useState<string | null>(null);
+  const [modelDialogConfigId, setModelDialogConfigId] = useState<string | null>(null);
   const [providerModels, setProviderModels] = useState<string[]>([]);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [addingModels, setAddingModels] = useState(false);
@@ -67,6 +70,18 @@ export default function ProvidersPage({
         if (cancelled) return;
         setProviders(providersRes.providers);
         setRouting(routingRes.routing);
+        // Build configId -> configInfo map
+        const configMap = new Map<string, { remark?: string; apiKeyMasked?: string; baseUrl?: string }>();
+        for (const p of providersRes.providers) {
+          if (p.configId) {
+            configMap.set(p.configId, {
+              remark: p.remark,
+              apiKeyMasked: p.apiKeyMasked,
+              baseUrl: p.baseUrl,
+            });
+          }
+        }
+        setConfigInfo(configMap);
         const nextDrafts: Record<string, Draft> = {};
         for (const p of providersRes.providers) {
           nextDrafts[p.provider] = {
@@ -108,8 +123,9 @@ export default function ProvidersPage({
     });
   };
 
-  const openModelDialog = async (provider: string) => {
+  const openModelDialog = async (provider: string, configId: string) => {
     setModelDialogProvider(provider);
+    setModelDialogConfigId(configId);
     setSelectedModels([]);
     setShowModelDialog(true);
     try {
@@ -129,15 +145,16 @@ export default function ProvidersPage({
   const closeModelDialog = () => {
     setShowModelDialog(false);
     setModelDialogProvider(null);
+    setModelDialogConfigId(null);
     setSelectedModels([]);
   };
 
   const handleAddModels = async () => {
-    if (!modelDialogProvider || selectedModels.length === 0) return;
+    if (!modelDialogProvider || !modelDialogConfigId || selectedModels.length === 0) return;
     setAddingModels(true);
     try {
       for (const model of selectedModels) {
-        await addRoutingModel(activeCategory, modelDialogProvider, model);
+        await addRoutingModel(activeCategory, modelDialogProvider, model, modelDialogConfigId);
       }
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
@@ -152,9 +169,9 @@ export default function ProvidersPage({
     }
   };
 
-  const handleRemoveFromRouting = async (provider: string, model: string) => {
+  const handleRemoveFromRouting = async (provider: string, model: string, configId: string) => {
     try {
-      await removeRoutingModel(activeCategory, provider, model);
+      await removeRoutingModel(activeCategory, provider, model, configId);
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
       // Refresh providers to update their routing info
@@ -168,6 +185,7 @@ export default function ProvidersPage({
   const handleTogglePrimary = async (
     provider: string,
     model: string,
+    configId: string,
     currentIsPrimary: boolean
   ) => {
     try {
@@ -175,6 +193,7 @@ export default function ProvidersPage({
         activeCategory,
         provider,
         model,
+        configId,
         !currentIsPrimary
       );
       const routingRes = await getRouting(activeCategory);
@@ -343,12 +362,13 @@ export default function ProvidersPage({
       {(() => {
         // Show all configs with apiKey (each config is a separate entry)
         const activeProviders = providers.filter((p) => p.status === 'connected');
-        // Get models already in routing for each provider
+        // Get models already in routing for each provider+configId
         const routedProviderModels = new Map<string, string[]>();
         for (const entry of routing) {
-          const existing = routedProviderModels.get(entry.provider) ?? [];
+          const key = `${entry.provider}:${entry.configId}`;
+          const existing = routedProviderModels.get(key) ?? [];
           existing.push(entry.model);
-          routedProviderModels.set(entry.provider, existing);
+          routedProviderModels.set(key, existing);
         }
         return (
           <>
@@ -370,9 +390,11 @@ export default function ProvidersPage({
                             </span>
                           </div>
                           <div className="routing-list">
-                            {primaryEntries.map((entry) => (
+                            {primaryEntries.map((entry) => {
+                              const info = configInfo.get(entry.configId);
+                              return (
                               <div
-                                key={`${entry.provider}-${entry.model}`}
+                                key={`${entry.provider}-${entry.model}-${entry.configId}`}
                                 className="routing-item is-primary"
                               >
                                 <div className="routing-info">
@@ -383,6 +405,16 @@ export default function ProvidersPage({
                                   <span className="routing-model">
                                     {entry.model}
                                   </span>
+                                  {info?.remark && (
+                                    <span className="routing-config-info">
+                                      ({info.remark})
+                                    </span>
+                                  )}
+                                  {info?.apiKeyMasked && (
+                                    <span className="routing-config-key">
+                                      {info.apiKeyMasked}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="routing-actions">
                                   <button
@@ -391,6 +423,7 @@ export default function ProvidersPage({
                                       handleTogglePrimary(
                                         entry.provider,
                                         entry.model,
+                                        entry.configId,
                                         true
                                       )
                                     }
@@ -402,7 +435,8 @@ export default function ProvidersPage({
                                     onClick={() =>
                                       handleRemoveFromRouting(
                                         entry.provider,
-                                        entry.model
+                                        entry.model,
+                                        entry.configId
                                       )
                                     }
                                     title="Remove from routing"
@@ -411,7 +445,8 @@ export default function ProvidersPage({
                                   </button>
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -424,9 +459,11 @@ export default function ProvidersPage({
                             </span>
                           </div>
                           <div className="routing-list">
-                            {lbEntries.map((entry) => (
+                            {lbEntries.map((entry) => {
+                              const info = configInfo.get(entry.configId);
+                              return (
                               <div
-                                key={`${entry.provider}-${entry.model}`}
+                                key={`${entry.provider}-${entry.model}-${entry.configId}`}
                                 className="routing-item"
                               >
                                 <div className="routing-info">
@@ -437,6 +474,16 @@ export default function ProvidersPage({
                                   <span className="routing-model">
                                     {entry.model}
                                   </span>
+                                  {info?.remark && (
+                                    <span className="routing-config-info">
+                                      ({info.remark})
+                                    </span>
+                                  )}
+                                  {info?.apiKeyMasked && (
+                                    <span className="routing-config-key">
+                                      {info.apiKeyMasked}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="routing-actions">
                                   <button
@@ -445,6 +492,7 @@ export default function ProvidersPage({
                                       handleTogglePrimary(
                                         entry.provider,
                                         entry.model,
+                                        entry.configId,
                                         false
                                       )
                                     }
@@ -456,7 +504,8 @@ export default function ProvidersPage({
                                     onClick={() =>
                                       handleRemoveFromRouting(
                                         entry.provider,
-                                        entry.model
+                                        entry.model,
+                                        entry.configId
                                       )
                                     }
                                     title="Remove from routing"
@@ -465,7 +514,8 @@ export default function ProvidersPage({
                                   </button>
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -495,7 +545,7 @@ export default function ProvidersPage({
                   {activeProviders.map((p) => {
                     const isExpanded = expandedProviders.has(p.provider);
                     const routedModels =
-                      routedProviderModels.get(p.provider) ?? [];
+                      routedProviderModels.get(`${p.provider}:${p.configId}`) ?? [];
                     return (
                       <div className="provider-list-item" key={p.configId}>
                         <div className="provider-list-row">
@@ -512,7 +562,7 @@ export default function ProvidersPage({
                           <div className="provider-actions">
                             <button
                               className="secondary small"
-                              onClick={() => openModelDialog(p.provider)}
+                              onClick={() => openModelDialog(p.provider, p.configId ?? p.provider)}
                             >
                               Add to Routing
                             </button>
@@ -534,7 +584,7 @@ export default function ProvidersPage({
       })()}
 
       {/* Model Selection Dialog */}
-      {showModelDialog && modelDialogProvider && (
+      {showModelDialog && modelDialogProvider && modelDialogConfigId && (
         <div className="dialog-overlay" onClick={closeModelDialog}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
@@ -552,7 +602,7 @@ export default function ProvidersPage({
                 );
                 const routedModels = new Set(
                   routing
-                    .filter((r) => r.provider === modelDialogProvider)
+                    .filter((r) => r.provider === modelDialogProvider && r.configId === modelDialogConfigId)
                     .map((r) => r.model)
                 );
                 if (filtered.length === 0) {

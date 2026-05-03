@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   listProviderSummaries,
   upsertProvider,
+  deleteProviderConfig,
   loadUserConfig,
   saveUserConfig,
   loadUiConfig,
@@ -103,7 +104,14 @@ async function generateConfigFromProviders(
   const targets: Record<string, unknown>[] = [];
   for (const entry of sortedRouting) {
     const configs = providers[entry.provider];
-    const p = configs?.[0]; // Use first config entry
+    let p = configs?.[0]; // Default to first config
+
+    // Use specific config if configId is provided
+    if (entry.configId) {
+      const matched = configs?.find((c) => c.id === entry.configId);
+      if (matched) p = matched;
+    }
+
     if (!p?.apiKey?.trim()) {
       continue; // Skip if provider has no apiKey
     }
@@ -164,6 +172,18 @@ adminApp.delete('/config', async (c) => {
   return c.json({ ok: true });
 });
 
+adminApp.delete('/providers/:provider/config/:configId', async (c) => {
+  const category = getCategoryParam(c);
+  const provider = c.req.param('provider') as ProviderId;
+  const configId = c.req.param('configId');
+  try {
+    await deleteProviderConfig(category, provider, configId);
+    return c.json({ ok: true });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 400);
+  }
+});
+
 adminApp.get('/providers', async (c) => {
   const category = getCategoryParam(c);
   const res = await listProviderSummaries(category);
@@ -210,6 +230,7 @@ adminApp.get('/routing', async (c) => {
 });
 
 const RoutingPostSchema = z.object({
+  configId: z.string().min(1, 'configId is required'),
   isPrimary: z.boolean().optional(),
 });
 
@@ -227,6 +248,7 @@ adminApp.post('/routing/:provider/:model', async (c) => {
       category,
       provider,
       model,
+      parsed.data.configId,
       parsed.data.isPrimary
     );
     return c.json({ ok: true, routing: res.routing });
@@ -249,6 +271,7 @@ adminApp.put('/routing/:provider/:model', async (c) => {
       category,
       provider,
       model,
+      parsed.data.configId,
       parsed.data.isPrimary ?? false
     );
     return c.json({ ok: true, routing: res.routing });
@@ -261,8 +284,14 @@ adminApp.delete('/routing/:provider/:model', async (c) => {
   const category = getCategoryParam(c);
   const provider = c.req.param('provider') as ProviderId;
   const model = c.req.param('model');
+  const configId = c.req.query('configId');
   try {
-    const res = await removeFromRouting(category, provider, model);
+    const res = await removeFromRouting(
+      category,
+      provider,
+      model,
+      configId || undefined
+    );
     return c.json({ ok: true, routing: res.routing });
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 400);
@@ -300,7 +329,6 @@ adminApp.get('/usage', async (c) => {
   return c.json(res);
 });
 
-
 // Provider model catalog - fetch available models from provider's /models endpoint
 adminApp.get('/provider-models', async (c) => {
   const provider = c.req.query('provider');
@@ -321,7 +349,7 @@ adminApp.get('/provider-models', async (c) => {
     const apiKey = firstConfig?.apiKey || '';
 
     const providerOptions = { apiKey };
-    
+
     const baseURL = providerConfig.api.getBaseURL({
       providerOptions,
       fn: 'listModels',
@@ -330,7 +358,7 @@ adminApp.get('/provider-models', async (c) => {
       requestHeaders: {},
       params: {},
     });
-    
+
     const endpoint = providerConfig.api.getEndpoint({
       c: c,
       providerOptions,
@@ -339,7 +367,7 @@ adminApp.get('/provider-models', async (c) => {
       gatewayRequestBody: {},
       gatewayRequestURL: baseURL + '/models',
     });
-    
+
     const url = baseURL + endpoint;
     const headers = await providerConfig.api.headers({
       c: c,
@@ -353,7 +381,7 @@ adminApp.get('/provider-models', async (c) => {
 
     const response = await fetch(url, { headers });
     const data = await response.json();
-    
+
     return c.json(data);
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 500);
