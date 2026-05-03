@@ -4,6 +4,7 @@ import {
   ProviderSummary,
   ProviderUpdateRequest,
   updateProvider,
+  deleteProviderConfig,
   syncConfig,
   getRouting,
   addRoutingModel,
@@ -41,6 +42,9 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
 
   const [showModelDialog, setShowModelDialog] = useState(false);
   const [modelDialogProvider, setModelDialogProvider] = useState<string | null>(
+    null
+  );
+  const [modelDialogConfigId, setModelDialogConfigId] = useState<string | null>(
     null
   );
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
@@ -94,8 +98,9 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     });
   };
 
-  const openModelDialog = (provider: string) => {
+  const openModelDialog = (provider: string, configId: string) => {
     setModelDialogProvider(provider);
+    setModelDialogConfigId(configId);
     setSelectedModels([]);
     setShowModelDialog(true);
   };
@@ -103,15 +108,16 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   const closeModelDialog = () => {
     setShowModelDialog(false);
     setModelDialogProvider(null);
+    setModelDialogConfigId(null);
     setSelectedModels([]);
   };
 
   const handleAddModels = async () => {
-    if (!modelDialogProvider || selectedModels.length === 0) return;
+    if (!modelDialogProvider || !modelDialogConfigId || selectedModels.length === 0) return;
     setAddingModels(true);
     try {
       for (const model of selectedModels) {
-        await addRoutingModel(activeCategory, modelDialogProvider, model);
+        await addRoutingModel(activeCategory, modelDialogProvider, model, modelDialogConfigId);
       }
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
@@ -125,9 +131,9 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     }
   };
 
-  const handleRemoveFromRouting = async (provider: string, model: string) => {
+  const handleRemoveFromRouting = async (provider: string, model: string, configId: string) => {
     try {
-      await removeRoutingModel(activeCategory, provider, model);
+      await removeRoutingModel(activeCategory, provider, model, configId);
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
       const providersRes = await getProviders(activeCategory);
@@ -140,6 +146,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   const handleTogglePrimary = async (
     provider: string,
     model: string,
+    configId: string,
     currentIsPrimary: boolean
   ) => {
     try {
@@ -147,6 +154,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         activeCategory,
         provider,
         model,
+        configId,
         !currentIsPrimary
       );
       const routingRes = await getRouting(activeCategory);
@@ -279,6 +287,27 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         </div>
         <div className="row">
           {renderSaveButton(p, isNew)}
+          {!isNew && p.configId && (
+            <button
+              className="danger"
+              onClick={async () => {
+                if (!confirm('Delete this config and its routing entries?')) return;
+                try {
+                  await deleteProviderConfig(activeCategory, p.provider, p.configId!);
+                  const [providersRes, routingRes] = await Promise.all([
+                    getProviders(activeCategory),
+                    getRouting(activeCategory),
+                  ]);
+                  setProviders(providersRes.providers);
+                  setRouting(routingRes.routing);
+                } catch (e: any) {
+                  setError(e?.message ?? String(e));
+                }
+              }}
+            >
+              删除
+            </button>
+          )}
           <div className="muted">
             {p.lastSyncedAt ? `Last sync: ${p.lastSyncedAt}` : ''}
           </div>
@@ -288,10 +317,12 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   };
 
   const routedProviderModels = new Map<string, string[]>();
+  // Key by provider+configId to support multiple configs per provider
   for (const entry of routing) {
-    const existing = routedProviderModels.get(entry.provider) ?? [];
+    const key = `${entry.provider}:${entry.configId}`;
+    const existing = routedProviderModels.get(key) ?? [];
     existing.push(entry.model);
-    routedProviderModels.set(entry.provider, existing);
+    routedProviderModels.set(key, existing);
   }
 
   // Connected: show ALL configs (each config as separate entry) so user can modify them
@@ -340,7 +371,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               <div className="provider-list">
                 {connectedProviders.map((p) => {
                   const isExpanded = expandedProviders.has(p.configId ?? p.provider);
-                  const routedModels = routedProviderModels.get(p.provider) ?? [];
+                  const routedModels = routedProviderModels.get(`${p.provider}:${p.configId}`) ?? [];
                   return (
                     <div className="provider-list-item" key={p.configId ?? p.provider}>
                       <div className="provider-list-row">
@@ -422,7 +453,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         </>
       )}
 
-      {showModelDialog && modelDialogProvider && (
+      {showModelDialog && modelDialogProvider && modelDialogConfigId && (
         <div className="dialog-overlay" onClick={closeModelDialog}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
@@ -439,7 +470,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 );
                 const routedModels = new Set(
                   routing
-                    .filter((r) => r.provider === modelDialogProvider)
+                    .filter((r) => r.provider === modelDialogProvider && r.configId === modelDialogConfigId)
                     .map((r) => r.model)
                 );
                 if (filtered.length === 0) {

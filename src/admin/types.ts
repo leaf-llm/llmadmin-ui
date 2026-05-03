@@ -15,6 +15,7 @@ export type ProviderStatus = 'connected' | 'disconnected' | 'unknown';
 export type RoutingEntry = {
   provider: ProviderId;
   model: string;
+  configId: string;
   isPrimary?: boolean;
 };
 
