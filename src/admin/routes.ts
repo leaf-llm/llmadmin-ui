@@ -7,10 +7,12 @@ import {
   loadUserConfig,
   saveUserConfig,
   loadUiConfig,
+  saveUiConfig,
   listRouting,
   addToRouting,
   removeFromRouting,
   updateRoutingPrimary,
+  validateUiConfig,
   DEFAULT_BASE_URLS,
 } from './config/store';
 import { getUsage } from './billing';
@@ -164,6 +166,29 @@ adminApp.delete('/config', async (c) => {
   return c.json({ ok: true });
 });
 
+adminApp.get('/config/export', async (c) => {
+  try {
+    const config = await loadUiConfig();
+    return c.json({ config });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 500);
+  }
+});
+
+adminApp.post('/config/import', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return c.json({ ok: false, message: 'Invalid JSON body' }, 400);
+    }
+    const validated = validateUiConfig(body);
+    await saveUiConfig(validated);
+    return c.json({ ok: true });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 400);
+  }
+});
+
 adminApp.get('/providers', async (c) => {
   const category = getCategoryParam(c);
   const res = await listProviderSummaries(category);
@@ -300,7 +325,6 @@ adminApp.get('/usage', async (c) => {
   return c.json(res);
 });
 
-
 // Provider model catalog - fetch available models from provider's /models endpoint
 adminApp.get('/provider-models', async (c) => {
   const provider = c.req.query('provider');
@@ -321,7 +345,7 @@ adminApp.get('/provider-models', async (c) => {
     const apiKey = firstConfig?.apiKey || '';
 
     const providerOptions = { apiKey };
-    
+
     const baseURL = providerConfig.api.getBaseURL({
       providerOptions,
       fn: 'listModels',
@@ -330,7 +354,7 @@ adminApp.get('/provider-models', async (c) => {
       requestHeaders: {},
       params: {},
     });
-    
+
     const endpoint = providerConfig.api.getEndpoint({
       c: c,
       providerOptions,
@@ -339,7 +363,7 @@ adminApp.get('/provider-models', async (c) => {
       gatewayRequestBody: {},
       gatewayRequestURL: baseURL + '/models',
     });
-    
+
     const url = baseURL + endpoint;
     const headers = await providerConfig.api.headers({
       c: c,
@@ -353,7 +377,7 @@ adminApp.get('/provider-models', async (c) => {
 
     const response = await fetch(url, { headers });
     const data = await response.json();
-    
+
     return c.json(data);
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 500);

@@ -203,6 +203,24 @@ export async function deleteConfig(
   });
 }
 
+export async function exportConfig(): Promise<Record<string, unknown>> {
+  const u = new URL('/admin/config/export', window.location.origin);
+  const res = await adminFetch<{ config?: Record<string, unknown>; ok?: boolean; message?: string }>(u.pathname);
+  if (!res.config) {
+    throw new Error(res.message || 'Failed to export config');
+  }
+  return res.config;
+}
+
+export async function importConfig(
+  config: Record<string, unknown>
+): Promise<{ ok: boolean; message?: string }> {
+  return adminFetch<{ ok: boolean; message?: string }>('/admin/config/import', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+}
+
 export async function getRouting(category?: string): Promise<{
   routing: RoutingEntry[];
 }> {
