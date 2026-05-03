@@ -337,7 +337,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       provider,
       status: hasApiKey ? 'connected' as const : 'disconnected' as const,
       baseUrl: firstConfig?.baseUrl ?? '',
-      configCount: existingConfigs.length,
+      configCount: existingConfigs.filter((c) => c.status === 'connected').length,
       configId: provider + '-new', // unique key for new config
     } as ProviderSummary;
   });

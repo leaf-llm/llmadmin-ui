@@ -8,10 +8,12 @@ import {
   loadUserConfig,
   saveUserConfig,
   loadUiConfig,
+  saveUiConfig,
   listRouting,
   addToRouting,
   removeFromRouting,
   updateRoutingPrimary,
+  validateUiConfig,
   DEFAULT_BASE_URLS,
 } from './config/store';
 import { getUsage } from './billing';
@@ -178,6 +180,29 @@ adminApp.delete('/providers/:provider/config/:configId', async (c) => {
   const configId = c.req.param('configId');
   try {
     await deleteProviderConfig(category, provider, configId);
+     return c.json({ ok: true });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 400);
+  }
+});
+
+adminApp.get('/config/export', async (c) => {
+  try {
+    const config = await loadUiConfig();
+    return c.json({ config });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 500);
+  }
+});
+
+adminApp.post('/config/import', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return c.json({ ok: false, message: 'Invalid JSON body' }, 400);
+    }
+    const validated = validateUiConfig(body);
+    await saveUiConfig(validated);
     return c.json({ ok: true });
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 400);

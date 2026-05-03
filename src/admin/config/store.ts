@@ -55,6 +55,62 @@ type UiConfigFile = {
 
 const CONFIG_FILE_NAME = 'conf.ui.json';
 
+export function validateUiConfig(config: unknown): UiConfigFile {
+  if (!config || typeof config !== 'object') {
+    throw new Error('Config must be an object');
+  }
+
+  const cfg = config as Record<string, unknown>;
+
+  // Validate top-level structure
+  if (
+    !('providers' in cfg) ||
+    typeof cfg.providers !== 'object' ||
+    cfg.providers === null
+  ) {
+    throw new Error('Missing or invalid "providers" field');
+  }
+
+  const providers = cfg.providers as Record<string, unknown>;
+  for (const [providerId, providerConfigs] of Object.entries(providers)) {
+    if (!SUPPORTED_PROVIDERS.includes(providerId as ProviderId)) {
+      throw new Error(`Unknown provider: ${providerId}`);
+    }
+    if (!Array.isArray(providerConfigs)) {
+      throw new Error(`Provider "${providerId}" configs must be an array`);
+    }
+    for (const conf of providerConfigs) {
+      if (!conf || typeof conf !== 'object') {
+        throw new Error(`Invalid config for provider "${providerId}"`);
+      }
+      const c = conf as Record<string, unknown>;
+      if (typeof c.id !== 'string') {
+        throw new Error(`Provider "${providerId}" config missing valid "id"`);
+      }
+    }
+  }
+
+  // Validate categories
+  for (const cat of MODEL_CATEGORIES) {
+    if (!(cat in cfg)) {
+      throw new Error(`Missing category: ${cat}`);
+    }
+    const catConfig = cfg[cat];
+    if (!catConfig || typeof catConfig !== 'object') {
+      throw new Error(`Category "${cat}" must be an object`);
+    }
+    const cc = catConfig as Record<string, unknown>;
+    if (!Array.isArray(cc.routing)) {
+      throw new Error(`Category "${cat}" missing valid "routing" array`);
+    }
+    if (cc.userConfig !== null && typeof cc.userConfig !== 'object') {
+      throw new Error(`Category "${cat}" "userConfig" must be null or object`);
+    }
+  }
+
+  return cfg as unknown as UiConfigFile;
+}
+
 function maskApiKey(key: string): string {
   const trimmed = key.trim();
   if (!trimmed) return '';
@@ -202,7 +258,7 @@ function createEmptyCategoryConfig(): CategoryConfig {
   };
 }
 
-async function saveUiConfig(config: UiConfigFile) {
+export async function saveUiConfig(config: UiConfigFile) {
   const runtime = getRuntimeKey();
   if (runtime !== 'node' && runtime !== 'bun') {
     return; // silently no-op, config cannot be saved in non-node/bun runtimes
