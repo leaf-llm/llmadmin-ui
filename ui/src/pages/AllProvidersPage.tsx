@@ -314,7 +314,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             <button
               className="danger"
               onClick={async () => {
-                const key = `${p.provider}:${p.configId}`;
+const key = `${p.provider}:${p.configId}`;
                 const models = routedProviderModels.get(key) ?? [];
                 if (models.length > 0) {
                   setDeleteTarget({
@@ -340,6 +340,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                   } catch (e: any) {
                     setError(e?.message ?? String(e));
                   }
+                }
                 }
               }}
             >

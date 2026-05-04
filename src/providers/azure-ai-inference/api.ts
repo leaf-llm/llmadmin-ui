@@ -254,9 +254,9 @@ const AzureAIInferenceAPI: ProviderAPIConfig = {
       case 'deleteFile':
       case 'retrieveFileContent': {
         return `${ENDPOINT_MAPPING[mappedFn]}?${searchParamsString}`;
-      }      case 'listModels':
+      }
+      case 'listModels':
         return '/models';
-
 
       default:
         return '';

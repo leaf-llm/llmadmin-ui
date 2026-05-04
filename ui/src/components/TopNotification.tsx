@@ -21,7 +21,9 @@ export default function TopNotification({
   }, [autoDismissMs, onDismiss]);
 
   return (
-    <div className={`top-notification ${type === 'error' ? 'error' : 'notice'}`}>
+    <div
+      className={`top-notification ${type === 'error' ? 'error' : 'notice'}`}
+    >
       <span>{message}</span>
       {onDismiss && (
         <button

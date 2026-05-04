@@ -206,7 +206,11 @@ export async function deleteConfig(
 
 export async function exportConfig(): Promise<Record<string, unknown>> {
   const u = new URL('/admin/config/export', window.location.origin);
-  const res = await adminFetch<{ config?: Record<string, unknown>; ok?: boolean; message?: string }>(u.pathname);
+  const res = await adminFetch<{
+    config?: Record<string, unknown>;
+    ok?: boolean;
+    message?: string;
+  }>(u.pathname);
   if (!res.config) {
     throw new Error(res.message || 'Failed to export config');
   }
@@ -307,10 +311,12 @@ export type ProviderModelsResponse = {
 };
 
 export async function getProviderModels(
-  provider: ProviderId
+  provider: ProviderId,
+  configId: string
 ): Promise<ProviderModelsResponse> {
   const u = new URL('/admin/provider-models', window.location.origin);
   u.searchParams.set('provider', provider);
+  u.searchParams.set('configId', configId);
   const qs = u.searchParams.toString();
   const path = qs ? `${u.pathname}?${qs}` : u.pathname;
   return adminFetch<ProviderModelsResponse>(path);
