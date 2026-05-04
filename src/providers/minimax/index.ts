@@ -5,13 +5,19 @@ import {
   MinimaxChatCompleteResponseTransform,
   MinimaxChatCompleteStreamChunkTransform,
 } from './chatComplete';
+import {
+  MinimaxMessagesConfig,
+  MinimaxMessagesResponseTransform,
+} from './messages';
 
 const MinimaxConfig: ProviderConfigs = {
   chatComplete: MinimaxChatCompleteConfig,
+  messages: MinimaxMessagesConfig,
   api: MinimaxAPIConfig,
   responseTransforms: {
     chatComplete: MinimaxChatCompleteResponseTransform,
     'stream-chatComplete': MinimaxChatCompleteStreamChunkTransform,
+    messages: MinimaxMessagesResponseTransform,
   },
 };
 

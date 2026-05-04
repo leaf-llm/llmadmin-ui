@@ -5,13 +5,19 @@ import {
   DoubaoChatCompleteResponseTransform,
   DoubaoChatCompleteStreamChunkTransform,
 } from './chatComplete';
+import {
+  DoubaoMessagesConfig,
+  DoubaoMessagesResponseTransform,
+} from './messages';
 
 const DoubaoConfig: ProviderConfigs = {
   chatComplete: DoubaoChatCompleteConfig,
+  messages: DoubaoMessagesConfig,
   api: DoubaoAPIConfig,
   responseTransforms: {
     chatComplete: DoubaoChatCompleteResponseTransform,
     'stream-chatComplete': DoubaoChatCompleteStreamChunkTransform,
+    messages: DoubaoMessagesResponseTransform,
   },
 };
 

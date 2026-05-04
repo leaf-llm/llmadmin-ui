@@ -8,6 +8,8 @@ const MinimaxAPIConfig: ProviderAPIConfig = {
   getEndpoint: ({ fn }) => {
     switch (fn) {
       case 'chatComplete':
+        return '/chat/completions';
+      case 'messages':
         return '/messages';
       case 'listModels':
         return '/models';
