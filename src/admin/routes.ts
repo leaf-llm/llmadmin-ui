@@ -180,7 +180,7 @@ adminApp.delete('/providers/:provider/config/:configId', async (c) => {
   const configId = c.req.param('configId');
   try {
     await deleteProviderConfig(category, provider, configId);
-     return c.json({ ok: true });
+    return c.json({ ok: true });
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 400);
   }
@@ -357,6 +357,7 @@ adminApp.get('/usage', async (c) => {
 // Provider model catalog - fetch available models from provider's /models endpoint
 adminApp.get('/provider-models', async (c) => {
   const provider = c.req.query('provider');
+  const configId = c.req.query('configId');
   if (!provider) {
     return c.json({ ok: false, message: 'provider is required' }, 400);
   }
@@ -370,12 +371,24 @@ adminApp.get('/provider-models', async (c) => {
     // Get apiKey from provider config in store
     const uiConfig = await loadUiConfig();
     const providerConfigs = uiConfig.providers?.[provider as ProviderId];
-    const firstConfig = providerConfigs?.[0];
-    const apiKey = firstConfig?.apiKey || '';
+    const matchedConfig = configId
+      ? providerConfigs?.find((cfg) => cfg.id === configId)
+      : providerConfigs?.[0];
+    if (!matchedConfig) {
+      return c.json(
+        {
+          ok: false,
+          message: `Config not found for ${provider}${configId ? ` with configId ${configId}` : ''}. Please check your config key and baseURL.`,
+        },
+        404
+      );
+    }
+    const apiKey = matchedConfig.apiKey || '';
+    const baseUrl = matchedConfig.baseUrl;
 
-    const providerOptions = { apiKey };
+    const providerOptions = { apiKey, baseUrl };
 
-    const baseURL = providerConfig.api.getBaseURL({
+    const resolvedBaseURL = providerConfig.api.getBaseURL({
       providerOptions,
       fn: 'listModels',
       c: c,
@@ -390,10 +403,10 @@ adminApp.get('/provider-models', async (c) => {
       fn: 'listModels',
       gatewayRequestBodyJSON: {},
       gatewayRequestBody: {},
-      gatewayRequestURL: baseURL + '/models',
+      gatewayRequestURL: resolvedBaseURL + '/models',
     });
 
-    const url = baseURL + endpoint;
+    const url = resolvedBaseURL + endpoint;
     const headers = await providerConfig.api.headers({
       c: c,
       providerOptions,

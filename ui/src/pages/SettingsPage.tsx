@@ -1,8 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { exportConfig, importConfig } from '../api/adminClient';
 
-const VALID_CONFIG_KEYS = ['providers', 'text', 'image', 'video', 'audio', 'mcp'];
-const VALID_PROVIDERS = ['openai', 'anthropic', 'google', 'zhipu', 'dashscope', 'moonshot', 'minimax', 'doubao', 'deepseek'];
+const VALID_CONFIG_KEYS = [
+  'providers',
+  'text',
+  'image',
+  'video',
+  'audio',
+  'mcp',
+];
+const VALID_PROVIDERS = [
+  'openai',
+  'anthropic',
+  'google',
+  'zhipu',
+  'dashscope',
+  'moonshot',
+  'minimax',
+  'doubao',
+  'deepseek',
+];
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
@@ -108,7 +125,10 @@ export default function SettingsPage() {
           return `Category "${cat}" routing entry "isPrimary" must be boolean`;
         }
       }
-      if (catConfig.userConfig !== null && typeof catConfig.userConfig !== 'object') {
+      if (
+        catConfig.userConfig !== null &&
+        typeof catConfig.userConfig !== 'object'
+      ) {
         return `Category "${cat}" "userConfig" must be null or object`;
       }
     }
@@ -119,7 +139,9 @@ export default function SettingsPage() {
   async function handleExport() {
     try {
       const fullConfig = await exportConfig();
-      const blob = new Blob([JSON.stringify(fullConfig, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify(fullConfig, null, 2)], {
+        type: 'application/json',
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -219,8 +241,16 @@ export default function SettingsPage() {
           />
         </div>
 
-        {importError && <div className="error" style={{ marginTop: 10 }}>{importError}</div>}
-        {importSuccess && <div className="success" style={{ marginTop: 10 }}>Import successful!</div>}
+        {importError && (
+          <div className="error" style={{ marginTop: 10 }}>
+            {importError}
+          </div>
+        )}
+        {importSuccess && (
+          <div className="success" style={{ marginTop: 10 }}>
+            Import successful!
+          </div>
+        )}
       </div>
 
       {rawConfig && (

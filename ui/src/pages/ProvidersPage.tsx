@@ -40,16 +40,25 @@ export default function ProvidersPage({
   const [copied, setCopied] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ModelCategory>('text');
   // Map from configId to config info (remark, apiKeyMasked, baseUrl)
-  const [configInfo, setConfigInfo] = useState<Map<string, { remark?: string; apiKeyMasked?: string; baseUrl?: string }>>(new Map());
+  const [configInfo, setConfigInfo] = useState<
+    Map<string, { remark?: string; apiKeyMasked?: string; baseUrl?: string }>
+  >(new Map());
 
   // Model selection dialog state
   const [showModelDialog, setShowModelDialog] = useState(false);
-  const [modelDialogProvider, setModelDialogProvider] = useState<string | null>(null);
-  const [modelDialogConfigId, setModelDialogConfigId] = useState<string | null>(null);
+  const [modelDialogProvider, setModelDialogProvider] = useState<string | null>(
+    null
+  );
+  const [modelDialogConfigId, setModelDialogConfigId] = useState<string | null>(
+    null
+  );
   const [providerModels, setProviderModels] = useState<string[]>([]);
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [addingModels, setAddingModels] = useState(false);
-  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'notice' } | null>(null);
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'error' | 'notice';
+  } | null>(null);
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(GATEWAY_URL);
@@ -71,7 +80,10 @@ export default function ProvidersPage({
         setProviders(providersRes.providers);
         setRouting(routingRes.routing);
         // Build configId -> configInfo map
-        const configMap = new Map<string, { remark?: string; apiKeyMasked?: string; baseUrl?: string }>();
+        const configMap = new Map<
+          string,
+          { remark?: string; apiKeyMasked?: string; baseUrl?: string }
+        >();
         for (const p of providersRes.providers) {
           if (p.configId) {
             configMap.set(p.configId, {
@@ -129,9 +141,9 @@ export default function ProvidersPage({
     setSelectedModels([]);
     setShowModelDialog(true);
     try {
-      const result = await getProviderModels(provider);
+      const result = await getProviderModels(provider, configId);
       if (result.data) {
-        const modelIds = result.data.map(m => m.id || m).filter(Boolean);
+        const modelIds = result.data.map((m) => m.id || m).filter(Boolean);
         setProviderModels(modelIds);
       } else {
         setProviderModels([]);
@@ -150,11 +162,21 @@ export default function ProvidersPage({
   };
 
   const handleAddModels = async () => {
-    if (!modelDialogProvider || !modelDialogConfigId || selectedModels.length === 0) return;
+    if (
+      !modelDialogProvider ||
+      !modelDialogConfigId ||
+      selectedModels.length === 0
+    )
+      return;
     setAddingModels(true);
     try {
       for (const model of selectedModels) {
-        await addRoutingModel(activeCategory, modelDialogProvider, model, modelDialogConfigId);
+        await addRoutingModel(
+          activeCategory,
+          modelDialogProvider,
+          model,
+          modelDialogConfigId
+        );
       }
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
@@ -169,7 +191,11 @@ export default function ProvidersPage({
     }
   };
 
-  const handleRemoveFromRouting = async (provider: string, model: string, configId: string) => {
+  const handleRemoveFromRouting = async (
+    provider: string,
+    model: string,
+    configId: string
+  ) => {
     try {
       await removeRoutingModel(activeCategory, provider, model, configId);
       const routingRes = await getRouting(activeCategory);
@@ -361,7 +387,9 @@ export default function ProvidersPage({
 
       {(() => {
         // Show all configs with apiKey (each config is a separate entry)
-        const activeProviders = providers.filter((p) => p.status === 'connected');
+        const activeProviders = providers.filter(
+          (p) => p.status === 'connected'
+        );
         // Get models already in routing for each provider+configId
         const routedProviderModels = new Map<string, string[]>();
         for (const entry of routing) {
@@ -393,58 +421,58 @@ export default function ProvidersPage({
                             {primaryEntries.map((entry) => {
                               const info = configInfo.get(entry.configId);
                               return (
-                              <div
-                                key={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                className="routing-item is-primary"
-                              >
-                                <div className="routing-info">
-                                  <span className="routing-provider">
-                                    {entry.provider}
-                                  </span>
-                                  <span className="routing-separator">/</span>
-                                  <span className="routing-model">
-                                    {entry.model}
-                                  </span>
-                                  {info?.remark && (
-                                    <span className="routing-config-info">
-                                      ({info.remark})
+                                <div
+                                  key={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                  className="routing-item is-primary"
+                                >
+                                  <div className="routing-info">
+                                    <span className="routing-provider">
+                                      {entry.provider}
                                     </span>
-                                  )}
-                                  {info?.apiKeyMasked && (
-                                    <span className="routing-config-key">
-                                      {info.apiKeyMasked}
+                                    <span className="routing-separator">/</span>
+                                    <span className="routing-model">
+                                      {entry.model}
                                     </span>
-                                  )}
+                                    {info?.remark && (
+                                      <span className="routing-config-info">
+                                        ({info.remark})
+                                      </span>
+                                    )}
+                                    {info?.apiKeyMasked && (
+                                      <span className="routing-config-key">
+                                        {info.apiKeyMasked}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="routing-actions">
+                                    <button
+                                      className="secondary small"
+                                      onClick={() =>
+                                        handleTogglePrimary(
+                                          entry.provider,
+                                          entry.model,
+                                          entry.configId,
+                                          true
+                                        )
+                                      }
+                                    >
+                                      Remove Primary
+                                    </button>
+                                    <button
+                                      className="routing-delete"
+                                      onClick={() =>
+                                        handleRemoveFromRouting(
+                                          entry.provider,
+                                          entry.model,
+                                          entry.configId
+                                        )
+                                      }
+                                      title="Remove from routing"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="routing-actions">
-                                  <button
-                                    className="secondary small"
-                                    onClick={() =>
-                                      handleTogglePrimary(
-                                        entry.provider,
-                                        entry.model,
-                                        entry.configId,
-                                        true
-                                      )
-                                    }
-                                  >
-                                    Remove Primary
-                                  </button>
-                                  <button
-                                    className="routing-delete"
-                                    onClick={() =>
-                                      handleRemoveFromRouting(
-                                        entry.provider,
-                                        entry.model,
-                                        entry.configId
-                                      )
-                                    }
-                                    title="Remove from routing"
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              </div>
                               );
                             })}
                           </div>
@@ -462,58 +490,58 @@ export default function ProvidersPage({
                             {lbEntries.map((entry) => {
                               const info = configInfo.get(entry.configId);
                               return (
-                              <div
-                                key={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                className="routing-item"
-                              >
-                                <div className="routing-info">
-                                  <span className="routing-provider">
-                                    {entry.provider}
-                                  </span>
-                                  <span className="routing-separator">/</span>
-                                  <span className="routing-model">
-                                    {entry.model}
-                                  </span>
-                                  {info?.remark && (
-                                    <span className="routing-config-info">
-                                      ({info.remark})
+                                <div
+                                  key={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                  className="routing-item"
+                                >
+                                  <div className="routing-info">
+                                    <span className="routing-provider">
+                                      {entry.provider}
                                     </span>
-                                  )}
-                                  {info?.apiKeyMasked && (
-                                    <span className="routing-config-key">
-                                      {info.apiKeyMasked}
+                                    <span className="routing-separator">/</span>
+                                    <span className="routing-model">
+                                      {entry.model}
                                     </span>
-                                  )}
+                                    {info?.remark && (
+                                      <span className="routing-config-info">
+                                        ({info.remark})
+                                      </span>
+                                    )}
+                                    {info?.apiKeyMasked && (
+                                      <span className="routing-config-key">
+                                        {info.apiKeyMasked}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="routing-actions">
+                                    <button
+                                      className="secondary small"
+                                      onClick={() =>
+                                        handleTogglePrimary(
+                                          entry.provider,
+                                          entry.model,
+                                          entry.configId,
+                                          false
+                                        )
+                                      }
+                                    >
+                                      Set as Primary
+                                    </button>
+                                    <button
+                                      className="routing-delete"
+                                      onClick={() =>
+                                        handleRemoveFromRouting(
+                                          entry.provider,
+                                          entry.model,
+                                          entry.configId
+                                        )
+                                      }
+                                      title="Remove from routing"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="routing-actions">
-                                  <button
-                                    className="secondary small"
-                                    onClick={() =>
-                                      handleTogglePrimary(
-                                        entry.provider,
-                                        entry.model,
-                                        entry.configId,
-                                        false
-                                      )
-                                    }
-                                  >
-                                    Set as Primary
-                                  </button>
-                                  <button
-                                    className="routing-delete"
-                                    onClick={() =>
-                                      handleRemoveFromRouting(
-                                        entry.provider,
-                                        entry.model,
-                                        entry.configId
-                                      )
-                                    }
-                                    title="Remove from routing"
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              </div>
                               );
                             })}
                           </div>
@@ -545,13 +573,19 @@ export default function ProvidersPage({
                   {activeProviders.map((p) => {
                     const isExpanded = expandedProviders.has(p.provider);
                     const routedModels =
-                      routedProviderModels.get(`${p.provider}:${p.configId}`) ?? [];
+                      routedProviderModels.get(`${p.provider}:${p.configId}`) ??
+                      [];
                     return (
                       <div className="provider-list-item" key={p.configId}>
                         <div className="provider-list-row">
                           <div className="provider-info">
                             <span className="provider-name">{p.provider}</span>
-                            {p.remark && <span className="provider-remark"> ({p.remark})</span>}
+                            {p.remark && (
+                              <span className="provider-remark">
+                                {' '}
+                                ({p.remark})
+                              </span>
+                            )}
                             {routedModels.length > 0 && (
                               <span className="routed-badge">
                                 {routedModels.length} model
@@ -562,7 +596,12 @@ export default function ProvidersPage({
                           <div className="provider-actions">
                             <button
                               className="secondary small"
-                              onClick={() => openModelDialog(p.provider, p.configId ?? p.provider)}
+                              onClick={() =>
+                                openModelDialog(
+                                  p.provider,
+                                  p.configId ?? p.provider
+                                )
+                              }
                             >
                               Add to Routing
                             </button>
@@ -595,14 +634,22 @@ export default function ProvidersPage({
             </div>
             <div className="dialog-body">
               {(() => {
-                const modelIds = providerModels.length > 0 ? providerModels : [];
-                const filtered = modelIds.map(id => ({ model: id, category: activeCategory as any }));
+                const modelIds =
+                  providerModels.length > 0 ? providerModels : [];
+                const filtered = modelIds.map((id) => ({
+                  model: id,
+                  category: activeCategory as any,
+                }));
                 const filtered2 = filtered.filter(
                   (m) => m.category === activeCategory
                 );
                 const routedModels = new Set(
                   routing
-                    .filter((r) => r.provider === modelDialogProvider && r.configId === modelDialogConfigId)
+                    .filter(
+                      (r) =>
+                        r.provider === modelDialogProvider &&
+                        r.configId === modelDialogConfigId
+                    )
                     .map((r) => r.model)
                 );
                 if (filtered.length === 0) {
