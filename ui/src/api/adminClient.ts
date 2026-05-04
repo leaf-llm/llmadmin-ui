@@ -336,3 +336,22 @@ export async function deleteProviderConfig(
     method: 'DELETE',
   });
 }
+
+export type TestConnectivityResponse = {
+  ok: boolean;
+  message?: string;
+};
+
+export async function testProviderConnectivity(
+  provider: ProviderId,
+  params: { apiKey: string; baseUrl?: string; configId?: string }
+): Promise<TestConnectivityResponse> {
+  const u = new URL(
+    `/admin/providers/${encodeURIComponent(provider)}/test-connectivity`,
+    window.location.origin
+  );
+  return adminFetch<TestConnectivityResponse>(u.pathname, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
