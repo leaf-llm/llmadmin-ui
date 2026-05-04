@@ -1,7 +1,8 @@
 import { ProviderAPIConfig } from '../types';
 
 const MinimaxAPIConfig: ProviderAPIConfig = {
-  getBaseURL: () => 'https://api.minimaxi.com/anthropic',
+  getBaseURL: ({ providerOptions }) =>
+    providerOptions.customHost || 'https://api.minimaxi.com/anthropic',
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` };
   },

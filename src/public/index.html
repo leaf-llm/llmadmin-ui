@@ -1071,6 +1071,7 @@
                 <th>Time</th>
                 <th>Method</th>
                 <th>Endpoint</th>
+                <th>Target URL</th>
                 <th>Status</th>
                 <th>Duration</th>
                 <th>Actions</th>
@@ -1943,7 +1944,7 @@
         logSource.addEventListener('log', (event) => {
           const entry = JSON.parse(event.data);
           console.log('Received log entry', entry);
-          addLogEntry(entry.time, entry.method, entry.endpoint, entry.status, entry.duration, entry.requestOptions);
+          addLogEntry(entry.time, entry.method, entry.endpoint, entry.targetUrl, entry.status, entry.duration, entry.requestOptions);
         });
 
         // Handle heartbeat to keep connection alive
@@ -1977,20 +1978,21 @@
 
       setupLogSource();
 
-      function addLogEntry(time, method, endpoint, status, duration, requestOptions) {
+      function addLogEntry(time, method, endpoint, targetUrl, status, duration, requestOptions) {
           const tr = document.createElement('tr');
           tr.classList.add('new-row');
           tr.innerHTML = `
               <td class="log-time">${time}</td>
               <td class="log-method"><span class="log-method-value">${method}</span></td>
               <td class="log-endpoint">${endpoint}</td>
+              <td class="log-target-url">${targetUrl}</td>
               <td class="log-status"><span class="${status>=200 && status<300 ? 'success' : 'error'}">${status}</span></td>
               <td class="log-duration">${duration}ms</td>
               <td><button class="btn-view-details">View Details</button></td>
           `;
 
           const viewDetailsBtn = tr.querySelector('.btn-view-details');
-          viewDetailsBtn.addEventListener('click', () => showLogDetails(time, method, endpoint, status, duration, requestOptions));
+          viewDetailsBtn.addEventListener('click', () => showLogDetails(time, method, endpoint, targetUrl, status, duration, requestOptions));
 
           if (logsTableBody.children.length > 1) {
               logsTableBody.insertBefore(tr, logsTableBody.children[1]);
@@ -2010,7 +2012,7 @@
                   messageRow = document.createElement('tr');
                   messageRow.classList.add('log-message-row');
                   const messageCell = document.createElement('td');
-                  messageCell.colSpan = 6; // Assuming there are 6 columns in the table
+                  messageCell.colSpan = 7; // Assuming there are 7 columns in the table
                   messageCell.textContent = 'Only the latest 100 logs are being shown.';
                   messageRow.appendChild(messageCell);
                   logsTableBody.appendChild(messageRow);
@@ -2024,12 +2026,13 @@
           }, 500);
       }
 
-      function showLogDetails(time, method, endpoint, status, duration, requestOptions) {
+      function showLogDetails(time, method, endpoint, targetUrl, status, duration, requestOptions) {
           logDetailsContent.innerHTML = `
               <h3>Request Details</h3>
               <p><strong>Time:</strong> ${time}</p>
               <p><strong>Method:</strong> ${method}</p>
               <p><strong>Endpoint:</strong> ${endpoint}</p>
+              <p><strong>Target URL:</strong> ${targetUrl}</p>
               <p><strong>Status:</strong> ${status}</p>
               <p><strong>Duration:</strong> ${duration}ms</p>
               <p><strong>Request:</strong> <pre>${JSON.stringify(requestOptions[0].requestParams, null, 2)}</pre></p>
