@@ -426,4 +426,65 @@ adminApp.get('/provider-models', async (c) => {
   }
 });
 
+adminApp.post('/providers/:provider/test-connectivity', async (c) => {
+  const provider = c.req.param('provider') as ProviderId;
+  const body = await c.req.json().catch(() => ({}));
+
+  const providerConfig = Providers[provider];
+  if (!providerConfig?.api) {
+    return c.json({ ok: false, message: 'Unknown provider' }, 404);
+  }
+
+  const { apiKey, baseUrl } = body as { apiKey?: string; baseUrl?: string };
+
+  if (!apiKey?.trim()) {
+    return c.json({ ok: false, message: 'API key is required' }, 400);
+  }
+
+  if (!baseUrl?.trim()) {
+    return c.json({ ok: false, message: 'Base URL is required' }, 400);
+  }
+
+  const providerOptions = { apiKey: apiKey.trim(), baseUrl: baseUrl?.trim() };
+
+  try {
+    const endpoint = providerConfig.api.getEndpoint({
+      c: c,
+      providerOptions,
+      fn: 'listModels',
+      gatewayRequestBodyJSON: {},
+      gatewayRequestBody: {},
+      gatewayRequestURL: baseUrl + '/models',
+    });
+
+    const url = baseUrl.trim() + endpoint;
+
+    const headers = await providerConfig.api.headers({
+      c: c,
+      providerOptions,
+      fn: 'listModels',
+      transformedRequestBody: {},
+      transformedRequestUrl: url,
+      gatewayRequestBody: {},
+      headers: {},
+    });
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      return c.json(
+        {
+          ok: false,
+          message: errData.error?.message || `HTTP ${response.status}`,
+        },
+        200
+      );
+    }
+
+    return c.json({ ok: true, message: 'Connected successfully' });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 200);
+  }
+});
+
 export { adminApp };

@@ -12,6 +12,7 @@ import {
   updateRoutingPrimary,
   RoutingEntry,
   SUPPORTED_PROVIDERS,
+  testProviderConnectivity,
 } from '../api/adminClient';
 import { ModelCategory } from '../types/models';
 import { getModelsByProvider } from '../config/modelCategories';
@@ -21,7 +22,12 @@ const DEFAULT_BASE_URLS: Record<string, string> = {
   deepseek: 'https://api.deepseek.com',
 };
 
-type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
+type Draft = ProviderUpdateRequest & {
+  apiKeyMasked?: string;
+  remark?: string;
+  testStatus?: 'untested' | 'testing' | 'passed' | 'failed';
+  testMessage?: string;
+};
 
 interface AllProvidersPageProps {
   onBack: () => void;
@@ -32,6 +38,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   const [routing, setRouting] = useState<RoutingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingProvider, setSavingProvider] = useState<string | null>(null);
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(
@@ -193,13 +200,63 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     );
   };
 
+  const handleTestConnectivity = async (p: ProviderSummary, isNew: boolean) => {
+    const key = p.configId ?? p.provider;
+    const draft = drafts[key];
+    if (!draft?.apiKey) {
+      setNotification({ message: 'Please enter API Key first', type: 'error' });
+      return;
+    }
+
+    setTestingProvider(key);
+    setDrafts((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], testStatus: 'testing' },
+    }));
+
+    try {
+      const res = await testProviderConnectivity(p.provider, {
+        apiKey: draft.apiKey,
+        baseUrl: draft.baseUrl ?? p.baseUrl,
+        configId: isNew ? undefined : p.configId,
+      });
+      setDrafts((prev) => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          testStatus: res.ok ? 'passed' : 'failed',
+          testMessage: res.message,
+        },
+      }));
+      if (!res.ok) {
+        setNotification({
+          message: res.message || 'Connection failed',
+          type: 'error',
+        });
+      }
+    } catch (e: any) {
+      setDrafts((prev) => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          testStatus: 'failed',
+          testMessage: e?.message ?? 'Connection failed',
+        },
+      }));
+    } finally {
+      setTestingProvider(null);
+    }
+  };
+
   const renderSaveButton = (p: ProviderSummary, isNew: boolean = false) => {
     const key = p.configId ?? p.provider;
+    const draft = drafts[key];
+    const canSave = !isNew || draft?.testStatus === 'passed';
     const buttonText = isNew ? '新增' : '保存';
     return (
       <button
         className="primary"
-        disabled={savingProvider === key}
+        disabled={savingProvider === key || !canSave}
         onClick={async () => {
           const draft = drafts[key];
           // Validate required fields
@@ -267,6 +324,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                   apiKeyMasked: p.apiKeyMasked,
                   remark: (prev[key] ?? {}).remark,
                   baseUrl: (prev[key] ?? {}).baseUrl,
+                  testStatus: 'untested',
+                  testMessage: undefined,
                 },
               }));
             }}
@@ -286,6 +345,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                   apiKeyMasked: (prev[key] ?? {}).apiKeyMasked,
                   remark: (prev[key] ?? {}).remark,
                   baseUrl: val,
+                  testStatus: 'untested',
+                  testMessage: undefined,
                 },
               }));
             }}
@@ -314,7 +375,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             <button
               className="danger"
               onClick={async () => {
-const key = `${p.provider}:${p.configId}`;
+                const key = `${p.provider}:${p.configId}`;
                 const models = routedProviderModels.get(key) ?? [];
                 if (models.length > 0) {
                   setDeleteTarget({
@@ -341,11 +402,29 @@ const key = `${p.provider}:${p.configId}`;
                     setError(e?.message ?? String(e));
                   }
                 }
-                }
               }}
             >
               删除
             </button>
+          )}
+          {(isNew || drafts[key]?.testStatus !== 'passed') && (
+            <button
+              className="secondary"
+              disabled={testingProvider === key || !drafts[key]?.apiKey}
+              onClick={() => handleTestConnectivity(p, isNew)}
+            >
+              {testingProvider === key ? 'Testing...' : 'Test Connectivity'}
+            </button>
+          )}
+          {drafts[key]?.testStatus === 'passed' && (
+            <span className="test-passed-icon" title="Connection verified">
+              &#10003;
+            </span>
+          )}
+          {drafts[key]?.testStatus === 'failed' && (
+            <span className="test-failed-icon" title={drafts[key]?.testMessage}>
+              &#10007;
+            </span>
           )}
           <div className="muted">
             {p.lastSyncedAt ? `Last sync: ${p.lastSyncedAt}` : ''}

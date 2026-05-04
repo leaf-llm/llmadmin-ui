@@ -671,3 +671,22 @@ button.primary.small {
   padding: 18px 16px;
 }
 
+/* Test connectivity button and status */
+button.secondary {
+  border-color: rgba(15, 23, 42, 0.14);
+  background: #ffffff;
+  color: rgba(17, 24, 39, 0.8);
+}
+
+.test-passed-icon {
+  color: #047857;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.test-failed-icon {
+  color: #b91c1c;
+  font-size: 18px;
+  font-weight: bold;
+}
+
