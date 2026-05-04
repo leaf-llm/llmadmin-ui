@@ -251,7 +251,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   const renderSaveButton = (p: ProviderSummary, isNew: boolean = false) => {
     const key = p.configId ?? p.provider;
     const draft = drafts[key];
-    const canSave = !isNew || draft?.testStatus === 'passed';
+    const hasCredentialsChanged =
+      draft?.apiKey !== undefined || draft?.baseUrl !== (p.baseUrl ?? '');
+    const canSave =
+      (!isNew && !hasCredentialsChanged) || draft?.testStatus === 'passed';
     const buttonText = isNew ? '新增' : '保存';
     return (
       <button
