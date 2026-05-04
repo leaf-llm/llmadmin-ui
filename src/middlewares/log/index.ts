@@ -77,6 +77,7 @@ async function processLog(c: Context, start: number) {
       time: new Date().toLocaleString(),
       method: c.req.method,
       endpoint: c.req.url.split(':8787')[1],
+      targetUrl: requestOptionsArray[0]?.providerOptions?.requestURL || '',
       status: c.res.status,
       duration: ms,
       requestOptions: requestOptionsArray,

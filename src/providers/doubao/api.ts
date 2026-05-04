@@ -1,7 +1,8 @@
 import { ProviderAPIConfig } from '../types';
 
 const DoubaoAPIConfig: ProviderAPIConfig = {
-  getBaseURL: () => 'https://ark.cn-beijing.volces.com/api/v3',
+  getBaseURL: ({ providerOptions }) =>
+    providerOptions.customHost || 'https://ark.cn-beijing.volces.com/api/v3',
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` };
   },

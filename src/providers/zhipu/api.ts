@@ -1,7 +1,8 @@
 import { ProviderAPIConfig } from '../types';
 
 const ZhipuAPIConfig: ProviderAPIConfig = {
-  getBaseURL: () => 'https://open.bigmodel.cn/api/paas/v4',
+  getBaseURL: ({ providerOptions }) =>
+    providerOptions.customHost || 'https://open.bigmodel.cn/api/paas/v4',
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` };
   },

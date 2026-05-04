@@ -1,7 +1,8 @@
 import { ProviderAPIConfig } from '../types';
 
 const DeepSeekAPIConfig: ProviderAPIConfig = {
-  getBaseURL: () => 'https://api.deepseek.com',
+  getBaseURL: ({ providerOptions }) =>
+    providerOptions.customHost || 'https://api.deepseek.com',
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` };
   },

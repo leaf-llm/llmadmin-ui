@@ -259,7 +259,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     return (
       <button
         className="primary"
-        disabled={savingProvider === key || !canSave}
+disabled={savingProvider === key || !canSave}
         onClick={async () => {
           const draft = drafts[key];
           // Validate required fields
@@ -378,7 +378,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             <button
               className="danger"
               onClick={async () => {
-                const key = `${p.provider}:${p.configId}`;
+const key = `${p.provider}:${p.configId}`;
                 const models = routedProviderModels.get(key) ?? [];
                 if (models.length > 0) {
                   setDeleteTarget({
