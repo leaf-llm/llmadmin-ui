@@ -48,8 +48,17 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     null
   );
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    provider: string;
+    configId: string;
+    models: string[];
+  } | null>(null);
   const [addingModels, setAddingModels] = useState(false);
-  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'notice' } | null>(null);
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'error' | 'notice';
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,11 +122,21 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   };
 
   const handleAddModels = async () => {
-    if (!modelDialogProvider || !modelDialogConfigId || selectedModels.length === 0) return;
+    if (
+      !modelDialogProvider ||
+      !modelDialogConfigId ||
+      selectedModels.length === 0
+    )
+      return;
     setAddingModels(true);
     try {
       for (const model of selectedModels) {
-        await addRoutingModel(activeCategory, modelDialogProvider, model, modelDialogConfigId);
+        await addRoutingModel(
+          activeCategory,
+          modelDialogProvider,
+          model,
+          modelDialogConfigId
+        );
       }
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
@@ -131,7 +150,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     }
   };
 
-  const handleRemoveFromRouting = async (provider: string, model: string, configId: string) => {
+  const handleRemoveFromRouting = async (
+    provider: string,
+    model: string,
+    configId: string
+  ) => {
     try {
       await removeRoutingModel(activeCategory, provider, model, configId);
       const routingRes = await getRouting(activeCategory);
@@ -174,51 +197,51 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     const key = p.configId ?? p.provider;
     const buttonText = isNew ? '新增' : '保存';
     return (
-    <button
-      className="primary"
-      disabled={savingProvider === key}
-      onClick={async () => {
-        const draft = drafts[key];
-        // Validate required fields
-        if (isNew && (!draft?.apiKey || draft.apiKey.trim() === '')) {
-          setNotification({ message: 'API Key 为必填项', type: 'error' });
-          return;
-        }
-        setSavingProvider(key);
-        try {
+      <button
+        className="primary"
+        disabled={savingProvider === key}
+        onClick={async () => {
           const draft = drafts[key];
-          const req: ProviderUpdateRequest = {
-            apiKey: draft?.apiKey ? draft.apiKey : undefined,
-            baseUrl: draft?.baseUrl || undefined,
-            remark: draft?.remark || undefined,
-            configId: p.configId,
-          };
-          await updateProvider(activeCategory, p.provider, req);
-          // Note: Do NOT auto-syncConfig here. User should add models to routing first, then sync manually.
-          const refreshed = await getProviders(activeCategory);
-          setProviders(refreshed.providers);
-          const nextDrafts: Record<string, Draft> = {};
-          for (const pp of refreshed.providers) {
-            const ppKey = pp.configId ?? pp.provider;
-            nextDrafts[ppKey] = {
-              apiKey: undefined,
-              baseUrl: pp.baseUrl ?? '',
-              apiKeyMasked: pp.apiKeyMasked,
-              remark: pp.remark,
-            };
+          // Validate required fields
+          if (isNew && (!draft?.apiKey || draft.apiKey.trim() === '')) {
+            setNotification({ message: 'API Key 为必填项', type: 'error' });
+            return;
           }
-          setDrafts(nextDrafts);
-        } catch (e: any) {
-          setError(e?.message ?? String(e));
-        } finally {
-          setSavingProvider(null);
-        }
-      }}
-    >
-      {savingProvider === key ? 'Saving...' : buttonText}
-    </button>
-  );
-};
+          setSavingProvider(key);
+          try {
+            const draft = drafts[key];
+            const req: ProviderUpdateRequest = {
+              apiKey: draft?.apiKey ? draft.apiKey : undefined,
+              baseUrl: draft?.baseUrl || undefined,
+              remark: draft?.remark || undefined,
+              configId: p.configId,
+            };
+            await updateProvider(activeCategory, p.provider, req);
+            // Note: Do NOT auto-syncConfig here. User should add models to routing first, then sync manually.
+            const refreshed = await getProviders(activeCategory);
+            setProviders(refreshed.providers);
+            const nextDrafts: Record<string, Draft> = {};
+            for (const pp of refreshed.providers) {
+              const ppKey = pp.configId ?? pp.provider;
+              nextDrafts[ppKey] = {
+                apiKey: undefined,
+                baseUrl: pp.baseUrl ?? '',
+                apiKeyMasked: pp.apiKeyMasked,
+                remark: pp.remark,
+              };
+            }
+            setDrafts(nextDrafts);
+          } catch (e: any) {
+            setError(e?.message ?? String(e));
+          } finally {
+            setSavingProvider(null);
+          }
+        }}
+      >
+        {savingProvider === key ? 'Saving...' : buttonText}
+      </button>
+    );
+  };
 
   const renderProviderForm = (p: ProviderSummary, isNew: boolean = false) => {
     const key = p.configId ?? p.provider;
@@ -291,17 +314,32 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             <button
               className="danger"
               onClick={async () => {
-                if (!confirm('Delete this config and its routing entries?')) return;
-                try {
-                  await deleteProviderConfig(activeCategory, p.provider, p.configId!);
-                  const [providersRes, routingRes] = await Promise.all([
-                    getProviders(activeCategory),
-                    getRouting(activeCategory),
-                  ]);
-                  setProviders(providersRes.providers);
-                  setRouting(routingRes.routing);
-                } catch (e: any) {
-                  setError(e?.message ?? String(e));
+                const key = `${p.provider}:${p.configId}`;
+                const models = routedProviderModels.get(key) ?? [];
+                if (models.length > 0) {
+                  setDeleteTarget({
+                    provider: p.provider,
+                    configId: p.configId!,
+                    models,
+                  });
+                  setShowDeleteDialog(true);
+                } else {
+                  if (!confirm('确定删除此配置？')) return;
+                  try {
+                    await deleteProviderConfig(
+                      activeCategory,
+                      p.provider,
+                      p.configId!
+                    );
+                    const [providersRes, routingRes] = await Promise.all([
+                      getProviders(activeCategory),
+                      getRouting(activeCategory),
+                    ]);
+                    setProviders(providersRes.providers);
+                    setRouting(routingRes.routing);
+                  } catch (e: any) {
+                    setError(e?.message ?? String(e));
+                  }
                 }
               }}
             >
@@ -315,6 +353,52 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       </div>
     );
   };
+
+  function ConfirmDialog({
+    isOpen,
+    title,
+    message,
+    models,
+    onConfirm,
+    onCancel,
+  }: {
+    isOpen: boolean;
+    title: string;
+    message: string;
+    models: string[];
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) {
+    if (!isOpen) return null;
+    return (
+      <div className="dialog-overlay" onClick={onCancel}>
+        <div className="dialog" onClick={(e) => e.stopPropagation()}>
+          <div className="dialog-header">
+            <h3>{title}</h3>
+            <button className="dialog-close" onClick={onCancel}>
+              ×
+            </button>
+          </div>
+          <div className="dialog-body">
+            <p>{message}</p>
+            {models.length > 0 && (
+              <ul>
+                {models.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div className="dialog-footer">
+            <button onClick={onCancel}>取消</button>
+            <button className="danger" onClick={onConfirm}>
+              确认删除
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const routedProviderModels = new Map<string, string[]>();
   // Key by provider+configId to support multiple configs per provider
@@ -335,9 +419,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     const hasApiKey = existingConfigs.some((c) => c.status === 'connected');
     return {
       provider,
-      status: hasApiKey ? 'connected' as const : 'disconnected' as const,
+      status: hasApiKey ? ('connected' as const) : ('disconnected' as const),
       baseUrl: firstConfig?.baseUrl ?? '',
-      configCount: existingConfigs.filter((c) => c.status === 'connected').length,
+      configCount: existingConfigs.filter((c) => c.status === 'connected')
+        .length,
       configId: provider + '-new', // unique key for new config
     } as ProviderSummary;
   });
@@ -351,6 +436,37 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           onDismiss={() => setNotification(null)}
         />
       )}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        title="确认删除"
+        message="以下routing模型将被同时删除："
+        models={deleteTarget?.models ?? []}
+        onConfirm={async () => {
+          if (deleteTarget) {
+            try {
+              await deleteProviderConfig(
+                activeCategory,
+                deleteTarget.provider,
+                deleteTarget.configId
+              );
+              setShowDeleteDialog(false);
+              setDeleteTarget(null);
+              const [providersRes, routingRes] = await Promise.all([
+                getProviders(activeCategory),
+                getRouting(activeCategory),
+              ]);
+              setProviders(providersRes.providers);
+              setRouting(routingRes.routing);
+            } catch (e: any) {
+              setError(e?.message ?? String(e));
+            }
+          }
+        }}
+        onCancel={() => {
+          setShowDeleteDialog(false);
+          setDeleteTarget(null);
+        }}
+      />
       <button className="back-btn" onClick={onBack}>
         ← Back
       </button>
@@ -370,30 +486,44 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               <h2 className="section-title">Connected</h2>
               <div className="provider-list">
                 {connectedProviders.map((p) => {
-                  const isExpanded = expandedProviders.has(p.configId ?? p.provider);
-                  const routedModels = routedProviderModels.get(`${p.provider}:${p.configId}`) ?? [];
+                  const isExpanded = expandedProviders.has(
+                    p.configId ?? p.provider
+                  );
+                  const routedModels =
+                    routedProviderModels.get(`${p.provider}:${p.configId}`) ??
+                    [];
                   return (
-                    <div className="provider-list-item" key={p.configId ?? p.provider}>
+                    <div
+                      className="provider-list-item"
+                      key={p.configId ?? p.provider}
+                    >
                       <div className="provider-list-row">
                         <div className="provider-info">
                           <span className="provider-name">{p.provider}</span>
-                          <span className="status-badge status-badge--connected">Connected</span>
+                          <span className="status-badge status-badge--connected">
+                            Connected
+                          </span>
                           {p.remark && (
                             <span className="routed-badge">{p.remark}</span>
                           )}
                           {p.configCount > 1 && (
-                            <span className="routed-badge">{p.configCount} configs</span>
+                            <span className="routed-badge">
+                              {p.configCount} configs
+                            </span>
                           )}
                           {routedModels.length > 0 && (
                             <span className="routed-badge">
-                              {routedModels.length} model{routedModels.length > 1 ? 's' : ''} in routing
+                              {routedModels.length} model
+                              {routedModels.length > 1 ? 's' : ''} in routing
                             </span>
                           )}
                         </div>
                         <div className="provider-actions">
                           <button
                             className="expand-btn"
-                            onClick={() => toggleExpanded(p.configId ?? p.provider)}
+                            onClick={() =>
+                              toggleExpanded(p.configId ?? p.provider)
+                            }
                           >
                             {isExpanded ? '▲' : '▼'}
                           </button>
@@ -413,27 +543,47 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
 
           {disconnectedProviders.length > 0 && (
             <>
-              {connectedProviders.length > 0 && <div className="section-divider" />}
+              {connectedProviders.length > 0 && (
+                <div className="section-divider" />
+              )}
               <h2 className="section-title">Not Configured</h2>
               <div className="provider-list">
                 {disconnectedProviders.map((p) => {
-                  const isExpanded = expandedProviders.has(p.configId ?? p.provider);
+                  const isExpanded = expandedProviders.has(
+                    p.configId ?? p.provider
+                  );
                   return (
-                    <div className="provider-list-item" key={p.configId ?? p.provider}>
+                    <div
+                      className="provider-list-item"
+                      key={p.configId ?? p.provider}
+                    >
                       <div className="provider-list-row">
                         <div className="provider-info">
                           <span className="provider-name">{p.provider}</span>
                           {p.status === 'connected' && (
-                            <span className="status-badge status-badge--connected" style={{ marginLeft: 8 }}>Has Config</span>
+                            <span
+                              className="status-badge status-badge--connected"
+                              style={{ marginLeft: 8 }}
+                            >
+                              Has Config
+                            </span>
                           )}
                           {p.configCount > 0 && (
-                            <span className="routed-badge" style={{ marginLeft: 8 }}>{p.configCount} config{p.configCount > 1 ? 's' : ''}</span>
+                            <span
+                              className="routed-badge"
+                              style={{ marginLeft: 8 }}
+                            >
+                              {p.configCount} config
+                              {p.configCount > 1 ? 's' : ''}
+                            </span>
                           )}
                         </div>
                         <div className="provider-actions">
                           <button
                             className="expand-btn"
-                            onClick={() => toggleExpanded(p.configId ?? p.provider)}
+                            onClick={() =>
+                              toggleExpanded(p.configId ?? p.provider)
+                            }
                           >
                             {isExpanded ? '▲' : '▼'}
                           </button>
@@ -470,7 +620,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 );
                 const routedModels = new Set(
                   routing
-                    .filter((r) => r.provider === modelDialogProvider && r.configId === modelDialogConfigId)
+                    .filter(
+                      (r) =>
+                        r.provider === modelDialogProvider &&
+                        r.configId === modelDialogConfigId
+                    )
                     .map((r) => r.model)
                 );
                 if (filtered.length === 0) {
