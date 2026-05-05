@@ -398,292 +398,295 @@ export default function ProvidersPage({
         <span className="copy-hint">{copied ? t('common.copied') : t('common.clickToCopy')}</span>
       </div>
       <h1 className="page-title">{t('nav.routing')}</h1>
-      <h2 className="section-title" style={{ marginBottom: '8px' }}>{t('common.taskType')}</h2>
-      <CategoryTabs
-        activeCategory={activeCategory}
-        onCategoryChange={setActiveCategory}
-      />
+      <div className="category-content-wrapper">
+        <CategoryTabs
+          activeCategory={activeCategory}
+          onCategoryChange={setActiveCategory}
+        />
 
-      {error ? <div className="error">{error}</div> : null}
-      {loading ? <div className="muted">{t('common.loading')}</div> : null}
+        <div className="category-content">
+          {error ? <div className="error">{error}</div> : null}
+          {loading ? <div className="muted">{t('common.loading')}</div> : null}
 
-      {!loading && providers.length === 0 && !error ? (
-        <div className="notice">
-          {t('common.noProvidersConfigured')}
+          {!loading && providers.length === 0 && !error ? (
+            <div className="notice">
+              {t('common.noProvidersConfigured')}
+            </div>
+          ) : null}
+
+          {(() => {
+            const activeProviders = providers.filter(
+              (p) => p.status === 'connected'
+            );
+            const routedProviderModels = new Map<string, string[]>();
+            for (const entry of routing) {
+              const key = `${entry.provider}:${entry.configId}`;
+              const existing = routedProviderModels.get(key) ?? [];
+              existing.push(entry.model);
+              routedProviderModels.set(key, existing);
+            }
+            return (
+              <>
+                <div className="routing-section">
+                  <h2 className="section-title">{t('common.modelRouting')}</h2>
+                  {routing.length === 0 ? (
+                    <div className="notice">
+                      {t('common.noRoutingConfigured')}
+                    </div>
+                  ) : (
+                    <div className="routing-groups">
+                      {(() => {
+                        const primaryEntries = routing.filter((e) => e.isPrimary);
+                        const lbEntries = routing.filter((e) => !e.isPrimary);
+                        return (
+                          <>
+                            {primaryEntries.length > 0 && (
+                              <div className="routing-group routing-group--primary">
+                                <div className="routing-group-header">
+                                  <span className="routing-group-icon">★</span>
+                                  <span className="routing-group-label">
+                                    {t('common.primaryFallback')}
+                                  </span>
+                                  {primaryEntries.length > 0 && (
+                                  <span className="routing-group-desc">
+                                    {t('common.primaryFallbackDesc')}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="routing-list">
+                                {primaryEntries.map((entry, idx) => {
+                                  const info = configInfo.get(entry.configId);
+                                  const isFirst = idx === 0;
+                                  const isLast = idx === primaryEntries.length - 1;
+                                  return (
+                                    <div
+                                      key={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                      className="routing-item is-primary"
+                                    >
+                                      <div className="routing-info">
+                                        <span className="routing-provider">
+                                          {getProviderDisplayName(entry.provider, t)}
+                                        </span>
+                                        <span className="routing-separator">/</span>
+                                        <span className="routing-model">
+                                          {entry.model}
+                                        </span>
+                                        {info?.remark && (
+                                          <span className="routing-config-info">
+                                            ({info.remark})
+                                          </span>
+                                        )}
+                                        {info?.apiKeyMasked && (
+                                          <span className="routing-config-key">
+                                            {info.apiKeyMasked}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="routing-actions">
+                                        <span className="move-buttons">
+                                          <button
+                                            className="move-btn"
+                                            onClick={() => handleMove(entry, 'up')}
+                                            disabled={isFirst}
+                                            title="Move up"
+                                          >
+                                            ↑
+                                          </button>
+                                          <button
+                                            className="move-btn"
+                                            onClick={() => handleMove(entry, 'down')}
+                                            disabled={isLast}
+                                            title="Move down"
+                                          >
+                                            ↓
+                                          </button>
+                                        </span>
+                                        <button
+                                          className="secondary small"
+                                          onClick={() =>
+                                            handleTogglePrimary(
+                                              entry.provider,
+                                              entry.model,
+                                              entry.configId,
+                                              true
+                                            )
+                                          }
+                                        >
+                                          {t('common.removePrimary')}
+                                        </button>
+                                        <button
+                                          className="routing-delete"
+                                          onClick={() =>
+                                            handleRemoveFromRouting(
+                                              entry.provider,
+                                              entry.model,
+                                              entry.configId
+                                            )
+                                          }
+                                          title={t('common.removeFromRouting')}
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          {lbEntries.length > 0 && (
+                            <div className="routing-group routing-group--lb">
+                              <div className="routing-group-header">
+                                <span className="routing-group-icon">⟳</span>
+                                <span className="routing-group-label">
+                                  {primaryEntries.length === 0
+                                    ? t('common.randomAccess')
+                                    : t('common.loadBalancing')}
+                                </span>
+                                {lbEntries.length > 0 && (
+                                  <span className="routing-group-desc">
+                                    {t('common.loadBalancingDesc')}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="routing-list">
+                                {lbEntries.map((entry, idx) => {
+                                  const info = configInfo.get(entry.configId);
+                                  const isFirst = idx === 0;
+                                  const isLast = idx === lbEntries.length - 1;
+                                  return (
+                                    <div
+                                      key={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                      className="routing-item"
+                                    >
+                                      <div className="routing-info">
+                                        <span className="routing-provider">
+                                          {getProviderDisplayName(entry.provider, t)}
+                                        </span>
+                                        <span className="routing-separator">/</span>
+                                        <span className="routing-model">
+                                          {entry.model}
+                                        </span>
+                                        {info?.remark && (
+                                          <span className="routing-config-info">
+                                            ({info.remark})
+                                          </span>
+                                        )}
+                                        {info?.apiKeyMasked && (
+                                          <span className="routing-config-key">
+                                            {info.apiKeyMasked}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="routing-actions">
+                                        <button
+                                          className="secondary small"
+                                          onClick={() =>
+                                            handleTogglePrimary(
+                                              entry.provider,
+                                              entry.model,
+                                              entry.configId,
+                                              false
+                                            )
+                                          }
+                                        >
+                                          {t('common.setAsPrimary')}
+                                        </button>
+                                        <button
+                                          className="routing-delete"
+                                          onClick={() =>
+                                            handleRemoveFromRouting(
+                                              entry.provider,
+                                              entry.model,
+                                              entry.configId
+                                            )
+                                          }
+                                          title={t('common.removeFromRouting')}
+                                        >
+                                                  ×
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                <div className="providers-section" style={{ marginTop: 16 }}>
+                  <div className="section-title-row">
+                    <h2 className="section-title">{t('common.activeProviders')}</h2>
+                    <button
+                      className="primary small"
+                      onClick={onNavigateAllProviders}
+                    >
+                      {t('common.addProvider')}
+                    </button>
+                  </div>
+                  {activeProviders.length === 0 ? (
+                    <div className="notice">
+                      {t('common.noActiveProviders')}
+                    </div>
+                  ) : (
+                    <div className="provider-list">
+                      {activeProviders.map((p) => {
+                        const isExpanded = expandedProviders.has(p.provider);
+                        const routedModels =
+                          routedProviderModels.get(`${p.provider}:${p.configId}`) ??
+                          [];
+                        return (
+                          <div className="provider-list-item" key={p.configId}>
+                            <div className="provider-list-row">
+                              <div className="provider-info">
+                                <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
+                                {p.remark && (
+                                  <span className="provider-remark">
+                                    {' '}
+                                    ({p.remark})
+                                  </span>
+                                )}
+                                {routedModels.length > 0 && (
+                                  <span className="routed-badge">
+                                    {t('common.modelCountInRouting', { count: routedModels.length, plural: routedModels.length > 1 ? 's' : '' })}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="provider-actions">
+                                <button
+                                  className="secondary small"
+                                  onClick={() =>
+                                    openModelDialog(
+                                      p.provider,
+                                      p.configId ?? p.provider
+                                    )
+                                  }
+                                >
+                                  {t('common.addToRouting')}
+                                </button>
+                              </div>
+                            </div>
+                            {isExpanded && (
+                              <div className="provider-expand-content">
+                                {renderProviderForm(p)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </div>
-      ) : null}
-
-      {(() => {
-        const activeProviders = providers.filter(
-          (p) => p.status === 'connected'
-        );
-        const routedProviderModels = new Map<string, string[]>();
-        for (const entry of routing) {
-          const key = `${entry.provider}:${entry.configId}`;
-          const existing = routedProviderModels.get(key) ?? [];
-          existing.push(entry.model);
-          routedProviderModels.set(key, existing);
-        }
-        return (
-          <>
-            <div className="pinned-section">
-              <h2 className="section-title">{t('common.modelRouting')}</h2>
-              {routing.length === 0 ? (
-                <div className="notice">
-                  {t('common.noRoutingConfigured')}
-                </div>
-              ) : (
-                <div className="routing-groups">
-                  {(() => {
-                    const primaryEntries = routing.filter((e) => e.isPrimary);
-                    const lbEntries = routing.filter((e) => !e.isPrimary);
-                    return (
-                      <>
-                        {primaryEntries.length > 0 && (
-                          <div className="routing-group routing-group--primary">
-                            <div className="routing-group-header">
-                              <span className="routing-group-icon">★</span>
-                              <span className="routing-group-label">
-                                {t('common.primaryFallback')}
-                              </span>
-                              {primaryEntries.length > 0 && (
-                              <span className="routing-group-desc">
-                                {t('common.primaryFallbackDesc')}
-                              </span>
-                            )}
-                          </div>
-                          <div className="routing-list">
-                            {primaryEntries.map((entry, idx) => {
-                              const info = configInfo.get(entry.configId);
-                              const isFirst = idx === 0;
-                              const isLast = idx === primaryEntries.length - 1;
-                              return (
-                                <div
-                                  key={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                  className="routing-item is-primary"
-                                >
-                                  <div className="routing-info">
-                                    <span className="routing-provider">
-                                      {getProviderDisplayName(entry.provider, t)}
-                                    </span>
-                                    <span className="routing-separator">/</span>
-                                    <span className="routing-model">
-                                      {entry.model}
-                                    </span>
-                                    {info?.remark && (
-                                      <span className="routing-config-info">
-                                        ({info.remark})
-                                      </span>
-                                    )}
-                                    {info?.apiKeyMasked && (
-                                      <span className="routing-config-key">
-                                        {info.apiKeyMasked}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="routing-actions">
-                                    <span className="move-buttons">
-                                      <button
-                                        className="move-btn"
-                                        onClick={() => handleMove(entry, 'up')}
-                                        disabled={isFirst}
-                                        title="Move up"
-                                      >
-                                        ↑
-                                      </button>
-                                      <button
-                                        className="move-btn"
-                                        onClick={() => handleMove(entry, 'down')}
-                                        disabled={isLast}
-                                        title="Move down"
-                                      >
-                                        ↓
-                                      </button>
-                                    </span>
-                                    <button
-                                      className="secondary small"
-                                      onClick={() =>
-                                        handleTogglePrimary(
-                                          entry.provider,
-                                          entry.model,
-                                          entry.configId,
-                                          true
-                                        )
-                                      }
-                                    >
-                                      {t('common.removePrimary')}
-                                    </button>
-                                    <button
-                                      className="routing-delete"
-                                      onClick={() =>
-                                        handleRemoveFromRouting(
-                                          entry.provider,
-                                          entry.model,
-                                          entry.configId
-                                        )
-                                      }
-                                      title={t('common.removeFromRouting')}
-                                    >
-                                      ×
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      {lbEntries.length > 0 && (
-                        <div className="routing-group routing-group--lb">
-                          <div className="routing-group-header">
-                            <span className="routing-group-icon">⟳</span>
-                            <span className="routing-group-label">
-                              {primaryEntries.length === 0
-                                ? t('common.randomAccess')
-                                : t('common.loadBalancing')}
-                            </span>
-                            {lbEntries.length > 0 && (
-                              <span className="routing-group-desc">
-                                {t('common.loadBalancingDesc')}
-                              </span>
-                            )}
-                          </div>
-                          <div className="routing-list">
-                            {lbEntries.map((entry, idx) => {
-                              const info = configInfo.get(entry.configId);
-                              const isFirst = idx === 0;
-                              const isLast = idx === lbEntries.length - 1;
-                              return (
-                                <div
-                                  key={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                  className="routing-item"
-                                >
-                                  <div className="routing-info">
-                                    <span className="routing-provider">
-                                      {getProviderDisplayName(entry.provider, t)}
-                                    </span>
-                                    <span className="routing-separator">/</span>
-                                    <span className="routing-model">
-                                      {entry.model}
-                                    </span>
-                                    {info?.remark && (
-                                      <span className="routing-config-info">
-                                        ({info.remark})
-                                      </span>
-                                    )}
-                                    {info?.apiKeyMasked && (
-                                      <span className="routing-config-key">
-                                        {info.apiKeyMasked}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="routing-actions">
-                                    <button
-                                      className="secondary small"
-                                      onClick={() =>
-                                        handleTogglePrimary(
-                                          entry.provider,
-                                          entry.model,
-                                          entry.configId,
-                                          false
-                                        )
-                                      }
-                                    >
-                                      {t('common.setAsPrimary')}
-                                    </button>
-                                    <button
-                                      className="routing-delete"
-                                      onClick={() =>
-                                        handleRemoveFromRouting(
-                                          entry.provider,
-                                          entry.model,
-                                          entry.configId
-                                        )
-                                      }
-                                      title={t('common.removeFromRouting')}
-                                    >
-                                              ×
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-
-            <div className="pinned-section">
-              <div className="section-title-row">
-                <h2 className="section-title">{t('common.activeProviders')}</h2>
-                <button
-                  className="primary small"
-                  onClick={onNavigateAllProviders}
-                >
-                  {t('common.addProvider')}
-                </button>
-              </div>
-              {activeProviders.length === 0 ? (
-                <div className="notice">
-                  {t('common.noActiveProviders')}
-                </div>
-              ) : (
-                <div className="provider-list">
-                  {activeProviders.map((p) => {
-                    const isExpanded = expandedProviders.has(p.provider);
-                    const routedModels =
-                      routedProviderModels.get(`${p.provider}:${p.configId}`) ??
-                      [];
-                    return (
-                      <div className="provider-list-item" key={p.configId}>
-                        <div className="provider-list-row">
-                          <div className="provider-info">
-                            <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
-                            {p.remark && (
-                              <span className="provider-remark">
-                                {' '}
-                                ({p.remark})
-                              </span>
-                            )}
-                            {routedModels.length > 0 && (
-                              <span className="routed-badge">
-                                {t('common.modelCountInRouting', { count: routedModels.length, plural: routedModels.length > 1 ? 's' : '' })}
-                              </span>
-                            )}
-                          </div>
-                          <div className="provider-actions">
-                            <button
-                              className="secondary small"
-                              onClick={() =>
-                                openModelDialog(
-                                  p.provider,
-                                  p.configId ?? p.provider
-                                )
-                              }
-                            >
-                              {t('common.addToRouting')}
-                            </button>
-                          </div>
-                        </div>
-                        {isExpanded && (
-                          <div className="provider-expand-content">
-                            {renderProviderForm(p)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </>
-        );
-      })()}
+      </div>
 
       {showModelDialog && modelDialogProvider && modelDialogConfigId && (
         <div className="dialog-overlay" onClick={closeModelDialog}>

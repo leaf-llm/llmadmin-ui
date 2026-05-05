@@ -555,124 +555,123 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       </button>
       <h1 className="page-title">{t('nav.routing')}</h1>
 
-      {error ? <div className="error">{error}</div> : null}
-      {loading ? <div className="muted">{t('common.loading')}</div> : null}
+      <div className="category-content-wrapper">
+        <div className="category-content">
+          {error ? <div className="error">{error}</div> : null}
+          {loading ? <div className="muted">{t('common.loading')}</div> : null}
 
-      {!loading && providers.length === 0 && !error && (
-        <div className="notice">{t('common.noProvidersConfigured')}</div>
-      )}
-
-      {!loading && providers.length > 0 && (
-        <>
-          {connectedProviders.length > 0 && (
-            <div className="pinned-section">
-              <h2 className="section-title">{t('common.statusConnected')}</h2>
-              <div className="provider-list">
-                {connectedProviders.map((p) => {
-                  const isExpanded = expandedProviders.has(
-                    p.configId ?? p.provider
-                  );
-                  const routedModels =
-                    routedProviderModels.get(`${p.provider}:${p.configId}`) ??
-                    [];
-                  return (
-                    <div
-                      className="provider-list-item"
-                      key={p.configId ?? p.provider}
-                    >
-                      <div className="provider-list-row">
-                        <div className="provider-info">
-                          <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
-                          {p.remark && (
-                            <span className="provider-remark">
-                              {' '}
-                              ({p.remark})
-                            </span>
-                          )}
-                          <span className="status-badge status-badge--connected">
-                            {t('common.statusConnected')}
-                          </span>
-                          {routedModels.length > 0 && (
-                            <span className="routed-badge">
-                              {t('common.modelCountInRouting', { count: routedModels.length, plural: routedModels.length > 1 ? 's' : '' })}
-                            </span>
-                          )}
-                        </div>
-                        <div className="provider-actions">
-                          <button
-                            className="expand-btn"
-                            onClick={() =>
-                              toggleExpanded(p.configId ?? p.provider)
-                            }
-                          >
-                            {isExpanded ? '▲' : '▼'}
-                          </button>
-                        </div>
-                      </div>
-                      {isExpanded && (
-                        <div className="provider-expand-content">
-                          {renderProviderForm(p)}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          {!loading && providers.length === 0 && !error && (
+            <div className="notice">{t('common.noProvidersConfigured')}</div>
           )}
 
-          {disconnectedProviders.length > 0 && (
+          {!loading && providers.length > 0 && (
             <>
               {connectedProviders.length > 0 && (
-                <div className="section-divider" />
-              )}
-              <h2 className="section-title">{t('common.notConfigured')}</h2>
-              <div className="provider-list">
-                {disconnectedProviders.map((p) => {
-                  const isExpanded = expandedProviders.has(
-                    p.configId ?? p.provider
-                  );
-                  return (
-                    <div
-                      className="provider-list-item"
-                      key={p.configId ?? p.provider}
-                    >
-                      <div className="provider-list-row">
-                        <div className="provider-info">
-                          <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
-                          {p.configCount > 0 && (
-                            <span
-                              className="routed-badge"
-                              style={{ marginLeft: 8 }}
-                            >
-                              {t('common.configCount', { count: p.configCount })}
-                            </span>
+                <div className="providers-section">
+                  <h2 className="section-title">{t('common.statusConnected')}</h2>
+                  <div className="provider-list">
+                    {connectedProviders.map((p) => {
+                      const isExpanded = expandedProviders.has(
+                        p.configId ?? p.provider
+                      );
+                      const routedModels =
+                        routedProviderModels.get(`${p.provider}:${p.configId}`) ??
+                        [];
+                      return (
+                        <div
+                          className="provider-list-item"
+                          key={p.configId ?? p.provider}
+                        >
+                          <div className="provider-list-row">
+                            <div className="provider-info">
+                              <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
+                              {p.remark && (
+                                <span className="provider-remark">
+                                  {' '}
+                                  ({p.remark})
+                                </span>
+                              )}
+                              <span className="status-badge status-badge--connected">
+                                {t('common.statusConnected')}
+                              </span>
+                              {routedModels.length > 0 && (
+                                <span className="routed-badge">
+                                  {t('common.modelCountInRouting', { count: routedModels.length, plural: routedModels.length > 1 ? 's' : '' })}
+                                </span>
+                              )}
+                            </div>
+                            <div className="provider-actions">
+                              <button
+                                className="expand-btn"
+                                onClick={() =>
+                                  toggleExpanded(p.configId ?? p.provider)
+                                }
+                              >
+                                {isExpanded ? '▲' : '▼'}
+                              </button>
+                            </div>
+                          </div>
+                          {isExpanded && (
+                            <div className="provider-expand-content">
+                              {renderProviderForm(p)}
+                            </div>
                           )}
                         </div>
-                        <div className="provider-actions">
-                          <button
-                            className="expand-btn"
-                            onClick={() =>
-                              toggleExpanded(p.configId ?? p.provider)
-                            }
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {disconnectedProviders.length > 0 && (
+                <div className="providers-section">
+                    <h2 className="section-title">{t('common.notConfigured')}</h2>
+                    <div className="provider-list">
+                      {disconnectedProviders.map((p) => {
+                        const isExpanded = expandedProviders.has(
+                          p.configId ?? p.provider
+                        );
+                        return (
+                          <div
+                            className="provider-list-item"
+                            key={p.configId ?? p.provider}
                           >
-                            {isExpanded ? '▲' : '▼'}
-                          </button>
-                        </div>
-                      </div>
-                      {isExpanded && (
-                        <div className="provider-expand-content">
-                          {renderProviderForm(p, true)}
-                        </div>
-                      )}
+                            <div className="provider-list-row">
+                              <div className="provider-info">
+                                <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
+                                {p.configCount > 0 && (
+                                  <span
+                                    className="routed-badge"
+                                    style={{ marginLeft: 8 }}
+                                  >
+                                    {t('common.configCount', { count: p.configCount })}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="provider-actions">
+                                <button
+                                  className="expand-btn"
+                                  onClick={() =>
+                                    toggleExpanded(p.configId ?? p.provider)
+                                  }
+                                >
+                                  {isExpanded ? '▲' : '▼'}
+                                </button>
+                              </div>
+                            </div>
+                            {isExpanded && (
+                              <div className="provider-expand-content">
+                                {renderProviderForm(p, true)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </>
-      )}
+                  </div>
+              )}
+        </div>
+      </div>
 
       {showModelDialog && modelDialogProvider && modelDialogConfigId && (
         <div className="dialog-overlay" onClick={closeModelDialog}>

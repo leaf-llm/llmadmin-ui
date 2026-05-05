@@ -9,9 +9,9 @@ export const MODEL_CATEGORIES: ModelCategory[] = [
 ];
 
 export const CATEGORY_LABELS: Record<ModelCategory, string> = {
-  text: 'Text',
-  image: 'Image',
-  video: 'Video',
-  audio: 'Audio',
+  text: '文本',
+  image: '图像',
+  video: '视频',
+  audio: '音频',
   mcp: 'MCP',
 };
