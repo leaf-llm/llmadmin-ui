@@ -619,7 +619,7 @@ export default function ProvidersPage({
                   )}
                 </div>
 
-                <div className="providers-section">
+                <div className="providers-section" style={{ marginTop: 16 }}>
                   <div className="section-title-row">
                     <h2 className="section-title">{t('common.activeProviders')}</h2>
                     <button
