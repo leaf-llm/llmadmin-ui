@@ -624,11 +624,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               )}
 
               {disconnectedProviders.length > 0 && (
-                <>
-                  {connectedProviders.length > 0 && (
-                    <div className="section-divider" />
-                  )}
-                  <div className="providers-section">
+                <div className="providers-section">
                     <h2 className="section-title">{t('common.notConfigured')}</h2>
                     <div className="provider-list">
                       {disconnectedProviders.map((p) => {
@@ -673,7 +669,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                       })}
                     </div>
                   </div>
-                </>
               )}
             </>
           )}
