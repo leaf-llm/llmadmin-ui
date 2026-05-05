@@ -583,17 +583,15 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                       <div className="provider-list-row">
                         <div className="provider-info">
                           <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
+                          {p.remark && (
+                            <span className="provider-remark">
+                              {' '}
+                              ({p.remark})
+                            </span>
+                          )}
                           <span className="status-badge status-badge--connected">
                             {t('common.statusConnected')}
                           </span>
-                          {p.remark && (
-                            <span className="routed-badge">{p.remark}</span>
-                          )}
-                          {p.configCount > 1 && (
-                            <span className="routed-badge">
-                              {t('common.configCount', { count: p.configCount })}
-                            </span>
-                          )}
                           {routedModels.length > 0 && (
                             <span className="routed-badge">
                               {t('common.modelCountInRouting', { count: routedModels.length, plural: routedModels.length > 1 ? 's' : '' })}
@@ -642,14 +640,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                       <div className="provider-list-row">
                         <div className="provider-info">
                           <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
-                          {p.status === 'connected' && (
-                            <span
-                              className="status-badge status-badge--connected"
-                              style={{ marginLeft: 8 }}
-                            >
-                              {t('common.hasConfig')}
-                            </span>
-                          )}
                           {p.configCount > 0 && (
                             <span
                               className="routed-badge"
