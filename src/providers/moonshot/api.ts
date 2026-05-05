@@ -1,14 +1,21 @@
 import { ProviderAPIConfig } from '../types';
 
 const MoonshotAPIConfig: ProviderAPIConfig = {
-  getBaseURL: () => 'https://api.moonshot.cn',
+  getBaseURL: ({ providerOptions }) =>
+    providerOptions.customHost || 'https://api.moonshot.cn',
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` }; // https://platform.moonshot.cn/console/api-keys
   },
-  getEndpoint: ({ fn }) => {
+  getEndpoint: ({ fn, providerOptions }) => {
     switch (fn) {
       case 'chatComplete':
-        return '/v1/chat/completions';
+        return providerOptions.apiFormat === 'anthropic'
+          ? '/messages'
+          : '/chat/completions';
+      case 'messages':
+        return providerOptions.apiFormat === 'anthropic'
+          ? '/messages'
+          : '/chat/completions';
       case 'listModels':
         return '/models';
       default:
