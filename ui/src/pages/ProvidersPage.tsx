@@ -142,12 +142,17 @@ export default function ProvidersPage({
     setShowModelDialog(true);
     try {
       const result = await getProviderModels(provider, configId);
-      if (result.data) {
-        const modelIds = result.data.map((m) => m.id || m).filter(Boolean);
-        setProviderModels(modelIds);
-      } else {
-        setProviderModels([]);
-      }
+      // Handle Google-style response: { models: [{ name: "models/gemini-2.5-flash", ... }] }
+      // and OpenAI-style response: { data: [{ id: "gpt-4o", ... }] }
+      const rawModels = result.data || (result as any).models || [];
+      const modelIds = rawModels
+        .map((m: any) => {
+          const id = m.id || m.name || '';
+          // Strip "models/" prefix for Google
+          return id.replace(/^models\//, '');
+        })
+        .filter(Boolean);
+      setProviderModels(modelIds);
     } catch (e) {
       console.error('Failed to fetch provider models:', e);
       setProviderModels([]);
