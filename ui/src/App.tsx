@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import ProvidersPage from './pages/ProvidersPage';
 import AllProvidersPage from './pages/AllProvidersPage';
 import UsagePage from './pages/UsagePage';
@@ -13,6 +14,13 @@ function Header({
   active: Page;
   onNavigate: (page: Page) => void;
 }) {
+  const { t, i18n } = useTranslation();
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'zh' ? 'en' : 'zh';
+    i18n.changeLanguage(newLang);
+  };
+
   return (
     <header className="app-header">
       <div className="app-header__inner">
@@ -29,7 +37,7 @@ function Header({
             }
             onClick={() => onNavigate('providers')}
           >
-            Routing
+            {t('nav.routing')}
           </button>
           <button
             className={
@@ -37,7 +45,7 @@ function Header({
             }
             onClick={() => onNavigate('usage')}
           >
-            Usage
+            {t('nav.usage')}
           </button>
           <button
             className={
@@ -47,9 +55,17 @@ function Header({
             }
             onClick={() => onNavigate('settings')}
           >
-            Settings
+            {t('nav.settings')}
           </button>
         </nav>
+
+        <button
+          className="lang-toggle"
+          onClick={toggleLanguage}
+          title="Toggle language"
+        >
+          {i18n.language === 'zh' ? 'EN' : '中文'}
+        </button>
       </div>
     </header>
   );

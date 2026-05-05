@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { exportConfig, importConfig } from '../api/adminClient';
 
 const VALID_CONFIG_KEYS = [
@@ -22,6 +23,7 @@ const VALID_PROVIDERS = [
 ];
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -55,14 +57,12 @@ export default function SettingsPage() {
 
     const c = cfg as Record<string, unknown>;
 
-    // Validate top-level keys
     for (const key of Object.keys(c)) {
       if (!VALID_CONFIG_KEYS.includes(key)) {
         return `Invalid config key: ${key}`;
       }
     }
 
-    // Validate providers
     if (!c.providers || typeof c.providers !== 'object') {
       return 'Missing or invalid "providers" field';
     }
@@ -97,7 +97,6 @@ export default function SettingsPage() {
       }
     }
 
-    // Validate categories
     const categories = ['text', 'image', 'video', 'audio', 'mcp'];
     for (const cat of categories) {
       if (!c[cat] || typeof c[cat] !== 'object') {
@@ -198,22 +197,22 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Settings</h1>
+      <h1 className="page-title">{t('nav.settings')}</h1>
 
       <div className="card">
-        <div className="card__title">Gateway Config</div>
+        <div className="card__title">{t('common.gatewayConfig')}</div>
 
-        {configLoading && <div className="muted">Loading...</div>}
+        {configLoading && <div className="muted">{t('common.loading')}</div>}
         {configError && <div className="error">{configError}</div>}
 
         {!configLoading && !configError && config && (
           <div className="muted" style={{ marginBottom: 10 }}>
-            Config is active.
+            {t('common.configIsActive')}
           </div>
         )}
         {!configLoading && !configError && !config && (
           <div className="muted" style={{ marginBottom: 10 }}>
-            No active config.
+            {t('common.noActiveConfig')}
           </div>
         )}
 
@@ -223,14 +222,14 @@ export default function SettingsPage() {
             disabled={configLoading}
             onClick={handleExport}
           >
-            Export
+            {t('common.export')}
           </button>
           <button
             className="secondary"
             disabled={configLoading}
             onClick={handleImportClick}
           >
-            Import
+            {t('common.import')}
           </button>
           <input
             ref={fileInputRef}
@@ -248,14 +247,14 @@ export default function SettingsPage() {
         )}
         {importSuccess && (
           <div className="success" style={{ marginTop: 10 }}>
-            Import successful!
+            {t('common.importSuccessful')}
           </div>
         )}
       </div>
 
       {rawConfig && (
         <div className="card" style={{ marginTop: 16 }}>
-          <div className="card__title">Config Preview</div>
+          <div className="card__title">{t('common.configPreview')}</div>
           <textarea
             readOnly
             value={rawConfig}
