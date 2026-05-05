@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   getProviders,
   ProviderSummary,
@@ -29,7 +30,17 @@ interface AllProvidersPageProps {
   onBack: () => void;
 }
 
+function getProviderDisplayName(provider: string, t: (key: string) => string): string {
+  const providerMap: Record<string, string> = {
+    zhipu: t('common.providerZhipu'),
+    dashscope: t('common.providerDashscope'),
+    doubao: t('common.providerDoubao'),
+  };
+  return providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+}
+
 export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
+  const { t } = useTranslation();
   const [providers, setProviders] = useState<ProviderSummary[]>([]);
   const [routing, setRouting] = useState<RoutingEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +51,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(
     new Set()
   );
-  // Default category for routing operations (category tabs hidden on this page)
   const [activeCategory] = useState<ModelCategory>('text');
 
   const [showModelDialog, setShowModelDialog] = useState(false);
@@ -92,8 +102,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         if (cancelled) return;
         setError(e?.message ?? String(e));
       } finally {
-        if (cancelled) return;
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
@@ -203,7 +212,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     const key = p.configId ?? p.provider;
     const draft = drafts[key];
     if (!draft?.apiKey) {
-      setNotification({ message: 'Please enter API Key first', type: 'error' });
+      setNotification({ message: t('common.pleaseEnterApiKeyFirst'), type: 'error' });
       return;
     }
 
@@ -230,7 +239,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       }));
       if (!res.ok) {
         setNotification({
-          message: res.message || 'Connection failed',
+          message: res.message || t('common.connectionFailed'),
           type: 'error',
         });
       }
@@ -240,7 +249,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         [key]: {
           ...prev[key],
           testStatus: 'failed',
-          testMessage: e?.message ?? 'Connection failed',
+          testMessage: e?.message ?? t('common.connectionFailed'),
         },
       }));
     } finally {
@@ -255,16 +264,15 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       draft?.apiKey !== undefined || draft?.baseUrl !== (p.baseUrl ?? '');
     const canSave =
       (!isNew && !hasCredentialsChanged) || draft?.testStatus === 'passed';
-    const buttonText = isNew ? '新增' : '保存';
+    const buttonText = isNew ? t('common.addProvider') : t('common.save');
     return (
       <button
         className="primary"
         disabled={savingProvider === key || !canSave}
         onClick={async () => {
           const draft = drafts[key];
-          // Validate required fields
           if (isNew && (!draft?.apiKey || draft.apiKey.trim() === '')) {
-            setNotification({ message: 'API Key 为必填项', type: 'error' });
+            setNotification({ message: t('common.apiKeyRequired'), type: 'error' });
             return;
           }
           setSavingProvider(key);
@@ -278,7 +286,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               apiFormat: draft?.apiFormat,
             };
             await updateProvider(activeCategory, p.provider, req);
-            // Note: Do NOT auto-syncConfig here. User should add models to routing first, then sync manually.
             const refreshed = await getProviders(activeCategory);
             setProviders(refreshed.providers);
             const nextDrafts: Record<string, Draft> = {};
@@ -300,7 +307,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           }
         }}
       >
-        {savingProvider === key ? 'Saving...' : buttonText}
+        {savingProvider === key ? t('common.saving') : buttonText}
       </button>
     );
   };
@@ -311,12 +318,12 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     return (
       <div className="grid" style={{ gap: 10 }}>
         <div className="field">
-          <div className="label">API Key (必填)</div>
+          <div className="label">{t('common.apiKeyRequiredLabel')}</div>
           <input
             placeholder={
               p.apiKeyMasked && !isNew
-                ? `Current: ${p.apiKeyMasked}`
-                : 'Paste new API key'
+                ? t('common.currentValue', { value: p.apiKeyMasked })
+                : t('common.pasteNewApiKey')
             }
             value={d.apiKey ?? ''}
             onChange={(e) => {
@@ -337,7 +344,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           />
         </div>
         <div className="field">
-          <div className="label">请求地址</div>
+          <div className="label">{t('common.baseUrlLabel')}</div>
           <input
             value={d.baseUrl ?? p.baseUrl ?? ''}
             onChange={(e) => {
@@ -358,10 +365,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           />
         </div>
         <div className="field">
-          <div className="label">备注 (可选，不填则自动生成)</div>
+          <div className="label">{t('common.remarkLabel')}</div>
           <input
             value={d.remark ?? ''}
-            placeholder={p.remark ?? '自动生成'}
+            placeholder={p.remark ?? t('common.autoGenerated')}
             onChange={(e) => {
               const val = e.target.value;
               setDrafts((prev) => ({
@@ -399,7 +406,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 }
               }}
             >
-              删除
+              {t('common.delete')}
             </button>
           )}
           {(isNew || drafts[key]?.testStatus !== 'passed') && (
@@ -408,11 +415,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               disabled={testingProvider === key || !drafts[key]?.apiKey}
               onClick={() => handleTestConnectivity(p, isNew)}
             >
-              {testingProvider === key ? 'Testing...' : 'Test Connectivity'}
+              {testingProvider === key ? t('common.testing') : t('common.testConnectivity')}
             </button>
           )}
           {drafts[key]?.testStatus === 'passed' && (
-            <span className="test-passed-icon" title="Connection verified">
+            <span className="test-passed-icon" title={t('common.connectionVerified')}>
               &#10003;
             </span>
           )}
@@ -422,7 +429,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             </span>
           )}
           <div className="muted">
-            {p.lastSyncedAt ? `Last sync: ${p.lastSyncedAt}` : ''}
+            {p.lastSyncedAt ? t('common.lastSync', { time: p.lastSyncedAt }) : ''}
           </div>
         </div>
       </div>
@@ -465,9 +472,9 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             )}
           </div>
           <div className="dialog-footer">
-            <button onClick={onCancel}>取消</button>
+            <button onClick={onCancel}>{t('common.cancel')}</button>
             <button className="danger" onClick={onConfirm}>
-              确认删除
+              {t('common.confirmDeleteBtn')}
             </button>
           </div>
         </div>
@@ -476,7 +483,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   }
 
   const routedProviderModels = new Map<string, string[]>();
-  // Key by provider+configId to support multiple configs per provider
   for (const entry of routing) {
     const key = `${entry.provider}:${entry.configId}`;
     const existing = routedProviderModels.get(key) ?? [];
@@ -484,9 +490,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     routedProviderModels.set(key, existing);
   }
 
-  // Connected: show ALL configs (each config as separate entry) so user can modify them
   const connectedProviders = providers.filter((p) => p.status === 'connected');
-  // Not Configured: ALL providers (including those already in Connected), so user can add MORE configs
   const allProvidersSet = new Set(SUPPORTED_PROVIDERS);
   const disconnectedProviders = Array.from(allProvidersSet).map((provider) => {
     const existingConfigs = providers.filter((p) => p.provider === provider);
@@ -498,7 +502,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       baseUrl: firstConfig?.baseUrl ?? '',
       configCount: existingConfigs.filter((c) => c.status === 'connected')
         .length,
-      configId: provider + '-new', // unique key for new config
+      configId: provider + '-new',
     } as ProviderSummary;
   });
 
@@ -513,11 +517,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       )}
       <ConfirmDialog
         isOpen={showDeleteDialog}
-        title="确认删除"
+        title={t('common.confirmDelete')}
         message={
           (deleteTarget?.models?.length ?? 0) > 0
-            ? '以下routing模型将被同时删除：'
-            : '确定删除此配置？'
+            ? t('common.followingRoutingModelsWillBeDeleted')
+            : t('common.deleteConfirmMessage')
         }
         models={deleteTarget?.models ?? []}
         onConfirm={async () => {
@@ -547,22 +551,22 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         }}
       />
       <button className="back-btn" onClick={onBack}>
-        ← Back
+        ← {t('common.back')}
       </button>
-      <h1 className="page-title">All Providers</h1>
+      <h1 className="page-title">{t('nav.routing')}</h1>
 
       {error ? <div className="error">{error}</div> : null}
-      {loading ? <div className="muted">Loading providers...</div> : null}
+      {loading ? <div className="muted">{t('common.loading')}</div> : null}
 
       {!loading && providers.length === 0 && !error && (
-        <div className="notice">No providers found.</div>
+        <div className="notice">{t('common.noProvidersConfigured')}</div>
       )}
 
       {!loading && providers.length > 0 && (
         <>
           {connectedProviders.length > 0 && (
             <div className="pinned-section">
-              <h2 className="section-title">Connected</h2>
+              <h2 className="section-title">{t('common.statusConnected')}</h2>
               <div className="provider-list">
                 {connectedProviders.map((p) => {
                   const isExpanded = expandedProviders.has(
@@ -578,22 +582,21 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                     >
                       <div className="provider-list-row">
                         <div className="provider-info">
-                          <span className="provider-name">{p.provider}</span>
+                          <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
                           <span className="status-badge status-badge--connected">
-                            Connected
+                            {t('common.statusConnected')}
                           </span>
                           {p.remark && (
                             <span className="routed-badge">{p.remark}</span>
                           )}
                           {p.configCount > 1 && (
                             <span className="routed-badge">
-                              {p.configCount} configs
+                              {t('common.configCount', { count: p.configCount })}
                             </span>
                           )}
                           {routedModels.length > 0 && (
                             <span className="routed-badge">
-                              {routedModels.length} model
-                              {routedModels.length > 1 ? 's' : ''} in routing
+                              {t('common.modelCountInRouting', { count: routedModels.length, plural: routedModels.length > 1 ? 's' : '' })}
                             </span>
                           )}
                         </div>
@@ -625,7 +628,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               {connectedProviders.length > 0 && (
                 <div className="section-divider" />
               )}
-              <h2 className="section-title">Not Configured</h2>
+              <h2 className="section-title">{t('common.notConfigured')}</h2>
               <div className="provider-list">
                 {disconnectedProviders.map((p) => {
                   const isExpanded = expandedProviders.has(
@@ -638,13 +641,13 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                     >
                       <div className="provider-list-row">
                         <div className="provider-info">
-                          <span className="provider-name">{p.provider}</span>
+                          <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
                           {p.status === 'connected' && (
                             <span
                               className="status-badge status-badge--connected"
                               style={{ marginLeft: 8 }}
                             >
-                              Has Config
+                              {t('common.hasConfig')}
                             </span>
                           )}
                           {p.configCount > 0 && (
@@ -652,8 +655,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                               className="routed-badge"
                               style={{ marginLeft: 8 }}
                             >
-                              {p.configCount} config
-                              {p.configCount > 1 ? 's' : ''}
+                              {t('common.configCount', { count: p.configCount })}
                             </span>
                           )}
                         </div>
@@ -686,7 +688,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         <div className="dialog-overlay" onClick={closeModelDialog}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
-              <h3>Select Models - {modelDialogProvider}</h3>
+              <h3>{t('common.selectModels', { provider: modelDialogProvider })}</h3>
               <button className="dialog-close" onClick={closeModelDialog}>
                 ×
               </button>
@@ -709,8 +711,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 if (filtered.length === 0) {
                   return (
                     <div className="muted">
-                      No {activeCategory} models available for{' '}
-                      {modelDialogProvider}
+                      {t('common.noModelsAvailable', { category: activeCategory, provider: modelDialogProvider })}
                     </div>
                   );
                 }
@@ -724,7 +725,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                     />
                     <span className="model-name">{m.model}</span>
                     {routedModels.has(m.model) && (
-                      <span className="muted"> (already in routing)</span>
+                      <span className="muted"> {t('common.alreadyInRouting')}</span>
                     )}
                   </label>
                 ));
@@ -732,7 +733,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             </div>
             <div className="dialog-footer">
               <button className="secondary" onClick={closeModelDialog}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 className="primary"
@@ -740,8 +741,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 onClick={handleAddModels}
               >
                 {addingModels
-                  ? 'Adding...'
-                  : `Add ${selectedModels.length} Model${selectedModels.length > 1 ? 's' : ''}`}
+                  ? t('common.adding')
+                  : t('common.addModels', { count: selectedModels.length, plural: selectedModels.length > 1 ? 's' : '' })}
               </button>
             </div>
           </div>

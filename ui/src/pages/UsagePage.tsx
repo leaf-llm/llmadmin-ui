@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   getProviders,
   ProviderId,
@@ -13,6 +14,7 @@ function toISODate(d: Date) {
 }
 
 export default function UsagePage() {
+  const { t } = useTranslation();
   const [providers, setProviders] = useState<ProviderId[]>([]);
   const [loadingProviders, setLoadingProviders] = useState(true);
 
@@ -56,16 +58,16 @@ export default function UsagePage() {
 
   return (
     <div>
-      <h1 className="page-title">Usage</h1>
+      <h1 className="page-title">{t('nav.usage')}</h1>
 
       {error ? <div className="error">{error}</div> : null}
 
       <div className="card">
-        <div className="card__title">Query</div>
+        <div className="card__title">{t('common.query')}</div>
 
         <div className="grid grid-2">
           <div className="field">
-            <div className="label">From</div>
+            <div className="label">{t('common.from')}</div>
             <input
               type="date"
               value={from}
@@ -73,7 +75,7 @@ export default function UsagePage() {
             />
           </div>
           <div className="field">
-            <div className="label">To</div>
+            <div className="label">{t('common.to')}</div>
             <input
               type="date"
               value={to}
@@ -82,12 +84,12 @@ export default function UsagePage() {
           </div>
 
           <div className="field">
-            <div className="label">Provider</div>
+            <div className="label">{t('common.provider')}</div>
             <select
               value={provider}
               onChange={(e) => setProvider(e.target.value as any)}
             >
-              <option value="all">All</option>
+              <option value="all">{t('common.all')}</option>
               {loadingProviders
                 ? null
                 : providers.map((p) => (
@@ -120,7 +122,7 @@ export default function UsagePage() {
                 }
               }}
             >
-              {loading ? 'Loading...' : 'Load usage'}
+              {loading ? t('common.loading') : t('common.loadUsage')}
             </button>
           </div>
         </div>
@@ -130,7 +132,7 @@ export default function UsagePage() {
         <div style={{ marginTop: 14 }}>
           <div className="grid grid-2">
             <div className="card">
-              <div className="card__title">Total Cost</div>
+              <div className="card__title">{t('common.totalCost')}</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>
                 {typeof totals?.costUSD === 'number'
                   ? `$${totals.costUSD.toFixed(4)}`
@@ -138,7 +140,7 @@ export default function UsagePage() {
               </div>
             </div>
             <div className="card">
-              <div className="card__title">Total Requests</div>
+              <div className="card__title">{t('common.totalRequests')}</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>
                 {typeof totals?.requests === 'number' ? totals.requests : '—'}
               </div>
@@ -146,22 +148,22 @@ export default function UsagePage() {
           </div>
 
           <div className="card" style={{ marginTop: 14 }}>
-            <div className="card__title">By Model</div>
+            <div className="card__title">{t('common.byModel')}</div>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Model</th>
-                  <th>Requests</th>
-                  <th>Input Tokens</th>
-                  <th>Output Tokens</th>
-                  <th>Cost (USD)</th>
+                  <th>{t('common.model')}</th>
+                  <th>{t('common.requests')}</th>
+                  <th>{t('common.inputTokens')}</th>
+                  <th>{t('common.outputTokens')}</th>
+                  <th>{t('common.costUsd')}</th>
                 </tr>
               </thead>
               <tbody>
                 {byModel.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="muted">
-                      No data for the selected period.
+                      {t('common.noData')}
                     </td>
                   </tr>
                 ) : (
