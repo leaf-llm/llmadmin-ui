@@ -54,8 +54,9 @@
     "addToRouting": "添加到路由",
     "removeFromRouting": "从路由中移除",
     "alreadyInRouting": "（已在路由中）",
-    "primaryFallback": "主模型 / 备用",
-    "loadBalancing": "负载均衡",
+    "primaryFallback": "主模型 / 顺序访问",
+    "loadBalancing": "次级模型 / 随机访问",
+    "randomAccess": "随机访问",
     "activeProviders": "活跃供应商",
     "statusConnected": "已连接",
     "notConfigured": "未配置",
@@ -81,6 +82,11 @@
     "status": "状态",
     "providerZhipu": "智谱",
     "providerDashscope": "阿里云百炼",
-    "providerDoubao": "豆包"
+    "providerDoubao": "豆包",
+    "taskType": "任务类型",
+    "modelRouting": "模型路由",
+    "noRoutingConfigured": "暂无路由配置",
+    "primaryFallbackDesc": "主模型按顺序依次访问，成功则直接返回",
+    "loadBalancingDesc": "随机访问一个模型，失败无重试"
   }
 }
