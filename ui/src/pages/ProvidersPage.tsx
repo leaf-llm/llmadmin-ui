@@ -189,6 +189,7 @@ export default function ProvidersPage({
       const providersRes = await getProviders(activeCategory);
       setProviders(providersRes.providers);
       closeModelDialog();
+      await syncConfig(activeCategory);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     } finally {
@@ -208,6 +209,7 @@ export default function ProvidersPage({
       // Refresh providers to update their routing info
       const providersRes = await getProviders(activeCategory);
       setProviders(providersRes.providers);
+      await syncConfig(activeCategory);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
@@ -229,6 +231,7 @@ export default function ProvidersPage({
       );
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
+      await syncConfig(activeCategory);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }

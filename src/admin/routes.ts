@@ -79,7 +79,7 @@ adminApp.get('/config', async (c) => {
 
 /**
  * Auto-generate Portkey config from routing entries.
- * - Has primary models: primary models first, others as fallback (loadbalance on 429/500/503/504)
+ * - Has primary models: primary models first, non-primaries in loadbalance group
  * - No primary: all routing models in loadbalance
  */
 async function generateConfigFromProviders(
@@ -94,28 +94,20 @@ async function generateConfigFromProviders(
     throw new Error('No models in routing. Add models to routing first.');
   }
 
-  // Sort: primary entries first
-  const sortedRouting = [...routing].sort((a, b) => {
-    if (a.isPrimary && !b.isPrimary) return -1;
-    if (!a.isPrimary && b.isPrimary) return 1;
-    return 0;
-  });
-
-  // Build targets from routing entries (sorted)
-  const targets: Record<string, unknown>[] = [];
-  for (const entry of sortedRouting) {
+  // Build target from a routing entry
+  function buildTarget(
+    entry: (typeof routing)[0]
+  ): Record<string, unknown> | null {
     const configs = providers[entry.provider];
-    let p = configs?.[0]; // Default to first config
+    let p = configs?.[0];
 
-    // Use specific config if configId is provided
     if (entry.configId) {
       const matched = configs?.find((c) => c.id === entry.configId);
       if (matched) p = matched;
     }
 
-    if (!p?.apiKey?.trim()) {
-      continue; // Skip if provider has no apiKey
-    }
+    if (!p?.apiKey?.trim()) return null;
+
     const target: Record<string, unknown> = {
       provider: entry.provider,
       api_key: p.apiKey.trim(),
@@ -126,18 +118,60 @@ async function generateConfigFromProviders(
     if (p.baseUrl?.trim()) {
       target.custom_host = p.baseUrl.trim();
     }
-    targets.push(target);
+    return target;
+  }
+
+  // Separate primary and non-primary entries
+  const primaryEntries: (typeof routing)[0][] = [];
+  const nonPrimaryEntries: (typeof routing)[0][] = [];
+
+  for (const entry of routing) {
+    if (entry.isPrimary) {
+      primaryEntries.push(entry);
+    } else {
+      nonPrimaryEntries.push(entry);
+    }
+  }
+
+  // Build targets
+  const targets: Record<string, unknown>[] = [];
+
+  // Primary entries: individual single targets
+  for (const entry of primaryEntries) {
+    const target = buildTarget(entry);
+    if (target) targets.push(target);
+  }
+
+  // Non-primary entries: wrap in loadbalance if multiple, else single target
+  if (nonPrimaryEntries.length > 1) {
+    const loadbalanceTargets: Record<string, unknown>[] = [];
+    for (const entry of nonPrimaryEntries) {
+      const target = buildTarget(entry);
+      if (target) loadbalanceTargets.push(target);
+    }
+    if (loadbalanceTargets.length > 0) {
+      targets.push({
+        strategy: { mode: 'loadbalance' },
+        targets: loadbalanceTargets,
+      });
+    }
+  } else if (nonPrimaryEntries.length === 1) {
+    const target = buildTarget(nonPrimaryEntries[0]);
+    if (target) targets.push(target);
   }
 
   if (targets.length === 0) {
     throw new Error('No valid routing entries. Add models to routing first.');
   }
 
-  // Check if there are primary entries
-  const hasPrimary = sortedRouting.some((r) => r.isPrimary);
+  // If only one target, no strategy needed
+  if (targets.length === 1) {
+    return targets[0];
+  }
 
-  // Has primary → fallback strategy with primary first
-  if (hasPrimary && targets.length > 1) {
+  // Has primary → fallback strategy with primaries first, non-primaries in loadbalance
+  const hasPrimary = primaryEntries.length > 0;
+  if (hasPrimary) {
     return {
       strategy: {
         mode: 'fallback',
