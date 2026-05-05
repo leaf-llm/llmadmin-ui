@@ -15,7 +15,7 @@ import {
 import CategoryTabs from '../components/CategoryTabs';
 import TopNotification from '../components/TopNotification';
 import { ModelCategory } from '../types/models';
-import { getModelsByProvider } from '../config/modelCategories';
+import { MODEL_CATEGORY_MAP, getModelsByProvider } from '../config/modelCategories';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
@@ -139,6 +139,7 @@ export default function ProvidersPage({
     setModelDialogProvider(provider);
     setModelDialogConfigId(configId);
     setSelectedModels([]);
+    setProviderModels([]); // clear previous cache before fetch
     setShowModelDialog(true);
     try {
       const result = await getProviderModels(provider, configId);
@@ -639,15 +640,14 @@ export default function ProvidersPage({
             </div>
             <div className="dialog-body">
               {(() => {
-                const modelIds =
-                  providerModels.length > 0 ? providerModels : [];
-                const filtered = modelIds.map((id) => ({
-                  model: id,
-                  category: activeCategory as any,
-                }));
-                const filtered2 = filtered.filter(
-                  (m) => m.category === activeCategory
-                );
+                // Use API-returned models, filter by name pattern for category
+                const modelIds = providerModels.length > 0 ? providerModels : [];
+                const filtered = modelIds
+                  .map((id) => ({
+                    model: id,
+                    category: /(?:^|[-_])image(?:[-_]|$)|img/i.test(id) ? 'image' : 'text',
+                  }))
+                  .filter((m) => m.category === activeCategory);
                 const routedModels = new Set(
                   routing
                     .filter(
