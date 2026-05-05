@@ -619,6 +619,8 @@ export default function ProvidersPage({
                   )}
                 </div>
 
+                <div className="section-divider" />
+
                 <div className="providers-section">
                   <div className="section-title-row">
                     <h2 className="section-title">{t('common.activeProviders')}</h2>
