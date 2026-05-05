@@ -59,7 +59,7 @@
     "randomAccess": "随机访问",
     "activeProviders": "活跃供应商",
     "statusConnected": "已连接",
-    "notConfigured": "未配置",
+    "notConfigured": "可配置",
     "hasConfig": "已有配置",
     "configCount": "{{count}} 个配置",
     "modelCountInRouting": "路由中有 {{count}} 个模型",
