@@ -30,6 +30,7 @@ export type ProviderSummary = {
   remark?: string;
   configCount: number;
   configId?: string;
+  apiFormat?: 'openai' | 'anthropic';
 };
 
 export type ProviderUpdateRequest = {
@@ -38,6 +39,7 @@ export type ProviderUpdateRequest = {
   setAsPrimary?: boolean;
   remark?: string;
   configId?: string;
+  apiFormat?: 'openai' | 'anthropic';
 };
 
 export type UsageByModel = {
@@ -340,6 +342,7 @@ export async function deleteProviderConfig(
 export type TestConnectivityResponse = {
   ok: boolean;
   message?: string;
+  apiFormat?: 'openai' | 'anthropic';
 };
 
 export async function testProviderConnectivity(

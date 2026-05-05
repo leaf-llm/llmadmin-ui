@@ -30,6 +30,7 @@ export type ProviderSummary = {
   remark?: string;
   configCount: number;
   configId?: string;
+  apiFormat?: 'openai' | 'anthropic';
 };
 
 export type ProviderUpdateRequest = {
@@ -40,6 +41,7 @@ export type ProviderUpdateRequest = {
   removeModels?: string[];
   remark?: string;
   configId?: string;
+  apiFormat?: 'openai' | 'anthropic';
 };
 
 export type UsageByModel = {

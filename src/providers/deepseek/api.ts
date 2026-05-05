@@ -6,10 +6,12 @@ const DeepSeekAPIConfig: ProviderAPIConfig = {
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` };
   },
-  getEndpoint: ({ fn }) => {
+  getEndpoint: ({ fn, providerOptions }) => {
     switch (fn) {
       case 'chatComplete':
-        return '/chat/completions';
+        return providerOptions.apiFormat === 'anthropic'
+          ? '/messages'
+          : '/chat/completions';
       case 'messages':
         return '/messages';
       case 'listModels':

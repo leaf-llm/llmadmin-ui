@@ -224,6 +224,7 @@ const ProviderUpdateSchema: z.ZodSchema<ProviderUpdateRequest> = z
     removeModels: z.array(z.string()).optional(),
     configId: z.string().optional(),
     remark: z.string().optional(),
+    apiFormat: z.enum(['openai', 'anthropic']).optional(),
   })
   .partial();
 
@@ -481,7 +482,51 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
       );
     }
 
-    return c.json({ ok: true, message: 'Connected successfully' });
+    // Detect API format by trying both endpoints
+    let apiFormat: 'openai' | 'anthropic' = 'openai';
+    const testBody = {
+      model: 'test-model',
+      messages: [{ role: 'user', content: 'test' }],
+      max_tokens: 1,
+    };
+    const testHeaders = {
+      ...headers,
+      'Content-Type': 'application/json',
+    };
+
+    // Try /messages endpoint (Anthropic format)
+    const messagesRes = await fetch(baseUrl.trim() + '/messages', {
+      method: 'POST',
+      headers: testHeaders,
+      body: JSON.stringify(testBody),
+    });
+
+    // Try /chat/completions endpoint (OpenAI format)
+    const chatRes = await fetch(baseUrl.trim() + '/chat/completions', {
+      method: 'POST',
+      headers: testHeaders,
+      body: JSON.stringify(testBody),
+    });
+
+    // Determine format based on which endpoint returns 200 or 4xx (meaning it exists but model might not)
+    // A 401/403 means the endpoint exists but auth failed (still counts as "format detected")
+    // A 404 means the endpoint doesn't exist
+    if (
+      messagesRes.ok ||
+      messagesRes.status === 401 ||
+      messagesRes.status === 403
+    ) {
+      apiFormat = 'anthropic';
+    } else if (chatRes.ok || chatRes.status === 401 || chatRes.status === 403) {
+      apiFormat = 'openai';
+    }
+    // If neither works, default to openai but the actual request will fail anyway
+
+    return c.json({
+      ok: true,
+      message: 'Connected successfully',
+      apiFormat,
+    });
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 200);
   }

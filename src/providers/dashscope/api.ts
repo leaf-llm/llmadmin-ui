@@ -8,10 +8,12 @@ export const dashscopeAPIConfig: ProviderAPIConfig = {
     const { apiKey } = providerOptions;
     return { Authorization: `Bearer ${apiKey}` };
   },
-  getEndpoint({ fn }) {
+  getEndpoint({ fn, providerOptions }) {
     switch (fn) {
       case 'chatComplete':
-        return `/chat/completions`;
+        return providerOptions.apiFormat === 'anthropic'
+          ? '/messages'
+          : '/chat/completions';
       case 'embed':
         return `/embeddings`;
       case 'listModels':
