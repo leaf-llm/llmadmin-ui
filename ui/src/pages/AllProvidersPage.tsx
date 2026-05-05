@@ -165,6 +165,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       setRouting(routingRes.routing);
       const providersRes = await getProviders(activeCategory);
       setProviders(providersRes.providers);
+      await syncConfig(activeCategory);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
@@ -186,6 +187,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       );
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
+      await syncConfig(activeCategory);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
