@@ -302,15 +302,18 @@ button.secondary.small {
   padding-left: 8px;
   background: rgba(15, 23, 42, 0.06);
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  position: relative;
+  z-index: 1;
 }
 
 .category-content-wrapper {
   background: #ffffff;
   border-radius: 0 0 12px 12px;
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-top: 1px solid rgba(15, 23, 42, 0.1);
+  border-top: none;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
   margin-top: -1px;
+  padding-top: 1px;
 }
 
 .category-content {
