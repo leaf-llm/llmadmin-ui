@@ -741,7 +741,11 @@ button.primary.small {
 .all-providers-page {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 18px 16px;
+  padding: 18px 16px 18px 16px;
+}
+
+.all-providers-page .category-content-wrapper {
+  margin-top: 16px;
 }
 
 /* Test connectivity button and status */
