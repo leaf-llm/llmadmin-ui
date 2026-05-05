@@ -302,6 +302,26 @@ export async function removeRoutingModel(
   );
 }
 
+export async function moveRoutingEntry(
+  category: string,
+  provider: ProviderId,
+  model: string,
+  configId: string,
+  direction: 'up' | 'down'
+): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
+  const u = new URL(
+    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}/move`,
+    window.location.origin
+  );
+  u.searchParams.set('category', category);
+  u.searchParams.set('configId', configId);
+  u.searchParams.set('direction', direction);
+  return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
+    u.pathname + u.search,
+    { method: 'PUT' }
+  );
+}
+
 export type ProviderModelsResponse = {
   object?: string;
   data?: Array<{

@@ -10,6 +10,7 @@ import {
   removeRoutingModel,
   getProviderModels,
   updateRoutingPrimary,
+  moveRoutingEntry,
   RoutingEntry,
 } from '../api/adminClient';
 import CategoryTabs from '../components/CategoryTabs';
@@ -237,6 +238,24 @@ export default function ProvidersPage({
     }
   };
 
+  const handleMove = async (
+    entry: RoutingEntry,
+    direction: 'up' | 'down'
+  ) => {
+    try {
+      const res = await moveRoutingEntry(
+        activeCategory,
+        entry.provider,
+        entry.model,
+        entry.configId,
+        direction
+      );
+      setRouting(res.routing);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    }
+  };
+
   const toggleModelSelection = (model: string) => {
     setSelectedModels((prev) =>
       prev.includes(model) ? prev.filter((m) => m !== model) : [...prev, model]
@@ -426,8 +445,10 @@ export default function ProvidersPage({
                             </span>
                           </div>
                           <div className="routing-list">
-                            {primaryEntries.map((entry) => {
+                            {primaryEntries.map((entry, idx) => {
                               const info = configInfo.get(entry.configId);
+                              const isFirst = idx === 0;
+                              const isLast = idx === primaryEntries.length - 1;
                               return (
                                 <div
                                   key={`${entry.provider}-${entry.model}-${entry.configId}`}
@@ -453,6 +474,24 @@ export default function ProvidersPage({
                                     )}
                                   </div>
                                   <div className="routing-actions">
+                                    <span className="move-buttons">
+                                      <button
+                                        className="move-btn"
+                                        onClick={() => handleMove(entry, 'up')}
+                                        disabled={isFirst}
+                                        title="Move up"
+                                      >
+                                        ↑
+                                      </button>
+                                      <button
+                                        className="move-btn"
+                                        onClick={() => handleMove(entry, 'down')}
+                                        disabled={isLast}
+                                        title="Move down"
+                                      >
+                                        ↓
+                                      </button>
+                                    </span>
                                     <button
                                       className="secondary small"
                                       onClick={() =>
@@ -495,8 +534,10 @@ export default function ProvidersPage({
                             </span>
                           </div>
                           <div className="routing-list">
-                            {lbEntries.map((entry) => {
+                            {lbEntries.map((entry, idx) => {
                               const info = configInfo.get(entry.configId);
+                              const isFirst = idx === 0;
+                              const isLast = idx === lbEntries.length - 1;
                               return (
                                 <div
                                   key={`${entry.provider}-${entry.model}-${entry.configId}`}
