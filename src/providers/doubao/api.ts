@@ -6,12 +6,16 @@ const DoubaoAPIConfig: ProviderAPIConfig = {
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` };
   },
-  getEndpoint: ({ fn }) => {
+  getEndpoint: ({ fn, providerOptions }) => {
     switch (fn) {
       case 'chatComplete':
-        return '/chat/completions';
+        return providerOptions.apiFormat === 'anthropic'
+          ? '/messages'
+          : '/chat/completions';
       case 'messages':
-        return '/messages';
+        return providerOptions.apiFormat === 'anthropic'
+          ? '/messages'
+          : '/chat/completions';
       case 'listModels':
         return '/models';
       default:

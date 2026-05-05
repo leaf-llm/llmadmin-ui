@@ -88,6 +88,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             baseUrl: p.baseUrl ?? '',
             apiKeyMasked: p.apiKeyMasked,
             remark: p.remark,
+            apiFormat: p.apiFormat,
           };
         }
         setDrafts(nextDrafts);
@@ -226,6 +227,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           ...prev[key],
           testStatus: res.ok ? 'passed' : 'failed',
           testMessage: res.message,
+          apiFormat: res.apiFormat,
         },
       }));
       if (!res.ok) {
@@ -275,6 +277,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               baseUrl: draft?.baseUrl || undefined,
               remark: draft?.remark || undefined,
               configId: p.configId,
+              apiFormat: draft?.apiFormat,
             };
             await updateProvider(activeCategory, p.provider, req);
             // Note: Do NOT auto-syncConfig here. User should add models to routing first, then sync manually.
@@ -288,6 +291,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 baseUrl: pp.baseUrl ?? '',
                 apiKeyMasked: pp.apiKeyMasked,
                 remark: pp.remark,
+                apiFormat: pp.apiFormat,
               };
             }
             setDrafts(nextDrafts);

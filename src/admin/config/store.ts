@@ -42,6 +42,7 @@ type ProviderConfig = {
   baseUrl?: string;
   lastSyncedAt?: string;
   remark?: string;
+  apiFormat?: 'openai' | 'anthropic';
 };
 
 type CategoryConfig = {
@@ -395,6 +396,7 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
         baseUrl: DEFAULT_BASE_URLS[provider],
         configCount: 0,
         configId: provider,
+        apiFormat: undefined,
       });
     } else {
       // Show each config as a separate entry
@@ -410,6 +412,7 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
           remark: cfg.remark,
           configCount: allConfigs.length,
           configId: cfg.id,
+          apiFormat: cfg.apiFormat,
         });
       }
     }
@@ -467,6 +470,7 @@ export async function upsertProvider(
       baseUrl: baseUrl !== undefined ? baseUrl : configs[idx].baseUrl,
       lastSyncedAt: new Date().toISOString(),
       remark: update.remark?.trim() || configs[idx].remark,
+      apiFormat: update.apiFormat ?? configs[idx].apiFormat,
     };
     config.providers[provider][idx] = savedConfig;
   } else {
@@ -480,6 +484,7 @@ export async function upsertProvider(
       baseUrl,
       lastSyncedAt: new Date().toISOString(),
       remark,
+      apiFormat: update.apiFormat,
     };
 
     config.providers[provider].push(newConfig);
@@ -534,6 +539,7 @@ export async function upsertProvider(
       isPrimary,
       remark: savedConfig?.remark,
       configCount,
+      apiFormat: savedConfig?.apiFormat,
     },
   };
 }
