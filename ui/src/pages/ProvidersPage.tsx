@@ -398,6 +398,7 @@ export default function ProvidersPage({
         <span className="copy-hint">{copied ? t('common.copied') : t('common.clickToCopy')}</span>
       </div>
       <h1 className="page-title">{t('nav.routing')}</h1>
+      <h2 className="section-title" style={{ marginBottom: '8px' }}>{t('common.taskType')}</h2>
       <CategoryTabs
         activeCategory={activeCategory}
         onCategoryChange={setActiveCategory}
@@ -425,21 +426,31 @@ export default function ProvidersPage({
         }
         return (
           <>
-            {routing.length > 0 && (
-              <div className="pinned-section">
-                <h2 className="section-title">{t('nav.routing')}</h2>
-                {(() => {
-                  const primaryEntries = routing.filter((e) => e.isPrimary);
-                  const lbEntries = routing.filter((e) => !e.isPrimary);
-                  return (
-                    <div className="routing-groups">
-                      {primaryEntries.length > 0 && (
-                        <div className="routing-group routing-group--primary">
-                          <div className="routing-group-header">
-                            <span className="routing-group-icon">★</span>
-                            <span className="routing-group-label">
-                              {t('common.primaryFallback')}
-                            </span>
+            <div className="pinned-section">
+              <h2 className="section-title">{t('common.modelRouting')}</h2>
+              {routing.length === 0 ? (
+                <div className="notice">
+                  {t('common.noRoutingConfigured')}
+                </div>
+              ) : (
+                <div className="routing-groups">
+                  {(() => {
+                    const primaryEntries = routing.filter((e) => e.isPrimary);
+                    const lbEntries = routing.filter((e) => !e.isPrimary);
+                    return (
+                      <>
+                        {primaryEntries.length > 0 && (
+                          <div className="routing-group routing-group--primary">
+                            <div className="routing-group-header">
+                              <span className="routing-group-icon">★</span>
+                              <span className="routing-group-label">
+                                {t('common.primaryFallback')}
+                              </span>
+                              {primaryEntries.length > 0 && (
+                              <span className="routing-group-desc">
+                                {t('common.primaryFallbackDesc')}
+                              </span>
+                            )}
                           </div>
                           <div className="routing-list">
                             {primaryEntries.map((entry, idx) => {
@@ -527,8 +538,15 @@ export default function ProvidersPage({
                           <div className="routing-group-header">
                             <span className="routing-group-icon">⟳</span>
                             <span className="routing-group-label">
-                              {t('common.loadBalancing')}
+                              {primaryEntries.length === 0
+                                ? t('common.randomAccess')
+                                : t('common.loadBalancing')}
                             </span>
+                            {lbEntries.length > 0 && (
+                              <span className="routing-group-desc">
+                                {t('common.loadBalancingDesc')}
+                              </span>
+                            )}
                           </div>
                           <div className="routing-list">
                             {lbEntries.map((entry, idx) => {
@@ -584,7 +602,7 @@ export default function ProvidersPage({
                                       }
                                       title={t('common.removeFromRouting')}
                                     >
-                                      ×
+                                              ×
                                     </button>
                                   </div>
                                 </div>
@@ -593,11 +611,12 @@ export default function ProvidersPage({
                           </div>
                         </div>
                       )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
 
             <div className="pinned-section">
               <div className="section-title-row">

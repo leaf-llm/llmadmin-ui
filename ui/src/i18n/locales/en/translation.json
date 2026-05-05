@@ -54,8 +54,9 @@
     "addToRouting": "Add to Routing",
     "removeFromRouting": "Remove from routing",
     "alreadyInRouting": "(already in routing)",
-    "primaryFallback": "Primary / Fallback",
-    "loadBalancing": "Load Balancing",
+    "primaryFallback": "Primary / Sequential",
+    "loadBalancing": "Secondary / Random",
+    "randomAccess": "Random Access",
     "activeProviders": "Active Providers",
     "statusConnected": "Connected",
     "notConfigured": "Not Configured",
@@ -81,6 +82,11 @@
     "status": "Status",
     "providerZhipu": "Zhipu",
     "providerDashscope": "Alibaba Dashscope",
-    "providerDoubao": "Doubao"
+    "providerDoubao": "Doubao",
+    "taskType": "Task Type",
+    "modelRouting": "Model Routing",
+    "noRoutingConfigured": "No routing configured",
+    "primaryFallbackDesc": "Primary models are accessed in order; returns immediately on success",
+    "loadBalancingDesc": "Randomly access one model, no retry on failure"
   }
 }
