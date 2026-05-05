@@ -35,7 +35,7 @@
       "name": "Anthropic",
       "object": "provider",
       "description": "Anthropic is an AI research company focused on creating safe and interpretable AI systems. Their flagship model, Claude, is designed to prioritize user alignment and ethical considerations in AI interactions. Anthropic emphasizes transparency and safety in AI development, aiming to build models that can be trusted in sensitive applications.",
-      "base_url": "https://api.anthropic.com/v1/messages"
+      "base_url": "https://api.anthropic.com/v1"
     },
     {
       "id": "anyscale",
@@ -105,7 +105,7 @@
       "name": "Google Gemini",
       "object": "provider",
       "description": "Google Gemini is part of Google's suite of AI tools designed for natural language understanding and generation. It focuses on providing robust solutions for developers looking to integrate conversational AI capabilities into their applications. Gemini emphasizes scalability and performance within Google's cloud ecosystem.",
-      "base_url": "https://generativelanguage.googleapis.com/v1beta"
+      "base_url": "https://generativelanguage.googleapis.com"
     },
     {
       "id": "palm",
@@ -182,7 +182,7 @@
       "name": "Moonshot",
       "object": "provider",
       "description": "Moonshot develops innovative solutions leveraging large language models aimed at enhancing creativity in content generation processes. Their tools are designed to assist creators by providing intelligent suggestions and automating repetitive tasks within creative workflows.",
-      "base_url": "https://api.moonshot.cn"
+      "base_url": "https://api.moonshot.cn/v1"
     },
     {
       "id": "nomic",

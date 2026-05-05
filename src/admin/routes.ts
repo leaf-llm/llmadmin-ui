@@ -14,7 +14,6 @@ import {
   removeFromRouting,
   updateRoutingPrimary,
   validateUiConfig,
-  DEFAULT_BASE_URLS,
 } from './config/store';
 import { getUsage } from './billing';
 import Providers from '../providers/index';

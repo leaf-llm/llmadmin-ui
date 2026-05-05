@@ -18,10 +18,6 @@ import { ModelCategory } from '../types/models';
 import { getModelsByProvider } from '../config/modelCategories';
 import TopNotification from '../components/TopNotification';
 
-const DEFAULT_BASE_URLS: Record<string, string> = {
-  deepseek: 'https://api.deepseek.com',
-};
-
 type Draft = ProviderUpdateRequest & {
   apiKeyMasked?: string;
   remark?: string;
