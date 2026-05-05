@@ -189,6 +189,8 @@ button:disabled {
 }
 
 .pinned-section {
+  background: #ffffff;
+  border-radius: 12px 12px 0 0;
   margin-bottom: 20px;
   margin-top: 16px;
 }
@@ -204,7 +206,7 @@ button:disabled {
   flex-direction: column;
   gap: 8px;
   padding: 8px 12px;
-  background: #ffffff;
+  background: rgba(15, 23, 42, 0.03);
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 8px;
 }
@@ -298,13 +300,39 @@ button.secondary.small {
   margin-bottom: 0;
   flex-wrap: wrap;
   padding-left: 8px;
+  background: rgba(15, 23, 42, 0.06);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.category-content-wrapper {
+  background: #ffffff;
+  border-radius: 0 0 12px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-top: none;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+}
+
+.routing-section {
+  padding: 16px;
+  margin: 16px;
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.providers-section {
+  padding: 16px;
+  margin: 16px;
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
 }
 
 .category-tab {
   padding: 10px 20px 12px;
   border: none;
   border-radius: 12px 12px 0 0;
-  background: rgba(15, 23, 42, 0.06);
+  background: transparent;
   cursor: pointer;
   font-weight: 500;
   color: rgba(17, 24, 39, 0.55);
@@ -324,15 +352,16 @@ button.secondary.small {
   font-weight: 600;
   z-index: 1;
   box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.08);
+  border-radius: 12px 12px 0 0;
 }
 
 .category-tab.active::before {
   content: '';
   position: absolute;
-  left: -2px;
-  right: -2px;
+  left: 0;
+  right: 0;
   bottom: -1px;
-  height: 12px;
+  height: 16px;
   background: #ffffff;
   z-index: -1;
 }
@@ -422,25 +451,28 @@ button.secondary.small {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
-  background: #ffffff;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 6px;
+  position: relative;
 }
 
 .routing-item.is-primary {
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.04) 0%, rgba(37, 99, 235, 0.08) 100%);
-  border-color: rgba(37, 99, 235, 0.25);
+  background: rgba(37, 99, 235, 0.04);
+  border-color: rgba(37, 99, 235, 0.15);
+  padding-left: 16px;
 }
 
 .routing-item.is-primary::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 3px;
+  height: 20px;
   background: #1d4ed8;
-  border-radius: 6px 0 0 6px;
+  border-radius: 2px;
 }
 
 .routing-info {
