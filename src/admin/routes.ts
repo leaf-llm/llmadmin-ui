@@ -387,7 +387,7 @@ adminApp.get('/provider-models', async (c) => {
     const apiKey = matchedConfig.apiKey || '';
     const baseUrl = matchedConfig.baseUrl;
 
-    const providerOptions = { apiKey, baseUrl };
+    const providerOptions = { apiKey, customHost: baseUrl };
 
     const resolvedBaseURL = providerConfig.api.getBaseURL({
       providerOptions,
@@ -446,7 +446,10 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
     return c.json({ ok: false, message: 'Base URL is required' }, 400);
   }
 
-  const providerOptions = { apiKey: apiKey.trim(), baseUrl: baseUrl?.trim() };
+  const providerOptions = {
+    apiKey: apiKey.trim(),
+    customHost: baseUrl?.trim(),
+  };
 
   try {
     const endpoint = providerConfig.api.getEndpoint({
