@@ -469,6 +469,39 @@ button.secondary.small {
   flex-shrink: 0;
 }
 
+.move-buttons {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.move-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.move-btn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+.move-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 .routing-delete {
   padding: 2px 8px;
   border-radius: 4px;

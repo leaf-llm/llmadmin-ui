@@ -13,6 +13,7 @@ import {
   addToRouting,
   removeFromRouting,
   updateRoutingPrimary,
+  moveRoutingEntry,
   validateUiConfig,
 } from './config/store';
 import { getUsage } from './billing';
@@ -350,6 +351,32 @@ adminApp.delete('/routing/:provider/:model', async (c) => {
       provider,
       model,
       configId || undefined
+    );
+    return c.json({ ok: true, routing: res.routing });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 400);
+  }
+});
+
+adminApp.put('/routing/:provider/:model/move', async (c) => {
+  const category = getCategoryParam(c);
+  const provider = c.req.param('provider') as ProviderId;
+  const model = c.req.param('model');
+  const configId = c.req.query('configId');
+  const direction = c.req.query('direction') as 'up' | 'down' | undefined;
+  if (!configId || !direction || !['up', 'down'].includes(direction)) {
+    return c.json(
+      { ok: false, message: 'configId and direction (up/down) are required' },
+      400
+    );
+  }
+  try {
+    const res = await moveRoutingEntry(
+      category,
+      provider,
+      model,
+      configId,
+      direction
     );
     return c.json({ ok: true, routing: res.routing });
   } catch (err: any) {

@@ -274,28 +274,24 @@ export async function syncUserConfigFromRouting(
     return;
   }
 
-  // Sort: primary entries first
-  const sortedRouting = [...routing].sort((a, b) => {
-    if (a.isPrimary && !b.isPrimary) return -1;
-    if (!a.isPrimary && b.isPrimary) return 1;
-    return 0;
-  });
+  // Separate primary and non-primary entries while preserving insertion order within each group
+  const primaryEntries = routing.filter((r) => r.isPrimary);
+  const nonPrimaryEntries = routing.filter((r) => !r.isPrimary);
+  const sortedRouting = [...primaryEntries, ...nonPrimaryEntries];
 
-  // Build targets from routing entries
-  const targets: Record<string, unknown>[] = [];
-  for (const entry of sortedRouting) {
+  // Build target from a routing entry
+  function buildTarget(entry: RoutingEntry): Record<string, unknown> | null {
     const cfgs = providers[entry.provider];
     let p: ProviderConfig | undefined;
 
     if (entry.configId) {
-      // Find the specific config by configId
       p = cfgs?.find((c) => c.id === entry.configId);
     }
 
-    // Fallback to first config if configId not found or not specified (legacy data)
     p = p || cfgs?.[0];
 
-    if (!p?.apiKey?.trim()) continue;
+    if (!p?.apiKey?.trim()) return null;
+
     const target: Record<string, unknown> = {
       provider: entry.provider,
       api_key: p.apiKey.trim(),
@@ -303,9 +299,37 @@ export async function syncUserConfigFromRouting(
         model: entry.model,
       },
     };
-    target.custom_host =
-      p.baseUrl?.trim() || getDefaultBaseUrls()[entry.provider] || '';
-    targets.push(target);
+    if (p.baseUrl?.trim()) {
+      target.custom_host = p.baseUrl.trim();
+    }
+    return target;
+  }
+
+  // Build targets: primary entries as individual targets, non-primary wrapped in loadbalance
+  const targets: Record<string, unknown>[] = [];
+
+  // Primary entries: individual single targets
+  for (const entry of primaryEntries) {
+    const target = buildTarget(entry);
+    if (target) targets.push(target);
+  }
+
+  // Non-primary entries: wrap in loadbalance if multiple, else single target
+  if (nonPrimaryEntries.length > 1) {
+    const loadbalanceTargets: Record<string, unknown>[] = [];
+    for (const entry of nonPrimaryEntries) {
+      const target = buildTarget(entry);
+      if (target) loadbalanceTargets.push(target);
+    }
+    if (loadbalanceTargets.length > 0) {
+      targets.push({
+        strategy: { mode: 'loadbalance' },
+        targets: loadbalanceTargets,
+      });
+    }
+  } else if (nonPrimaryEntries.length === 1) {
+    const target = buildTarget(nonPrimaryEntries[0]);
+    if (target) targets.push(target);
   }
 
   if (targets.length === 0) {
@@ -314,19 +338,32 @@ export async function syncUserConfigFromRouting(
     return;
   }
 
-  const hasPrimary = sortedRouting.some((r) => r.isPrimary);
-  const userConfig =
-    hasPrimary && targets.length > 1
-      ? {
-          strategy: {
-            mode: 'fallback',
-            on_status_codes: [429, 500, 502, 503, 504],
-          },
-          targets,
-        }
-      : { strategy: { mode: 'loadbalance' }, targets };
+  // If only one target, no strategy needed
+  if (targets.length === 1) {
+    config[category].userConfig = targets[0];
+    await saveUiConfig(config);
+    return;
+  }
 
-  config[category].userConfig = userConfig;
+  // Has primary → fallback strategy with primaries first, non-primaries in loadbalance
+  if (primaryEntries.length > 0) {
+    config[category].userConfig = {
+      strategy: {
+        mode: 'fallback',
+        on_status_codes: [429, 500, 502, 503, 504],
+      },
+      targets,
+    };
+  } else {
+    // No primary → loadbalance all
+    config[category].userConfig = {
+      strategy: {
+        mode: 'loadbalance',
+      },
+      targets,
+    };
+  }
+
   await saveUiConfig(config);
 }
 
@@ -683,6 +720,45 @@ export async function updateRoutingPrimary(
   await saveUiConfig(config);
   await syncUserConfigFromRouting(category);
   return { routing: config[category].routing };
+}
+
+export async function moveRoutingEntry(
+  category: ModelCategory,
+  provider: ProviderId,
+  model: string,
+  configId: string,
+  direction: 'up' | 'down'
+): Promise<{ routing: RoutingEntry[] }> {
+  const config = await loadUiConfig();
+  const routing = config[category].routing;
+
+  const idx = routing.findIndex(
+    (r) =>
+      r.provider === provider && r.model === model && r.configId === configId
+  );
+
+  if (idx === -1) throw new Error('Routing entry not found');
+
+  const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+
+  if (targetIdx < 0 || targetIdx >= routing.length) {
+    return { routing };
+  }
+
+  const current = routing[idx];
+  const target = routing[targetIdx];
+
+  // Only allow swapping within the same isPrimary group
+  if (current.isPrimary !== target.isPrimary) {
+    return { routing };
+  }
+
+  // Swap positions
+  [routing[idx], routing[targetIdx]] = [routing[targetIdx], routing[idx]];
+
+  await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
+  return { routing: [...routing] };
 }
 
 export async function getProviderCredentialsForBilling(
