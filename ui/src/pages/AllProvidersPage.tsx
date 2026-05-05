@@ -259,7 +259,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     return (
       <button
         className="primary"
-disabled={savingProvider === key || !canSave}
+        disabled={savingProvider === key || !canSave}
         onClick={async () => {
           const draft = drafts[key];
           // Validate required fields
@@ -378,7 +378,7 @@ disabled={savingProvider === key || !canSave}
             <button
               className="danger"
               onClick={async () => {
-const key = `${p.provider}:${p.configId}`;
+                const key = `${p.provider}:${p.configId}`;
                 const models = routedProviderModels.get(key) ?? [];
                 if (models.length > 0) {
                   setDeleteTarget({
@@ -388,22 +388,12 @@ const key = `${p.provider}:${p.configId}`;
                   });
                   setShowDeleteDialog(true);
                 } else {
-                  if (!confirm('确定删除此配置？')) return;
-                  try {
-                    await deleteProviderConfig(
-                      activeCategory,
-                      p.provider,
-                      p.configId!
-                    );
-                    const [providersRes, routingRes] = await Promise.all([
-                      getProviders(activeCategory),
-                      getRouting(activeCategory),
-                    ]);
-                    setProviders(providersRes.providers);
-                    setRouting(routingRes.routing);
-                  } catch (e: any) {
-                    setError(e?.message ?? String(e));
-                  }
+                  setDeleteTarget({
+                    provider: p.provider,
+                    configId: p.configId!,
+                    models: [],
+                  });
+                  setShowDeleteDialog(true);
                 }
               }}
             >
@@ -522,7 +512,11 @@ const key = `${p.provider}:${p.configId}`;
       <ConfirmDialog
         isOpen={showDeleteDialog}
         title="确认删除"
-        message="以下routing模型将被同时删除："
+        message={
+          (deleteTarget?.models?.length ?? 0) > 0
+            ? '以下routing模型将被同时删除：'
+            : '确定删除此配置？'
+        }
         models={deleteTarget?.models ?? []}
         onConfirm={async () => {
           if (deleteTarget) {
