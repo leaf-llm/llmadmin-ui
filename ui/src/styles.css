@@ -39,6 +39,54 @@ body {
   font-size: 14px;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.gateway-url {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: rgba(17, 24, 39, 0.7);
+  padding: 4px 10px;
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 4px;
+  user-select: none;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #047857;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .app-nav {
   display: flex;
   gap: 12px;
@@ -320,6 +368,7 @@ button.secondary.small {
   background: rgba(15, 23, 42, 0.04);
   border-radius: 8px;
   border: 1px solid rgba(15, 23, 42, 0.1);
+  margin-top: 16px;
 }
 
 .providers-section {
@@ -327,6 +376,7 @@ button.secondary.small {
   background: rgba(15, 23, 42, 0.04);
   border-radius: 8px;
   border: 1px solid rgba(15, 23, 42, 0.1);
+  margin-top: 16px;
 }
 
 .category-tab {
@@ -443,7 +493,7 @@ button.secondary.small {
 .routing-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
 
 .routing-item {

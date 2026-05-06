@@ -49,7 +49,6 @@ export default function ProvidersPage({
   const [expandedProviders, setExpandedProviders] = useState<Set<string>>(
     new Set()
   );
-  const [copied, setCopied] = useState(false);
   const [activeCategory, setActiveCategory] = useState<ModelCategory>('text');
   const [configInfo, setConfigInfo] = useState<
     Map<string, { remark?: string; apiKeyMasked?: string; baseUrl?: string }>
@@ -69,12 +68,6 @@ export default function ProvidersPage({
     message: string;
     type: 'error' | 'notice';
   } | null>(null);
-
-  const handleCopyUrl = () => {
-    navigator.clipboard.writeText(GATEWAY_URL);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -389,15 +382,6 @@ export default function ProvidersPage({
           onDismiss={() => setNotification(null)}
         />
       )}
-      <div
-        className="gateway-url-banner"
-        onClick={handleCopyUrl}
-        style={{ cursor: 'pointer' }}
-      >
-        <span>{t('common.gatewayUrl', { url: GATEWAY_URL })}</span>
-        <span className="copy-hint">{copied ? t('common.copied') : t('common.clickToCopy')}</span>
-      </div>
-      <h1 className="page-title">{t('nav.routing')}</h1>
       <div className="category-content-wrapper">
         <CategoryTabs
           activeCategory={activeCategory}

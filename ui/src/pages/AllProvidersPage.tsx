@@ -553,7 +553,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       <button className="back-btn" onClick={onBack}>
         ← {t('common.back')}
       </button>
-      <h1 className="page-title">{t('nav.routing')}</h1>
 
       <div className="category-content-wrapper">
         <div className="category-content">

@@ -197,8 +197,6 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="page-title">{t('nav.settings')}</h1>
-
       <div className="card">
         <div className="card__title">{t('common.gatewayConfig')}</div>
 
