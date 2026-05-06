@@ -121,6 +121,18 @@ const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
   deepseek: ['deepseek-'],
 };
 
+export const PROVIDER_API_KEY_URLS: Record<string, string> = {
+  openai: 'https://platform.openai.com/api-keys',
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  google: 'https://aistudio.google.com/app/apikey',
+  zhipu: 'https://open.bigmodel.cn/usercenter/apikeys',
+  dashscope: 'https://dashscope.console.aliyun.com/api-key',
+  moonshot: 'https://console.moonshot.cn/api-key',
+  minimax: 'https://platform.minimaxi.com/api-key',
+  doubao: 'https://console.volcengine.com/ark/region:ark-cn-beijing/api-key',
+  deepseek: 'https://platform.deepseek.com/api-key',
+};
+
 export function getModelsByProvider(
   provider: string
 ): Array<{ model: string; category: ModelCategory }> {

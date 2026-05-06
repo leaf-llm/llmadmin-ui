@@ -17,7 +17,7 @@ import {
 import CategoryTabs from '../components/CategoryTabs';
 import TopNotification from '../components/TopNotification';
 import { ModelCategory } from '../types/models';
-import { MODEL_CATEGORY_MAP, getModelsByProvider } from '../config/modelCategories';
+import { MODEL_CATEGORY_MAP, getModelsByProvider, PROVIDER_API_KEY_URLS } from '../config/modelCategories';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
@@ -305,7 +305,20 @@ export default function ProvidersPage({
     return (
       <div className="grid" style={{ gap: 10 }}>
         <div className="field">
-          <div className="label">{t('common.apiKeyRequiredLabel')}</div>
+          <div className="label">
+            {t('common.apiKeyRequiredLabel')}
+            {PROVIDER_API_KEY_URLS[p.provider.toLowerCase()] && (
+              <a
+                href={PROVIDER_API_KEY_URLS[p.provider.toLowerCase()]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="api-key-link"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {t('common.getApiKey')}
+              </a>
+            )}
+          </div>
           <input
             placeholder={
               p.apiKeyMasked
