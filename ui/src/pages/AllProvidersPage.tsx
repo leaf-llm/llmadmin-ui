@@ -670,6 +670,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                     </div>
                   </div>
               )}
+            </>
+          )}
         </div>
       </div>
 
