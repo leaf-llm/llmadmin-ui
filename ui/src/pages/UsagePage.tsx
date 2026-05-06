@@ -58,8 +58,6 @@ export default function UsagePage() {
 
   return (
     <div>
-      <h1 className="page-title">{t('nav.usage')}</h1>
-
       {error ? <div className="error">{error}</div> : null}
 
       <div className="card">
