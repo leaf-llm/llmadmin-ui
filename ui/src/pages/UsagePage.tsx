@@ -1,11 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   getProviders,
   ProviderId,
-  UsageByModel,
-  UsageResponse,
-  getUsage,
+  getMetrics,
+  MetricsResponse,
 } from '../api/adminClient';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -27,7 +26,7 @@ export default function UsagePage() {
   const [provider, setProvider] = useState<ProviderId | 'all'>('all');
 
   const [loading, setLoading] = useState(false);
-  const [usage, setUsage] = useState<UsageResponse | null>(null);
+  const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,9 +51,30 @@ export default function UsagePage() {
     };
   }, []);
 
-  const totals = usage?.totals;
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMetrics() {
+      if (!from || !to) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getMetrics({ from, to });
+        if (cancelled) return;
+        setMetrics(res);
+      } catch (e: any) {
+        if (cancelled) return;
+        setError(e?.message ?? String(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    loadMetrics();
+    return () => {
+      cancelled = true;
+    };
+  }, [from, to]);
 
-  const byModel: UsageByModel[] = useMemo(() => usage?.byModel ?? [], [usage]);
+  const totals = metrics?.totals;
 
   return (
     <div>
@@ -63,8 +83,8 @@ export default function UsagePage() {
       <div className="card">
         <div className="card__title">{t('common.query')}</div>
 
-        <div className="grid grid-2">
-          <div className="field">
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div className="field" style={{ flex: 1, minWidth: 140 }}>
             <div className="label">{t('common.from')}</div>
             <input
               type="date"
@@ -72,7 +92,7 @@ export default function UsagePage() {
               onChange={(e) => setFrom(e.target.value)}
             />
           </div>
-          <div className="field">
+          <div className="field" style={{ flex: 1, minWidth: 140 }}>
             <div className="label">{t('common.to')}</div>
             <input
               type="date"
@@ -80,8 +100,7 @@ export default function UsagePage() {
               onChange={(e) => setTo(e.target.value)}
             />
           </div>
-
-          <div className="field">
+          <div className="field" style={{ flex: 1, minWidth: 140 }}>
             <div className="label">{t('common.provider')}</div>
             <select
               value={provider}
@@ -97,97 +116,103 @@ export default function UsagePage() {
                   ))}
             </select>
           </div>
-
-          <div className="field" style={{ justifyContent: 'flex-end' }}>
-            <div className="label">&nbsp;</div>
-            <button
-              className="primary"
-              disabled={loading || !from || !to}
-              onClick={async () => {
-                setLoading(true);
-                setError(null);
-                try {
-                  const res = await getUsage({
-                    provider: provider === 'all' ? undefined : provider,
-                    from,
-                    to,
-                  });
-                  setUsage(res);
-                } catch (e: any) {
-                  setError(e?.message ?? String(e));
-                } finally {
-                  setLoading(false);
-                }
-              }}
-            >
-              {loading ? t('common.loading') : t('common.loadUsage')}
-            </button>
-          </div>
+          <button
+            className="primary"
+            disabled={loading || !from || !to}
+            onClick={async () => {
+              setLoading(true);
+              setError(null);
+              try {
+                const res = await getMetrics({ from, to });
+                setMetrics(res);
+              } catch (e: any) {
+                setError(e?.message ?? String(e));
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            {loading ? t('common.loading') : t('common.loadUsage')}
+          </button>
         </div>
       </div>
 
-      {usage ? (
+      {metrics ? (
         <div style={{ marginTop: 14 }}>
-          <div className="grid grid-2">
-            <div className="card">
-              <div className="card__title">{t('common.totalCost')}</div>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>
-                {typeof totals?.costUSD === 'number'
-                  ? `$${totals.costUSD.toFixed(4)}`
-                  : '—'}
-              </div>
-            </div>
-            <div className="card">
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+            <div className="card" style={{ flex: 1 }}>
               <div className="card__title">{t('common.totalRequests')}</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>
-                {typeof totals?.requests === 'number' ? totals.requests : '—'}
+                {totals?.totalRequests ?? 0}
+              </div>
+            </div>
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.successCount')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-success, green)' }}>
+                {totals?.successCount ?? 0}
+              </div>
+            </div>
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.failureCount')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-error, red)' }}>
+                {totals?.failureCount ?? 0}
               </div>
             </div>
           </div>
 
-          <div className="card" style={{ marginTop: 14 }}>
-            <div className="card__title">{t('common.byModel')}</div>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.inputTokens')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>
+                {totals?.inputTokens?.toLocaleString() ?? 0}
+              </div>
+            </div>
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.outputTokens')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>
+                {totals?.outputTokens?.toLocaleString() ?? 0}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card__title">{t('common.usageByProvider')}</div>
             <table className="table">
               <thead>
                 <tr>
-                  <th>{t('common.model')}</th>
-                  <th>{t('common.requests')}</th>
+                  <th>{t('common.date')}</th>
+                  <th>{t('common.provider')}</th>
+                  <th>{t('common.totalRequests')}</th>
+                  <th>{t('common.successCount')}</th>
+                  <th>{t('common.failureCount')}</th>
                   <th>{t('common.inputTokens')}</th>
                   <th>{t('common.outputTokens')}</th>
-                  <th>{t('common.costUsd')}</th>
                 </tr>
               </thead>
               <tbody>
-                {byModel.length === 0 ? (
+                {metrics.daily.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="muted">
+                    <td colSpan={7} className="muted">
                       {t('common.noData')}
                     </td>
                   </tr>
                 ) : (
-                  byModel.map((row, idx) => (
-                    <tr key={`${row.model ?? 'unknown'}-${idx}`}>
-                      <td>{row.model ?? 'unknown'}</td>
-                      <td>
-                        {typeof row.requests === 'number' ? row.requests : '—'}
-                      </td>
-                      <td>
-                        {typeof row.inputTokens === 'number'
-                          ? row.inputTokens
-                          : '—'}
-                      </td>
-                      <td>
-                        {typeof row.outputTokens === 'number'
-                          ? row.outputTokens
-                          : '—'}
-                      </td>
-                      <td>
-                        {typeof row.costUSD === 'number'
-                          ? `$${row.costUSD.toFixed(4)}`
-                          : '—'}
-                      </td>
-                    </tr>
-                  ))
+                  metrics.daily.map((row) => {
+                    if (provider !== 'all' && row.provider !== provider) {
+                      return null;
+                    }
+                    return (
+                      <tr key={`${row.date}-${row.provider}`}>
+                        <td>{row.date}</td>
+                        <td>{row.provider}</td>
+                        <td>{row.totalRequests}</td>
+                        <td style={{ color: 'var(--color-success, green)' }}>{row.successCount}</td>
+                        <td style={{ color: 'var(--color-error, red)' }}>{row.failureCount}</td>
+                        <td>{row.inputTokens?.toLocaleString() ?? 0}</td>
+                        <td>{row.outputTokens?.toLocaleString() ?? 0}</td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

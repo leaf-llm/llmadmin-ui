@@ -17,6 +17,7 @@ import {
   validateUiConfig,
 } from './config/store';
 import { getUsage } from './billing';
+import { metricsStore } from '../middlewares/log';
 import Providers from '../providers/index';
 
 import {
@@ -413,6 +414,84 @@ adminApp.get('/usage', async (c) => {
     to: parsed.data.to,
   });
   return c.json(res);
+});
+
+const MetricsQuerySchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+adminApp.get('/metrics', async (c) => {
+  const from = c.req.query('from');
+  const to = c.req.query('to');
+  const parsed = MetricsQuerySchema.safeParse({ from, to });
+  if (!parsed.success) {
+    return c.json(
+      { ok: false, message: 'Invalid query', issues: parsed.error.issues },
+      400
+    );
+  }
+
+  const fromDate = new Date(parsed.data.from);
+  const toDate = new Date(parsed.data.to);
+  toDate.setDate(toDate.getDate() + 1); // inclusive
+
+  type DailyProviderRow = {
+    date: string;
+    provider: string;
+    totalRequests: number;
+    successCount: number;
+    failureCount: number;
+    inputTokens: number;
+    outputTokens: number;
+  };
+  const daily: DailyProviderRow[] = [];
+
+  let totalRequests = 0;
+  let successCount = 0;
+  let failureCount = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  metricsStore.forEach((dailyProviders, dateKey) => {
+    const d = new Date(dateKey);
+    if (d >= fromDate && d < toDate) {
+      dailyProviders.forEach((metrics, provider) => {
+        totalRequests += metrics.total;
+        successCount += metrics.success;
+        failureCount += metrics.failure;
+        inputTokens += metrics.inputTokens;
+        outputTokens += metrics.outputTokens;
+        daily.push({
+          date: dateKey,
+          provider,
+          totalRequests: metrics.total,
+          successCount: metrics.success,
+          failureCount: metrics.failure,
+          inputTokens: metrics.inputTokens,
+          outputTokens: metrics.outputTokens,
+        });
+      });
+    }
+  });
+
+  daily.sort((a, b) => {
+    const dateCmp = a.date.localeCompare(b.date);
+    return dateCmp !== 0 ? dateCmp : a.provider.localeCompare(b.provider);
+  });
+
+  return c.json({
+    from: parsed.data.from,
+    to: parsed.data.to,
+    totals: {
+      totalRequests,
+      successCount,
+      failureCount,
+      inputTokens,
+      outputTokens,
+    },
+    daily,
+  });
 });
 
 // Provider model catalog - fetch available models from provider's /models endpoint
