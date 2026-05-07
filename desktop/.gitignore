@@ -1,6 +1,8 @@
 # Downloaded by `neu update`
 bin/
 resources/js/neutralino.js
+resources/js/gateway/
+resources/js/public/
 
 # Build output
 dist/
