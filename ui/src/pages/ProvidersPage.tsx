@@ -473,11 +473,6 @@ export default function ProvidersPage({
                                             ({info.remark})
                                           </span>
                                         )}
-                                        {info?.apiKeyMasked && (
-                                          <span className="routing-config-key">
-                                            {info.apiKeyMasked}
-                                          </span>
-                                        )}
                                       </div>
                                       <div className="routing-actions">
                                         <span className="move-buttons">
@@ -567,11 +562,6 @@ export default function ProvidersPage({
                                         {info?.remark && (
                                           <span className="routing-config-info">
                                             ({info.remark})
-                                          </span>
-                                        )}
-                                        {info?.apiKeyMasked && (
-                                          <span className="routing-config-key">
-                                            {info.apiKeyMasked}
                                           </span>
                                         )}
                                       </div>
