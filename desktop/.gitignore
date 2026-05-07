@@ -1,9 +1,12 @@
 # Downloaded by `neu update`
 bin/
 resources/js/neutralino.js
+resources/js/neutralino.d.ts
 resources/js/gateway/
 resources/js/public/
 
 # Build output
 dist/
+
+# Temp files
 .tmp/
