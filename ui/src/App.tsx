@@ -33,7 +33,7 @@ function Header({
       <div className="app-header__inner">
         <div className="header-left">
           <div className="app-header__brand">
-            <div className="app-header__title">LLM Admin UI</div>
+            <div className="app-header__title">LLM Admin</div>
           </div>
 
           <nav className="app-nav">
@@ -74,14 +74,14 @@ function Header({
           </div>
           <div className="status-indicator">
             <span className="status-dot"></span>
-            <span>Running</span>
+            <span>{t('common.running')}</span>
           </div>
           <button
             className="lang-toggle"
             onClick={toggleLanguage}
             title="Toggle language"
           >
-            {i18n.language === 'zh' ? 'EN' : '中文'}
+            {i18n.language === 'zh' ? '中文' : 'EN'}
           </button>
         </div>
       </div>
