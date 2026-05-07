@@ -16,4 +16,4 @@ runs:
     - name: Package .deb
       shell: bash
       run: |
-        "${{ github.action_path }}/../../scripts/package-deb.sh" "${{ inputs.dist_path }}" "${{ inputs.version }}"
+        "${{ github.action_path }}/../../../scripts/package-deb.sh" "${{ inputs.dist_path }}" "${{ inputs.version }}"
