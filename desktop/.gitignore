@@ -6,3 +6,4 @@ resources/js/public/
 
 # Build output
 dist/
+.tmp/

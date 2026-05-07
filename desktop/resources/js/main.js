@@ -31,13 +31,15 @@ Neutralino.events.on('windowClose', async () => {
 });
 
 async function startBackend() {
-  // In dev (neu run from desktop/), binary is one level up in build/.
-  // In a packaged distribution, ship the binary alongside the neutralino binary
-  // and reference it as ./portkey-gateway (adjust packaging scripts accordingly).
   const binaryName = isWindows ? 'portkey-gateway.exe' : 'portkey-gateway';
-  const devPath = `../build/${binaryName}`;
+  // Dev (neu run): binary is at ../build/portkey-gateway
+  // Packaged: binary is alongside the neutralino binary at ./portkey-gateway
+  // Detect by NL_MODE: 'window' = packaged, 'browser' = dev
+  const nlMode = await Neutralino.os.getEnv('NL_MODE');
+  const backendBinary =
+    nlMode === 'window' ? `./${binaryName}` : `../build/${binaryName}`;
 
-  const cmd = `${devPath} --port=${BACKEND_PORT} --headless`;
+  const cmd = `${backendBinary} --port=${BACKEND_PORT} --headless`;
   const result = await Neutralino.os.spawnProcess(cmd);
   backendPid = result.pid;
 }
