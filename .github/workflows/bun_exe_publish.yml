@@ -79,8 +79,14 @@ jobs:
       - name: Build desktop app (Linux)
         if: matrix.build_type == 'desktop' && runner.os == 'Linux'
         run: |
-          cd desktop
-          neu build linux
+          npm run desktop:setup
+          npm run build:desktop
+
+      - name: Package .deb
+        if: matrix.build_type == 'desktop' && runner.os == 'Linux'
+        uses: ./.github/actions/package-deb
+        with:
+          dist_path: desktop/dist/local-llm-gateway
 
       # ── Upload artifacts ────────────────────────────────────────────
       - name: Upload to Release
