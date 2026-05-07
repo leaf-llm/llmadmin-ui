@@ -81,8 +81,6 @@ jobs:
         run: |
           cd desktop
           neu build linux
-          cd ..
-          mv desktop/dist/linux-x64/local-llm-gateway desktop/dist/local-llm-gateway
 
       # ── Upload artifacts ────────────────────────────────────────────
       - name: Upload to Release
