@@ -7,21 +7,36 @@ const POLL_TIMEOUT_MS = 30000;
 let backendPid = null;
 let isWindows = false;
 
+// dirname equivalent - get parent directory
+const dirname = (p) => p.replace(/[/\\][^/\\]*$/, '');
+
+// Test: change status immediately to prove JS runs
+setStatus('JS loaded! Testing...');
+
 Neutralino.init();
 
 Neutralino.events.on('ready', async () => {
+  setStatus('Ready! Starting backend...');
   try {
     const kernelInfo = await Neutralino.computer.getKernelInfo();
     isWindows = kernelInfo.variant === 'Windows NT';
 
-    setStatus('Starting gateway...');
+    Neutralino.debug.log('NL_PATH: ' + window.NL_PATH, 'INFO');
+    Neutralino.debug.log('Kernel info: ' + JSON.stringify(kernelInfo), 'INFO');
+    Neutralino.debug.log('isWindows: ' + isWindows, 'INFO');
+
     await startBackend();
-    setStatus('Waiting for gateway...');
     await waitForBackend();
     setStatus('Opening UI...');
-    await Neutralino.window.navigate(ADMIN_URL);
+    Neutralino.debug.log('Navigating to: ' + ADMIN_URL, 'INFO');
+
+    // Wait for server to be ready before navigating
+    await sleep(1000);
+
+    window.location.href = ADMIN_URL;
   } catch (err) {
-    showError(`Failed to start gateway: ${err.message || err}`);
+    Neutralino.debug.log('Startup error: ' + err.message, 'ERROR');
+    showError(`Failed: ${err.message || err}`);
   }
 });
 
@@ -31,29 +46,55 @@ Neutralino.events.on('windowClose', async () => {
 });
 
 async function startBackend() {
-  // In dev (neu run from desktop/), binary is one level up in build/.
-  // In a packaged distribution, ship the binary alongside the neutralino binary
-  // and reference it as ./portkey-gateway (adjust packaging scripts accordingly).
   const binaryName = isWindows ? 'portkey-gateway.exe' : 'portkey-gateway';
-  const devPath = `../build/${binaryName}`;
 
-  const cmd = `${devPath} --port=${BACKEND_PORT} --headless`;
-  const result = await Neutralino.os.spawnProcess(cmd);
+  Neutralino.debug.log('startBackend called', 'INFO');
+
+  // Get actual working directory using /proc/self/cwd for absolute path
+  const pwdResult = await Neutralino.os.execCommand('readlink /proc/self/cwd');
+  const cwd = pwdResult.stdout?.trim() || '.';
+  Neutralino.debug.log('Actual cwd: ' + cwd, 'INFO');
+
+  // Binary is in the same directory as the running app
+  const binaryPath = `${cwd}/${binaryName}`;
+  Neutralino.debug.log('Binary path: ' + binaryPath, 'INFO');
+
+  const cmd = `${binaryPath} --port=${BACKEND_PORT} --headless`;
+  Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
+
+  const result = await Neutralino.os.spawnProcess(cmd, cwd);
+  Neutralino.debug.log('Spawn result PID: ' + result.pid, 'INFO');
   backendPid = result.pid;
 }
 
 async function waitForBackend() {
   const deadline = Date.now() + POLL_TIMEOUT_MS;
+  let attempt = 0;
+
+  // Use curl to check if server is responding
   while (Date.now() < deadline) {
+    attempt++;
     try {
-      const res = await fetch(`${BACKEND_URL}/`);
-      if (res.status < 500) return; // backend is up
-    } catch {
-      // not ready yet
+      Neutralino.debug.log('Checking with curl attempt ' + attempt, 'INFO');
+      const result = await Neutralino.os.execCommand(
+        'curl -s -o /dev/null -w "%{http_code}" http://localhost:' +
+          BACKEND_PORT +
+          '/ 2>&1 || echo "CURL_FAILED"'
+      );
+
+      // Note: Neutralino uses stdOut with capital O
+      const stdout = result.stdOut?.trim() || result.stdout?.trim() || '';
+
+      if (stdout && stdout !== 'CURL_FAILED' && !isNaN(parseInt(stdout))) {
+        Neutralino.debug.log('Server is up!', 'INFO');
+        return;
+      }
+    } catch (err) {
+      Neutralino.debug.log('Check error: ' + err.message, 'INFO');
     }
     await sleep(POLL_INTERVAL_MS);
   }
-  throw new Error(`Gateway did not start within ${POLL_TIMEOUT_MS / 1000}s`);
+  Neutralino.debug.log('Backend timeout', 'ERROR');
 }
 
 async function stopBackend() {

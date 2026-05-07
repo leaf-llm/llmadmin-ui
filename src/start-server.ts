@@ -57,11 +57,13 @@ const setupStaticServing = async () => {
   app.get('/public/', serveIndex);
 
   // Serve admin UI static files (SPA)
-  // First check build/public/admin/ (production build), fallback to src/public/admin/ (dev mode)
-  const buildAdminDir = join(scriptDir, '..', 'build', 'public', 'admin');
-  const adminDir = existsSync(join(buildAdminDir, 'index.html'))
-    ? buildAdminDir
-    : join(publicDir, 'admin');
+  // In production (bundled), public files are alongside the binary at public/admin
+  // In dev mode, public files are in scriptDir/public/admin
+  const bundledAdminDir = join(scriptDir, 'public', 'admin');
+  const devAdminDir = join(scriptDir, '..', 'build', 'public', 'admin');
+  const adminDir = existsSync(join(bundledAdminDir, 'index.html'))
+    ? bundledAdminDir
+    : devAdminDir;
   const adminIndexPath = join(adminDir, 'index.html');
 
   const contentTypeByExt: Record<string, string> = {
