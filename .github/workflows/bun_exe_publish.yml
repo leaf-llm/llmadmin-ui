@@ -69,6 +69,7 @@ jobs:
       # ── Platform-specific build ────────────────────────────────────
       - name: Build server binary
         if: matrix.build_type == 'server'
+        shell: bash
         run: |
           if [ "${{ matrix.os }}" = "macos-15" ]; then
             bun build src/start-server.ts --compile --target=bun-macos-x64 --outfile=build/${{ matrix.artifact }}
