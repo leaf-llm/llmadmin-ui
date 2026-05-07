@@ -65,6 +65,27 @@ export type UsageResponse = {
   byModel?: UsageByModel[];
 };
 
+export type MetricsResponse = {
+  from: string;
+  to: string;
+  totals: {
+    totalRequests: number;
+    successCount: number;
+    failureCount: number;
+    inputTokens: number;
+    outputTokens: number;
+  };
+  daily: Array<{
+    date: string;
+    provider: string;
+    totalRequests: number;
+    successCount: number;
+    failureCount: number;
+    inputTokens: number;
+    outputTokens: number;
+  }>;
+};
+
 const ADMIN_TOKEN_KEY = 'adminToken';
 
 function getAdminToken() {
@@ -157,6 +178,19 @@ export async function getUsage(params: {
   const qs = u.searchParams.toString();
   const relativePath = qs ? `${u.pathname}?${qs}` : u.pathname;
   return adminFetch<UsageResponse>(relativePath, { method: 'GET' });
+}
+
+export async function getMetrics(params: {
+  from: string;
+  to: string;
+}): Promise<MetricsResponse> {
+  const u = new URL('/admin/metrics', window.location.origin);
+  u.searchParams.set('from', params.from);
+  u.searchParams.set('to', params.to);
+
+  const qs = u.searchParams.toString();
+  const relativePath = qs ? `${u.pathname}?${qs}` : u.pathname;
+  return adminFetch<MetricsResponse>(relativePath, { method: 'GET' });
 }
 
 export function setAdminToken(token: string) {

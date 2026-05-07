@@ -66,3 +66,24 @@ export type UsageResponse = {
   totals?: UsageTotals;
   byModel?: UsageByModel[];
 };
+
+export type MetricsResponse = {
+  from: string;
+  to: string;
+  totals: {
+    totalRequests: number;
+    successCount: number;
+    failureCount: number;
+    inputTokens: number;
+    outputTokens: number;
+  };
+  daily: Array<{
+    date: string;
+    provider: string;
+    totalRequests: number;
+    successCount: number;
+    failureCount: number;
+    inputTokens: number;
+    outputTokens: number;
+  }>;
+};
