@@ -1,18 +1,25 @@
-import {
-  ModelCategory,
-  MODEL_CATEGORIES,
-  CATEGORY_LABELS,
-} from '../types/models';
+import { useTranslation } from 'react-i18next';
+import { ModelCategory, MODEL_CATEGORIES } from '../types/models';
 
 interface CategoryTabsProps {
   activeCategory: ModelCategory;
   onCategoryChange: (category: ModelCategory) => void;
 }
 
+const CATEGORY_KEYS: Record<ModelCategory, string> = {
+  text: 'categoryText',
+  image: 'categoryImage',
+  video: 'categoryVideo',
+  audio: 'categoryAudio',
+  mcp: 'categoryMcp',
+};
+
 export default function CategoryTabs({
   activeCategory,
   onCategoryChange,
 }: CategoryTabsProps) {
+  const { t } = useTranslation();
+
   return (
     <div className="category-tabs">
       {MODEL_CATEGORIES.map((category) => (
@@ -21,7 +28,7 @@ export default function CategoryTabs({
           className={`category-tab ${activeCategory === category ? 'active' : ''}`}
           onClick={() => onCategoryChange(category)}
         >
-          {CATEGORY_LABELS[category]}
+          {t(`common.${CATEGORY_KEYS[category]}`)}
         </button>
       ))}
     </div>

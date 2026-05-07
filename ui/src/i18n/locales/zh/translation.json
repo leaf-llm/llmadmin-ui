@@ -87,6 +87,7 @@
     "modelRouting": "模型路由",
     "noRoutingConfigured": "暂无路由配置",
     "primaryFallbackDesc": "主模型按顺序依次访问，成功则直接返回",
-    "loadBalancingDesc": "随机访问一个模型，失败无重试"
+    "loadBalancingDesc": "随机访问一个模型，失败无重试",
+    "running": "运行中"
   }
 }

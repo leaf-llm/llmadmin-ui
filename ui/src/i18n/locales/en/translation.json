@@ -87,6 +87,12 @@
     "modelRouting": "Model Routing",
     "noRoutingConfigured": "No routing configured",
     "primaryFallbackDesc": "Primary models are accessed in order; returns immediately on success",
-    "loadBalancingDesc": "Randomly access one model, no retry on failure"
+    "loadBalancingDesc": "Randomly access one model, no retry on failure",
+    "categoryText": "Text",
+    "categoryImage": "Image",
+    "categoryVideo": "Video",
+    "categoryAudio": "Audio",
+    "categoryMcp": "MCP",
+    "running": "Running"
   }
 }
