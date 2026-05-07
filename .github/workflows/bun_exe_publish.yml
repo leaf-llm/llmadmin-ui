@@ -14,9 +14,6 @@ jobs:
           - os: windows-latest
             artifact: portkey-gateway.exe
             build_type: server
-          - os: ubuntu-latest
-            artifact: portkey-gateway
-            build_type: server
           - os: macos-latest
             artifact: portkey-gateway-macos
             build_type: server
@@ -27,8 +24,6 @@ jobs:
           - os: ubuntu-latest
             artifact: local-llm-gateway_amd64.deb
             build_type: desktop
-            build_action: ./build-desktop-linux
-            artifact_path: desktop/dist/local-llm-gateway
           # TODO: add more desktop platforms
           # - os: macos-latest
           #   artifact: local-llm-gateway_arm64.dmg
@@ -81,9 +76,13 @@ jobs:
             BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
           fi
 
-      - name: Build desktop app
-        if: matrix.build_type == 'desktop'
-        uses: ${{ matrix.build_action }}
+      - name: Build desktop app (Linux)
+        if: matrix.build_type == 'desktop' && runner.os == 'Linux'
+        run: |
+          cd desktop
+          neu build linux
+          cd ..
+          mv desktop/dist/linux-x64/local-llm-gateway desktop/dist/local-llm-gateway
 
       # ── Upload artifacts ────────────────────────────────────────────
       - name: Upload to Release
@@ -91,7 +90,7 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ matrix.build_type == 'desktop' && matrix.artifact_path || 'build' }}/${{ matrix.artifact }}
+          asset_path: ${{ matrix.build_type == 'desktop' && 'desktop/dist/local-llm-gateway' || 'build' }}/${{ matrix.artifact }}
           asset_name: ${{ matrix.artifact }}
           asset_content_type: ${{ matrix.build_type == 'desktop' && 'application/vnd.debian.binary-package' || 'application/octet-stream' }}
 
@@ -100,4 +99,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.build_type == 'desktop' && matrix.artifact_path || 'build' }}/${{ matrix.artifact }}
+          path: ${{ matrix.build_type == 'desktop' && 'desktop/dist/local-llm-gateway' || 'build' }}/${{ matrix.artifact }}
