@@ -160,6 +160,20 @@ body {
 .label {
   font-size: 12px;
   color: rgba(17, 24, 39, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.api-key-link {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.7);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.api-key-link:hover {
+  color: rgba(15, 23, 42, 0.9);
 }
 
 input,

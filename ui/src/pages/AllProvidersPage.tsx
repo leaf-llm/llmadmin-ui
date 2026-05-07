@@ -16,7 +16,7 @@ import {
   testProviderConnectivity,
 } from '../api/adminClient';
 import { ModelCategory } from '../types/models';
-import { getModelsByProvider } from '../config/modelCategories';
+import { getModelsByProvider, PROVIDER_API_KEY_URLS } from '../config/modelCategories';
 import TopNotification from '../components/TopNotification';
 
 type Draft = ProviderUpdateRequest & {
@@ -318,7 +318,20 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     return (
       <div className="grid" style={{ gap: 10 }}>
         <div className="field">
-          <div className="label">{t('common.apiKeyRequiredLabel')}</div>
+          <div className="label">
+            {t('common.apiKeyRequiredLabel')}
+            {isNew && PROVIDER_API_KEY_URLS[p.provider.toLowerCase()] && (
+              <a
+                href={PROVIDER_API_KEY_URLS[p.provider.toLowerCase()]}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="api-key-link"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {t('common.getApiKey')}
+              </a>
+            )}
+          </div>
           <input
             placeholder={
               p.apiKeyMasked && !isNew

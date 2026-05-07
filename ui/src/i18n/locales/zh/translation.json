@@ -65,6 +65,7 @@
     "modelCountInRouting": "路由中有 {{count}} 个模型",
     "apiKeyLabel": "API Key",
     "apiKeyRequiredLabel": "API Key (必填)",
+    "getApiKey": "获取 API Key",
     "pasteNewApiKey": "粘贴新的 API key",
     "currentValue": "当前: {{value}}",
     "baseUrlLabel": "请求地址",

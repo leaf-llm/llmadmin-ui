@@ -22,6 +22,7 @@ export type RoutingEntry = {
 export type ProviderSummary = {
   provider: ProviderId;
   apiKeyMasked?: string;
+  apiKeyUrl?: string;
   baseUrl?: string;
   status?: 'connected' | 'disconnected' | 'unknown';
   lastSyncedAt?: string;

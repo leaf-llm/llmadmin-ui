@@ -65,6 +65,7 @@
     "modelCountInRouting": "{{count}} model{{plural}} in routing",
     "apiKeyLabel": "API Key",
     "apiKeyRequiredLabel": "API Key (required)",
+    "getApiKey": "Get API Key",
     "pasteNewApiKey": "Paste new API key",
     "currentValue": "Current: {{value}}",
     "baseUrlLabel": "Base URL",
