@@ -94,8 +94,13 @@
     "taskType": "任务类型",
     "modelRouting": "模型路由",
     "noRoutingConfigured": "暂无路由配置",
-    "primaryFallbackDesc": "主模型按顺序依次访问，成功则直接返回",
+    "primaryFallbackDesc": "主模型按顺序依次访问，成功则直接返回，全部失败回退到次级模型",
     "loadBalancingDesc": "随机访问一个模型，失败无重试",
+    "categoryText": "文本生成",
+    "categoryImage": "图像生成",
+    "categoryVideo": "视频生成",
+    "categoryAudio": "音频生成",
+    "categoryMcp": "MCP",
     "running": "运行中"
   }
 }
