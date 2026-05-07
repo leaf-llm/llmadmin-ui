@@ -1,0 +1,45 @@
+name: Build Desktop (Linux)
+description: Builds Neutralinojs desktop app for Linux and packages as .deb.
+
+inputs:
+  neu_arch:
+    description: "Neutralinojs architecture"
+    required: false
+    default: linux_x64
+  dist_path:
+    description: "Output directory path"
+    required: false
+    default: desktop/dist/local-llm-gateway
+
+outputs:
+  dist_path:
+    description: "Path to the build output"
+    value: ${{ steps.build.outputs.dist_path }}
+
+runs:
+  using: composite
+
+  steps:
+    - name: Update Neutralinojs binaries
+      shell: bash
+      run: cd desktop && neu update
+
+    - name: Build desktop backend
+      shell: bash
+      run: BUN_OUTPUT=desktop/build/portkey-gateway bun run bun:build
+
+    - name: Copy backend binary into dist
+      shell: bash
+      run: cp desktop/build/portkey-gateway desktop/dist/local-llm-gateway/
+
+    - name: Build Neutralinojs app
+      id: build
+      shell: bash
+      run: |
+        cd desktop && neu build
+        echo "dist_path=desktop/dist/local-llm-gateway" >> "$GITHUB_OUTPUT"
+
+    - name: Package .deb
+      uses: ./.github/actions/package-deb
+      with:
+        dist_path: ${{ inputs.dist_path }}

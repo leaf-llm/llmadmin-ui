@@ -50,19 +50,25 @@ async function startBackend() {
 
   Neutralino.debug.log('startBackend called', 'INFO');
 
-  // Get actual working directory using /proc/self/cwd for absolute path
-  const pwdResult = await Neutralino.os.execCommand('readlink /proc/self/cwd');
-  const cwd = pwdResult.stdout?.trim() || '.';
-  Neutralino.debug.log('Actual cwd: ' + cwd, 'INFO');
+  // Get the directory of the neutralino binary via NL_PATH
+  const nlPath = await Neutralino.os.getEnv('NL_PATH');
+  Neutralino.debug.log('NL_PATH: ' + nlPath, 'INFO');
 
-  // Binary is in the same directory as the running app
-  const binaryPath = `${cwd}/${binaryName}`;
-  Neutralino.debug.log('Binary path: ' + binaryPath, 'INFO');
+  let backendBinary;
+  if (nlPath) {
+    // Packaged: binary is alongside neutralino at ./portkey-gateway
+    const binDir = nlPath.substring(0, nlPath.lastIndexOf('/'));
+    backendBinary = `${binDir}/${binaryName}`;
+  } else {
+    // Dev (neu run): binary is one level up in build/
+    backendBinary = `../build/${binaryName}`;
+  }
+  Neutralino.debug.log('Backend binary: ' + backendBinary, 'INFO');
 
-  const cmd = `${binaryPath} --port=${BACKEND_PORT} --headless`;
+  const cmd = `${backendBinary} --port=${BACKEND_PORT} --headless`;
   Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
 
-  const result = await Neutralino.os.spawnProcess(cmd, cwd);
+  const result = await Neutralino.os.spawnProcess(cmd);
   Neutralino.debug.log('Spawn result PID: ' + result.pid, 'INFO');
   backendPid = result.pid;
 }

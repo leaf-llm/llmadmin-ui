@@ -1,4 +1,4 @@
-name: Publish Bun Executables
+name: Publish
 
 on:
   release:
@@ -6,26 +6,54 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  publish:
     strategy:
       matrix:
         include:
+          # Server binaries
           - os: windows-latest
             artifact: portkey-gateway.exe
+            build_type: server
           - os: ubuntu-latest
             artifact: portkey-gateway
+            build_type: server
           - os: macos-latest
             artifact: portkey-gateway-macos
+            build_type: server
           - os: macos-15
             artifact: portkey-gateway-macos-intel
+            build_type: server
+          # Desktop apps
+          - os: ubuntu-latest
+            artifact: local-llm-gateway_amd64.deb
+            build_type: desktop
+            build_action: ./build-desktop-linux
+            artifact_path: desktop/dist/local-llm-gateway
+          # TODO: add more desktop platforms
+          # - os: macos-latest
+          #   artifact: local-llm-gateway_arm64.dmg
+          #   build_type: desktop
+          #   build_action: ./build-desktop-mac
+          #   artifact_path: desktop/dist/mac_arm64/release
     runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
 
+      # ── Shared dependencies (all platforms) ────────────────────────
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
 
-      - run: bun install
+      - name: Install Node.js (for neu CLI)
+        if: matrix.build_type == 'desktop'
+        uses: actions/setup-node@v4
+
+      - name: Install Neutralinojs CLI
+        if: matrix.build_type == 'desktop'
+        run: npm install -g @neutralinojs/neu
+
+      - name: Install dependencies
+        run: bun install
 
       - name: Install UI dependencies
         run: cd ui && bun install
@@ -34,29 +62,42 @@ jobs:
         run: bun run build:ui
 
       - name: Copy conf.json
-        run: cp conf.example.json conf.json  # Dereference symlink
+        run: cp conf.example.json conf.json
 
-      - name: Build executable
+      - name: Start Xvfb (headless display)
+        if: matrix.build_type == 'desktop' && runner.os == 'Linux'
+        run: |
+          which Xvfb || sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 2
+
+      # ── Platform-specific build ────────────────────────────────────
+      - name: Build server binary
+        if: matrix.build_type == 'server'
         run: |
           if [ "${{ matrix.os }}" = "macos-15" ]; then
             bun build src/start-server.ts --compile --target=bun-macos-x64 --outfile=build/${{ matrix.artifact }}
           else
             BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
           fi
-        shell: bash
 
+      - name: Build desktop app
+        if: matrix.build_type == 'desktop'
+        uses: ${{ matrix.build_action }}
+
+      # ── Upload artifacts ────────────────────────────────────────────
       - name: Upload to Release
         if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./build/${{ matrix.artifact }}
+          asset_path: ${{ matrix.build_type == 'desktop' && matrix.artifact_path || 'build' }}/${{ matrix.artifact }}
           asset_name: ${{ matrix.artifact }}
-          asset_content_type: application/octet-stream
+          asset_content_type: ${{ matrix.build_type == 'desktop' && 'application/vnd.debian.binary-package' || 'application/octet-stream' }}
 
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ./build/${{ matrix.artifact }}
+          path: ${{ matrix.build_type == 'desktop' && matrix.artifact_path || 'build' }}/${{ matrix.artifact }}
