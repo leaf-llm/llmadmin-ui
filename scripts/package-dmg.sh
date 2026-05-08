@@ -39,17 +39,16 @@ else
   exit 1
 fi
 
-# Neutralinojs expects resources at ./resources/ relative to binary
-# So we put them in Contents/MacOS/resources/
+# All files directly in Contents/MacOS/
 if [ -d "$DIST_DIR/public" ]; then
-  cp -R "$DIST_DIR/public" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/resources/"
+  cp -R "$DIST_DIR/public" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/"
   echo "Copied public/"
 else
   echo "Warning: public/ not found: $DIST_DIR/public"
 fi
 
 if [ -f "$DIST_DIR/resources.neu" ]; then
-  cp "$DIST_DIR/resources.neu" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/resources/"
+  cp "$DIST_DIR/resources.neu" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/"
   echo "Copied resources.neu"
 else
   echo "Warning: resources.neu not found: $DIST_DIR/resources.neu"
