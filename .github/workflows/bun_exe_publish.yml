@@ -78,11 +78,7 @@ jobs:
         if: matrix.build_type == 'desktop'
         run: |
           npm run desktop:setup
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            bun build src/start-server.ts --compile --target=bun-macos-${{ matrix.arch }} --outfile=desktop/build/portkey-gateway
-          else
-            npm run bun:build
-          fi
+          BUN_OUTPUT=desktop/build/portkey-gateway bun run bun:build
           npm run build:ui
           cd desktop && neu build
           node scripts/copy-binary.js ${{ runner.os == 'macOS' && 'mac' || '' }}
