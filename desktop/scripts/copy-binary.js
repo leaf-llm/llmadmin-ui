@@ -23,40 +23,12 @@ function copyDir(src, dest) {
   }
 }
 
-function copyLinux(destDir) {
+function copyDist(destDir) {
   if (!fs.existsSync(destDir)) {
     console.log('Dist directory not found, skipping copy');
     return;
   }
 
-  const binarySrc = path.join(buildDir, 'portkey-gateway');
-  if (fs.existsSync(binarySrc)) {
-    const binaryDest = path.join(destDir, 'portkey-gateway');
-    fs.copyFileSync(binarySrc, binaryDest);
-    console.log('Binary copied to:', binaryDest);
-  } else {
-    console.log('Binary not found:', binarySrc);
-  }
-
-  const publicSrc = path.join(buildDir, 'public');
-  const publicDest = path.join(destDir, 'public');
-  if (fs.existsSync(publicSrc)) {
-    copyDir(publicSrc, publicDest);
-    console.log('UI files copied to:', publicDest);
-  } else {
-    console.log('Public directory not found:', publicSrc);
-  }
-}
-
-function copyMac() {
-  const destDir = path.join(__dirname, '..', 'dist', 'local-llm-gateway');
-
-  if (!fs.existsSync(destDir)) {
-    console.log('Dist directory not found, skipping copy');
-    return;
-  }
-
-  // Copy portkey-gateway binary
   const binarySrc = path.join(buildDir, 'portkey-gateway');
   if (fs.existsSync(binarySrc)) {
     const binaryDest = path.join(destDir, 'portkey-gateway');
@@ -67,7 +39,6 @@ function copyMac() {
     console.log('Binary not found:', binarySrc);
   }
 
-  // Copy public/ directory (UI files)
   const publicSrc = path.join(buildDir, 'public');
   const publicDest = path.join(destDir, 'public');
   if (fs.existsSync(publicSrc)) {
@@ -78,10 +49,5 @@ function copyMac() {
   }
 }
 
-const platform = process.argv[2] || process.platform;
-if (platform === 'darwin' || platform === 'mac') {
-  copyMac();
-} else {
-  const destDir = path.join(__dirname, '../dist/local-llm-gateway');
-  copyLinux(destDir);
-}
+const destDir = path.join(__dirname, '../dist/local-llm-gateway');
+copyDist(destDir);
