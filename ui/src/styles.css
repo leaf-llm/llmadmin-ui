@@ -851,3 +851,180 @@ button.secondary {
   background: var(--color-border);
 }
 
+/* DatePicker component */
+.date-picker {
+  position: relative;
+}
+
+.date-picker__trigger {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 10px;
+  background: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.date-picker__trigger:hover {
+  border-color: rgba(15, 23, 42, 0.25);
+}
+
+.date-picker__calendar {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  z-index: 50;
+  padding: 12px;
+  min-width: 240px;
+}
+
+.date-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.date-picker__nav {
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  color: rgba(17, 24, 39, 0.6);
+  border-radius: 6px;
+}
+
+.date-picker__nav:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: rgba(17, 24, 39, 0.9);
+}
+
+.date-picker__title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.date-picker__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.date-picker__day-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(17, 24, 39, 0.5);
+  text-align: center;
+  padding: 4px 0;
+  text-transform: uppercase;
+}
+
+.date-picker__day {
+  padding: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  border-radius: 8px;
+  color: rgba(17, 24, 39, 0.85);
+}
+
+.date-picker__day.empty {
+  cursor: default;
+}
+
+.date-picker__day:not(.empty):not(.disabled):hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.date-picker__day.selected {
+  background: rgba(37, 99, 235, 0.12) !important;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.date-picker__day.disabled {
+  color: rgba(17, 24, 39, 0.3);
+  cursor: not-allowed;
+}
+
+/* Select component */
+.select {
+  position: relative;
+}
+
+.select__trigger {
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 10px;
+  background: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.select__trigger:hover {
+  border-color: rgba(15, 23, 42, 0.25);
+}
+
+.select__arrow {
+  font-size: 10px;
+  color: rgba(17, 24, 39, 0.5);
+  flex-shrink: 0;
+}
+
+.select__options {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  z-index: 50;
+  padding: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.select__option {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  border-radius: 6px;
+  color: rgba(17, 24, 39, 0.85);
+}
+
+.select__option:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.select__option.selected {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  font-weight: 500;
+}
+

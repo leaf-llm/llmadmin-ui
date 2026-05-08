@@ -6,6 +6,8 @@ import {
   getMetrics,
   MetricsResponse,
 } from '../api/adminClient';
+import DatePicker from '../components/DatePicker';
+import Select from '../components/Select';
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 function toISODate(d: Date) {
@@ -84,38 +86,26 @@ export default function UsagePage() {
         <div className="card__title">{t('common.query')}</div>
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div className="field" style={{ flex: 1, minWidth: 140 }}>
-            <div className="label">{t('common.from')}</div>
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-          </div>
-          <div className="field" style={{ flex: 1, minWidth: 140 }}>
-            <div className="label">{t('common.to')}</div>
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-            />
-          </div>
-          <div className="field" style={{ flex: 1, minWidth: 140 }}>
-            <div className="label">{t('common.provider')}</div>
-            <select
-              value={provider}
-              onChange={(e) => setProvider(e.target.value as any)}
-            >
-              <option value="all">{t('common.all')}</option>
-              {loadingProviders
-                ? null
-                : providers.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-            </select>
-          </div>
+          <DatePicker
+            label={t('common.from')}
+            value={from}
+            onChange={setFrom}
+          />
+          <DatePicker
+            label={t('common.to')}
+            value={to}
+            onChange={setTo}
+          />
+          <Select
+            label={t('common.provider')}
+            value={provider}
+            onChange={(v) => setProvider(v as ProviderId | 'all')}
+            placeholder={t('common.all')}
+            options={[
+              { value: 'all', label: t('common.all') },
+              ...(loadingProviders ? [] : providers.map((p) => ({ value: p, label: p })))
+            ]}
+          />
           <button
             className="primary"
             disabled={loading || !from || !to}
