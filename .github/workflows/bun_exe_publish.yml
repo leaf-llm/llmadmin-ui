@@ -78,10 +78,7 @@ jobs:
         if: matrix.build_type == 'desktop'
         run: |
           npm run desktop:setup
-          BUN_OUTPUT=desktop/build/portkey-gateway bun run bun:build
-          npm run build:ui
-          cd desktop && neu build
-          node scripts/copy-binary.js ${{ runner.os == 'macOS' && 'mac' || '' }}
+          npm run build:desktop
 
       - name: Package .deb
         if: matrix.build_type == 'desktop' && runner.os == 'Linux'
