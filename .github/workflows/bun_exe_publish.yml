@@ -16,7 +16,7 @@ jobs:
             build_type: server
           # Desktop apps
           - os: ubuntu-latest
-            artifact: local-llm-gateway_amd64.deb
+            artifact: local-llm-gateway_1.0.0_amd64.deb
             build_type: desktop
           # macOS desktop apps
           - os: macos-latest
