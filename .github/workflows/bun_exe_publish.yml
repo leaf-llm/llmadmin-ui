@@ -22,14 +22,10 @@ jobs:
           - os: macos-latest
             artifact: local-llm-gateway_arm64.dmg
             build_type: desktop
-            build_action: build-desktop-mac
-            artifact_path: desktop/dist/mac_arm64/release
             arch: arm64
           - os: macos-15
             artifact: local-llm-gateway_x64.dmg
             build_type: desktop
-            build_action: build-desktop-mac
-            artifact_path: desktop/dist/mac_x64/release
             arch: x64
     runs-on: ${{ matrix.os }}
 
@@ -78,8 +74,8 @@ jobs:
             BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
           fi
 
-      - name: Build desktop app (Linux)
-        if: matrix.build_type == 'desktop' && runner.os == 'Linux'
+      - name: Build desktop app
+        if: matrix.build_type == 'desktop'
         run: |
           npm run desktop:setup
           npm run build:desktop
@@ -90,17 +86,11 @@ jobs:
         with:
           dist_path: desktop/dist/local-llm-gateway
 
-      - name: Build desktop app (macOS)
-        if: matrix.build_type == 'desktop' && runner.os == 'macOS'
-        uses: ./.github/actions/build-desktop-mac
-        with:
-          arch: ${{ matrix.arch }}
-
       - name: Package .dmg
         if: matrix.build_type == 'desktop' && runner.os == 'macOS'
         uses: ./.github/actions/package-dmg
         with:
-          app_path: ${{ matrix.artifact_path }}/local-llm-gateway.app
+          app_path: desktop/dist/mac_${{ matrix.arch }}/release/local-llm-gateway.app
           output_dmg: ${{ matrix.artifact }}
 
       # ── Upload artifacts ────────────────────────────────────────────
