@@ -2,15 +2,11 @@ const BACKEND_PORT = 8787;
 const BACKEND_URL = `http://localhost:${BACKEND_PORT}`;
 const ADMIN_URL = `${BACKEND_URL}/public/admin/`;
 const POLL_INTERVAL_MS = 500;
-const POLL_TIMEOUT_MS = 30000;
+const POLL_TIMEOUT_MS = 15000;
 
 let backendPid = null;
 let isWindows = false;
 
-// dirname equivalent - get parent directory
-const dirname = (p) => p.replace(/[/\\][^/\\]*$/, '');
-
-// Test: change status immediately to prove JS runs
 setStatus('JS loaded! Testing...');
 
 Neutralino.init();
@@ -27,12 +23,11 @@ Neutralino.events.on('ready', async () => {
 
     await startBackend();
     await waitForBackend();
+
     setStatus('Opening UI...');
     Neutralino.debug.log('Navigating to: ' + ADMIN_URL, 'INFO');
 
-    // Wait for server to be ready before navigating
     await sleep(1000);
-
     window.location.href = ADMIN_URL;
   } catch (err) {
     Neutralino.debug.log('Startup error: ' + err.message, 'ERROR');
@@ -41,31 +36,43 @@ Neutralino.events.on('ready', async () => {
 });
 
 Neutralino.events.on('windowClose', async () => {
-  await stopBackend();
-  await Neutralino.app.exit();
+  Neutralino.app.exit();
 });
 
 async function startBackend() {
   const binaryName = isWindows ? 'portkey-gateway.exe' : 'portkey-gateway';
 
   Neutralino.debug.log('startBackend called', 'INFO');
+  Neutralino.debug.log('NL_PATH: ' + window.NL_PATH, 'INFO');
 
-  // Get the directory of the neutralino binary via NL_PATH
-  const nlPath = await Neutralino.os.getEnv('NL_PATH');
-  Neutralino.debug.log('NL_PATH: ' + nlPath, 'INFO');
-
-  let backendBinary;
-  if (nlPath) {
-    // Packaged: binary is alongside neutralino at ./portkey-gateway
-    const binDir = nlPath.substring(0, nlPath.lastIndexOf('/'));
-    backendBinary = `${binDir}/${binaryName}`;
-  } else {
-    // Dev (neu run): binary is one level up in build/
-    backendBinary = `../build/${binaryName}`;
+  let backendBinary = null;
+  const candidates = [`./${binaryName}`, `../build/${binaryName}`];
+  for (const candidate of candidates) {
+    try {
+      const check = isWindows
+        ? `if exist "${candidate}" echo FOUND`
+        : `test -f "${candidate}" && echo FOUND || echo MISSING`;
+      const result = await Neutralino.os.execCommand(check);
+      const output = (result.stdOut || result.stdout || '').trim();
+      if (output === 'FOUND') {
+        backendBinary = candidate;
+        break;
+      }
+    } catch {
+      // continue to next candidate
+    }
   }
+
+  if (!backendBinary) {
+    showError(`Cannot find ${binaryName}. Tried: ${candidates.join(', ')}`);
+    return;
+  }
+
   Neutralino.debug.log('Backend binary: ' + backendBinary, 'INFO');
 
-  const cmd = `${backendBinary} --port=${BACKEND_PORT} --headless`;
+  // Pass PPID so backend can detect when parent (Neutralino) dies
+  const ppidFlag = isWindows ? '' : ` --ppid=${window.NL_PID}`;
+  const cmd = `${backendBinary} --port=${BACKEND_PORT} --headless${ppidFlag}`;
   Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
 
   const result = await Neutralino.os.spawnProcess(cmd);
@@ -77,7 +84,6 @@ async function waitForBackend() {
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   let attempt = 0;
 
-  // Use curl to check if server is responding
   while (Date.now() < deadline) {
     attempt++;
     try {
@@ -88,7 +94,6 @@ async function waitForBackend() {
           '/ 2>&1 || echo "CURL_FAILED"'
       );
 
-      // Note: Neutralino uses stdOut with capital O
       const stdout = result.stdOut?.trim() || result.stdout?.trim() || '';
 
       if (stdout && stdout !== 'CURL_FAILED' && !isNaN(parseInt(stdout))) {
@@ -101,18 +106,7 @@ async function waitForBackend() {
     await sleep(POLL_INTERVAL_MS);
   }
   Neutralino.debug.log('Backend timeout', 'ERROR');
-}
-
-async function stopBackend() {
-  if (!backendPid) return;
-  try {
-    const killCmd = isWindows
-      ? `taskkill /F /PID ${backendPid}`
-      : `kill ${backendPid}`;
-    await Neutralino.os.spawnProcess(killCmd);
-  } catch {
-    // best effort
-  }
+  showError('Backend failed to start within ' + (POLL_TIMEOUT_MS / 1000) + 's.');
 }
 
 function setStatus(msg) {

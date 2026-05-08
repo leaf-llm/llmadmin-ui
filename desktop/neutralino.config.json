@@ -29,7 +29,7 @@
       "minWidth": 900,
       "minHeight": 600,
       "center": true,
-      "exitProcessOnClose": false
+      "exitProcessOnClose": true
     }
   },
   "cli": {
