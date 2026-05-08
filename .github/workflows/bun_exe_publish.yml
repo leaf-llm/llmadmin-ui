@@ -109,25 +109,13 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{
-            matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' ||
-            matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' ||
-            'build'
-          }}/${{ matrix.artifact }}
+          asset_path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'build' }}/${{ matrix.artifact }}
           asset_name: ${{ matrix.artifact }}
-          asset_content_type: ${{
-            matrix.build_type == 'desktop' && runner.os == 'Linux' && 'application/vnd.debian.binary-package' ||
-            matrix.build_type == 'desktop' && runner.os == 'macOS' && 'application/x-apple-diskimage' ||
-            'application/octet-stream'
-          }}
+          asset_content_type: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'application/vnd.debian.binary-package' || matrix.build_type == 'desktop' && runner.os == 'macOS' && 'application/x-apple-diskimage' || 'application/octet-stream' }}
 
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{
-            matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' ||
-            matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' ||
-            'build'
-          }}/${{ matrix.artifact }}
+          path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'build' }}/${{ matrix.artifact }}
