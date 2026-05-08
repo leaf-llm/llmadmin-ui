@@ -40,11 +40,9 @@ ln -s "/usr/local/${DEB_PKG}/local-llm-gateway" "$DEB_DIR/usr/bin/${DEB_PKG}"
 cp portkey-gateway "$DEB_DIR/usr/local/${DEB_PKG}/portkey-gateway"
 chmod 755 "$DEB_DIR/usr/local/${DEB_PKG}/portkey-gateway"
 
-# Neutralinojs expects resources.neu directly in the app directory
-# and public/ inside resourcesPath (./resources/)
+# All files directly in app directory
 cp resources.neu "$DEB_DIR/usr/local/${DEB_PKG}/"
-mkdir -p "$DEB_DIR/usr/local/${DEB_PKG}/resources"
-cp -r public "$DEB_DIR/usr/local/${DEB_PKG}/resources/"
+cp -r public "$DEB_DIR/usr/local/${DEB_PKG}/"
 
 cat > "$DEB_DIR/usr/share/applications/${DEB_PKG}.desktop" << DESKTOP_EOF
 [Desktop Entry]

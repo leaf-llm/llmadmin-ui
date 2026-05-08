@@ -39,11 +39,9 @@ else
   exit 1
 fi
 
-# Neutralinojs expects public/ inside resourcesPath (./resources/) relative to binary
-# But resources.neu directly alongside the binary
-mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/resources"
+# All files directly in Contents/MacOS/
 if [ -d "$DIST_DIR/public" ]; then
-  cp -R "$DIST_DIR/public" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/resources/"
+  cp -R "$DIST_DIR/public" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/"
   echo "Copied public/"
 else
   echo "Warning: public/ not found: $DIST_DIR/public"
