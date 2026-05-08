@@ -60,9 +60,10 @@ function copyLinux(destDir) {
 
 function copyMac() {
   const distBase = path.join(__dirname, '..', 'dist');
-  const releaseDirs = fs.readdirSync(distBase, { withFileTypes: true })
-    .filter(e => e.isDirectory() && e.name.startsWith('mac_'))
-    .map(e => path.join(distBase, e.name, 'release'));
+  const releaseDirs = fs
+    .readdirSync(distBase, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name.startsWith('mac_'))
+    .map((e) => path.join(distBase, e.name, 'release'));
 
   for (const releaseDir of releaseDirs) {
     const appBundle = findAppBundle(releaseDir);
@@ -109,4 +110,3 @@ if (platform === 'darwin' || platform === 'mac') {
   const destDir = path.join(__dirname, '../dist/local-llm-gateway');
   copyLinux(destDir);
 }
-
