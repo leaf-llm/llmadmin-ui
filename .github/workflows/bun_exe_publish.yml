@@ -14,22 +14,23 @@ jobs:
           - os: windows-latest
             artifact: portkey-gateway.exe
             build_type: server
-          - os: macos-latest
-            artifact: portkey-gateway-macos
-            build_type: server
-          - os: macos-15
-            artifact: portkey-gateway-macos-intel
-            build_type: server
           # Desktop apps
           - os: ubuntu-latest
             artifact: local-llm-gateway_amd64.deb
             build_type: desktop
-          # TODO: add more desktop platforms
-          # - os: macos-latest
-          #   artifact: local-llm-gateway_arm64.dmg
-          #   build_type: desktop
-          #   build_action: ./build-desktop-mac
-          #   artifact_path: desktop/dist/mac_arm64/release
+          # macOS desktop apps
+          - os: macos-latest
+            artifact: local-llm-gateway_arm64.dmg
+            build_type: desktop
+            build_action: build-desktop-mac
+            artifact_path: desktop/dist/mac_arm64/release
+            arch: arm64
+          - os: macos-15
+            artifact: local-llm-gateway_x64.dmg
+            build_type: desktop
+            build_action: build-desktop-mac
+            artifact_path: desktop/dist/mac_x64/release
+            arch: x64
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -88,19 +89,44 @@ jobs:
         with:
           dist_path: desktop/dist/local-llm-gateway
 
+      - name: Build desktop app (macOS)
+        if: matrix.build_type == 'desktop' && runner.os == 'macOS'
+        uses: ./.github/actions/build-desktop-mac
+        with:
+          arch: ${{ matrix.arch }}
+
+      - name: Package .dmg
+        if: matrix.build_type == 'desktop' && runner.os == 'macOS'
+        uses: ./.github/actions/package-dmg
+        with:
+          app_path: ${{ matrix.artifact_path }}/local-llm-gateway.app
+          output_dmg: ${{ matrix.artifact }}
+
       # ── Upload artifacts ────────────────────────────────────────────
       - name: Upload to Release
         if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ matrix.build_type == 'desktop' && 'desktop/dist/local-llm-gateway' || 'build' }}/${{ matrix.artifact }}
+          asset_path: ${{
+            matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' ||
+            matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' ||
+            'build'
+          }}/${{ matrix.artifact }}
           asset_name: ${{ matrix.artifact }}
-          asset_content_type: ${{ matrix.build_type == 'desktop' && 'application/vnd.debian.binary-package' || 'application/octet-stream' }}
+          asset_content_type: ${{
+            matrix.build_type == 'desktop' && runner.os == 'Linux' && 'application/vnd.debian.binary-package' ||
+            matrix.build_type == 'desktop' && runner.os == 'macOS' && 'application/x-apple-diskimage' ||
+            'application/octet-stream'
+          }}
 
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.build_type == 'desktop' && 'desktop/dist/local-llm-gateway' || 'build' }}/${{ matrix.artifact }}
+          path: ${{
+            matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' ||
+            matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' ||
+            'build'
+          }}/${{ matrix.artifact }}
