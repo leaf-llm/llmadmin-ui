@@ -60,20 +60,17 @@ function copyLinux(destDir) {
 
 function copyMac() {
   const distBase = path.join(__dirname, '..', 'dist');
-  const releaseDirs = fs
-    .readdirSync(distBase, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && e.name.startsWith('mac_'))
-    .map((e) => path.join(distBase, e.name, 'release'));
+  const appBundle = findAppBundle(distBase);
+  if (!appBundle) {
+    console.log('App bundle not found in:', distBase);
+    return;
+  }
 
-  for (const releaseDir of releaseDirs) {
-    const appBundle = findAppBundle(releaseDir);
-    if (!appBundle) {
-      console.log('App bundle not found in:', releaseDir);
-      continue;
-    }
+  const macosDir = path.join(appBundle, 'Contents', 'MacOS');
+  const resourcesDir = path.join(appBundle, 'Contents', 'Resources');
 
-    const macosDir = path.join(appBundle, 'Contents', 'MacOS');
-    const resourcesDir = path.join(appBundle, 'Contents', 'Resources');
+  fs.mkdirSync(macosDir, { recursive: true });
+  fs.mkdirSync(resourcesDir, { recursive: true });
 
     const binarySrc = path.join(buildDir, 'portkey-gateway');
     if (fs.existsSync(binarySrc)) {
@@ -94,13 +91,12 @@ function copyMac() {
       console.log('Public directory not found:', publicSrc);
     }
 
-    const resourcesNeuSrc = path.join(releaseDir, 'resources.neu');
+    const resourcesNeuSrc = path.join(distBase, 'resources.neu');
     const resourcesNeuDest = path.join(resourcesDir, 'resources.neu');
     if (fs.existsSync(resourcesNeuSrc)) {
       fs.copyFileSync(resourcesNeuSrc, resourcesNeuDest);
       console.log('resources.neu copied to:', resourcesNeuDest);
     }
-  }
 }
 
 const platform = process.argv[2] || process.platform;
