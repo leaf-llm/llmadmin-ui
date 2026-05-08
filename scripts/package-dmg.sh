@@ -16,7 +16,7 @@ DMG_TMP=$(mktemp -d /tmp/dmg.XXXXXX)
 APP_NAME="LocalLLMGateway"
 
 # Create .app bundle structure
-mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS"
+mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/resources"
 mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Resources"
 
 # Copy Neutralinojs runtime binary
@@ -39,30 +39,30 @@ else
   exit 1
 fi
 
-# Copy public/ resources
+# Neutralinojs expects resources at ./resources/ relative to binary
+# So we put them in Contents/MacOS/resources/
 if [ -d "$DIST_DIR/public" ]; then
-  cp -R "$DIST_DIR/public" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Resources/"
+  cp -R "$DIST_DIR/public" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/resources/"
   echo "Copied public/"
 else
   echo "Warning: public/ not found: $DIST_DIR/public"
 fi
 
-# Copy resources.neu
 if [ -f "$DIST_DIR/resources.neu" ]; then
-  cp "$DIST_DIR/resources.neu" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Resources/"
+  cp "$DIST_DIR/resources.neu" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/resources/"
   echo "Copied resources.neu"
 else
   echo "Warning: resources.neu not found: $DIST_DIR/resources.neu"
 fi
 
 # Create minimal Info.plist
-cat > "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Info.plist" << 'PLIST'
+cat > "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>PLIST</string>
+    <string>${BINARY_NAME}</string>
     <key>CFBundleIdentifier</key>
     <string>com.local-llm-gateway.app</string>
     <key>CFBundleName</key>

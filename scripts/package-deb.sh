@@ -18,7 +18,7 @@ cd "$DIST_PATH"
 rm -rf "$DEB_DIR"
 mkdir -p "$DEB_DIR/DEBIAN"
 mkdir -p "$DEB_DIR/usr/bin"
-mkdir -p "$DEB_DIR/usr/share/${DEB_PKG}"
+mkdir -p "$DEB_DIR/usr/share/${DEB_PKG}/resources"
 mkdir -p "$DEB_DIR/usr/share/applications"
 
 cat > "$DEB_DIR/DEBIAN/control" << CONTROL_EOF
@@ -40,8 +40,9 @@ ln -s "/usr/share/${DEB_PKG}/local-llm-gateway" "$DEB_DIR/usr/bin/${DEB_PKG}"
 cp portkey-gateway "$DEB_DIR/usr/share/${DEB_PKG}/portkey-gateway"
 chmod 755 "$DEB_DIR/usr/share/${DEB_PKG}/portkey-gateway"
 
-cp resources.neu "$DEB_DIR/usr/share/${DEB_PKG}/"
-cp -r public "$DEB_DIR/usr/share/${DEB_PKG}/"
+# Neutralinojs expects resources at ./resources/ relative to the binary
+cp resources.neu "$DEB_DIR/usr/share/${DEB_PKG}/resources/"
+cp -r public "$DEB_DIR/usr/share/${DEB_PKG}/resources/"
 
 cat > "$DEB_DIR/usr/share/applications/${DEB_PKG}.desktop" << DESKTOP_EOF
 [Desktop Entry]
