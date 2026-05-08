@@ -90,7 +90,7 @@ jobs:
         if: matrix.build_type == 'desktop' && runner.os == 'macOS'
         uses: ./.github/actions/package-dmg
         with:
-          app_path: desktop/dist/local-llm-gateway.app
+          app_path: desktop/dist/local-llm-gateway/local-llm-gateway-mac_${{ matrix.arch }}
           output_dmg: ${{ matrix.artifact }}
 
       # ── Upload artifacts ────────────────────────────────────────────
