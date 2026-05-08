@@ -3,7 +3,7 @@ set -e
 
 # Package Neutralinojs macOS app into a .dmg
 # Usage: ./scripts/package-dmg.sh <app_path> <output_dmg>
-#   app_path:   Path to the .app bundle (e.g. desktop/dist/mac_arm64/release/local-llm-gateway.app)
+#   app_path:   Path to the .app bundle (e.g. desktop/dist/local-llm-gateway.app)
 #   output_dmg: Output .dmg path (e.g. local-llm-gateway_1.0.0_arm64.dmg)
 
 APP_PATH="${1:?Usage: $0 <app_path> <output_dmg>}"
