@@ -43,6 +43,12 @@ function copyDist(destDir) {
   const publicDest = path.join(destDir, 'public');
   if (fs.existsSync(publicSrc)) {
     copyDir(publicSrc, publicDest);
+    // Remove dev UI index.html - not needed in production
+    const indexHtml = path.join(publicDest, 'index.html');
+    if (fs.existsSync(indexHtml)) {
+      fs.unlinkSync(indexHtml);
+      console.log('Removed dev UI:', indexHtml);
+    }
     console.log('UI files copied to:', publicDest);
   } else {
     console.log('Public directory not found:', publicSrc);

@@ -45,16 +45,18 @@ const setupStaticServing = async () => {
   }
 
   // Serve the index.html content directly for both routes
-  const indexPath = join(publicDir, 'index.html');
-  const indexContent = readFileSync(indexPath, 'utf-8');
+  // Only serve dev UI in development mode (not in compiled bun binary)
+  if (!isBunBinary) {
+    const indexPath = join(publicDir, 'index.html');
+    const indexContent = readFileSync(indexPath, 'utf-8');
 
-  const serveIndex = (c: Context) => {
-    return c.html(indexContent);
-  };
+    const serveIndex = (c: Context) => {
+      return c.html(indexContent);
+    };
 
-  // Set up routes
-  app.get('/public/logs', serveIndex);
-  app.get('/public/', serveIndex);
+    app.get('/public/logs', serveIndex);
+    app.get('/public/', serveIndex);
+  }
 
   // Serve admin UI static files (SPA)
   // In production (bundled), public files are alongside the binary at public/admin
