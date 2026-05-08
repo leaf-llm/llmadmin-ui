@@ -18,6 +18,10 @@ const port = portArg ? parseInt(portArg.split('=')[1]) : defaultPort;
 
 const isHeadless = args.includes('--headless');
 
+// When launched by the desktop app, watch the parent process and exit when it dies
+const ppidArg = args.find((arg) => arg.startsWith('--ppid='));
+const ppid = ppidArg ? parseInt(ppidArg.split('=')[1]) : 0;
+
 // Setup static file serving only if not in headless mode
 // if (!isHeadless) {
 const setupStaticServing = async () => {
@@ -229,6 +233,18 @@ const url = `http://localhost:${port}`;
 
 injectWebSocket(server);
 
+// When launched by the desktop app, watch the parent process and exit when it dies
+if (ppid > 0) {
+  setInterval(() => {
+    try {
+      process.kill(ppid, 0);
+    } catch {
+      server.close();
+      process.exit(0);
+    }
+  }, 2000);
+}
+
 // Loading animation function
 async function showLoadingAnimation() {
   const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -283,4 +299,15 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection', err);
+});
+
+// Handle termination signals for graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('\nReceived SIGTERM, shutting down...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('\nReceived SIGINT, shutting down...');
+  process.exit(0);
 });
