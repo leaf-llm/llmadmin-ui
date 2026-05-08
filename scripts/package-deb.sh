@@ -18,7 +18,7 @@ cd "$DIST_PATH"
 rm -rf "$DEB_DIR"
 mkdir -p "$DEB_DIR/DEBIAN"
 mkdir -p "$DEB_DIR/usr/bin"
-mkdir -p "$DEB_DIR/usr/share/${DEB_PKG}/resources"
+mkdir -p "$DEB_DIR/usr/local/${DEB_PKG}/resources"
 mkdir -p "$DEB_DIR/usr/share/applications"
 
 cat > "$DEB_DIR/DEBIAN/control" << CONTROL_EOF
@@ -31,18 +31,18 @@ Maintainer: Local LLM Gateway
 Description: Local LLM Gateway Desktop Application
 CONTROL_EOF
 
-cp local-llm-gateway-linux_x64 "$DEB_DIR/usr/share/${DEB_PKG}/local-llm-gateway"
-chmod 755 "$DEB_DIR/usr/share/${DEB_PKG}/local-llm-gateway"
+cp local-llm-gateway-linux_x64 "$DEB_DIR/usr/local/${DEB_PKG}/local-llm-gateway"
+chmod 755 "$DEB_DIR/usr/local/${DEB_PKG}/local-llm-gateway"
 
-ln -s "/usr/share/${DEB_PKG}/local-llm-gateway" "$DEB_DIR/usr/bin/${DEB_PKG}"
+ln -s "/usr/local/${DEB_PKG}/local-llm-gateway" "$DEB_DIR/usr/bin/${DEB_PKG}"
 
 # Copy backend binary (built by bun:build into desktop/build/)
-cp portkey-gateway "$DEB_DIR/usr/share/${DEB_PKG}/portkey-gateway"
-chmod 755 "$DEB_DIR/usr/share/${DEB_PKG}/portkey-gateway"
+cp portkey-gateway "$DEB_DIR/usr/local/${DEB_PKG}/portkey-gateway"
+chmod 755 "$DEB_DIR/usr/local/${DEB_PKG}/portkey-gateway"
 
 # Neutralinojs expects resources at ./resources/ relative to the binary
-cp resources.neu "$DEB_DIR/usr/share/${DEB_PKG}/resources/"
-cp -r public "$DEB_DIR/usr/share/${DEB_PKG}/resources/"
+cp resources.neu "$DEB_DIR/usr/local/${DEB_PKG}/resources/"
+cp -r public "$DEB_DIR/usr/local/${DEB_PKG}/resources/"
 
 cat > "$DEB_DIR/usr/share/applications/${DEB_PKG}.desktop" << DESKTOP_EOF
 [Desktop Entry]
