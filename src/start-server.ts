@@ -45,9 +45,9 @@ const setupStaticServing = async () => {
   }
 
   // Serve the index.html content directly for both routes
-  // Only set up if index.html exists (not present in production desktop builds)
-  const indexPath = join(publicDir, 'index.html');
-  if (existsSync(indexPath)) {
+  // Only serve dev UI in development mode (not in compiled bun binary)
+  if (!isBunBinary) {
+    const indexPath = join(publicDir, 'index.html');
     const indexContent = readFileSync(indexPath, 'utf-8');
 
     const serveIndex = (c: Context) => {
