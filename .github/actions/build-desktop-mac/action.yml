@@ -10,7 +10,7 @@ inputs:
 outputs:
   dist_path:
     description: "Path to the build output"
-    value: ${{ steps.build.outputs.dist_path }}
+    value: desktop/dist/mac_${{ inputs.arch }}/release
 
 runs:
   using: composite
@@ -29,21 +29,18 @@ runs:
           bun build src/start-server.ts --compile --target=bun-macos-x64 --outfile=desktop/build/portkey-gateway
         fi
 
+    - name: Build UI
+      shell: bash
+      run: npm run build:ui
+
     - name: Build Neutralinojs app
       id: build
       shell: bash
       run: |
         cd desktop
-        ARCH=${{ inputs.arch }}
-        if [ "$ARCH" = "arm64" ]; then
-          neu build --architecture mac_arm64
-        else
-          neu build --architecture mac_x64
-        fi
-        echo "dist_path=desktop/dist/mac_${ARCH}/release" >> "$GITHUB_OUTPUT"
+        neu build
+        echo "dist_path=desktop/dist/mac_${{ inputs.arch }}/release" >> "$GITHUB_OUTPUT"
 
-    - name: Copy backend binary into dist
+    - name: Copy binary and resources
       shell: bash
-      run: |
-        ARCH=${{ inputs.arch }}
-        cp desktop/build/portkey-gateway "desktop/dist/mac_${ARCH}/release/local-llm-gateway.app/Contents/MacOS/local-llm-gateway"
+      run: node desktop/scripts/copy-binary.js mac
