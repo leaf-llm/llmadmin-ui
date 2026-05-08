@@ -1,0 +1,49 @@
+name: Build Desktop (macOS)
+description: Builds Neutralinojs desktop app for macOS
+
+inputs:
+  arch:
+    description: "Architecture (arm64 or x64)"
+    required: false
+    default: arm64
+
+outputs:
+  dist_path:
+    description: "Path to the build output"
+    value: ${{ steps.build.outputs.dist_path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Update Neutralinojs binaries
+      shell: bash
+      run: cd desktop && neu update
+
+    - name: Build desktop backend
+      shell: bash
+      run: |
+        ARCH=${{ inputs.arch }}
+        if [ "$ARCH" = "arm64" ]; then
+          bun build src/start-server.ts --compile --target=bun-macos-arm64 --outfile=desktop/build/portkey-gateway
+        else
+          bun build src/start-server.ts --compile --target=bun-macos-x64 --outfile=desktop/build/portkey-gateway
+        fi
+
+    - name: Build Neutralinojs app
+      id: build
+      shell: bash
+      run: |
+        cd desktop
+        ARCH=${{ inputs.arch }}
+        if [ "$ARCH" = "arm64" ]; then
+          neu build --architecture mac_arm64
+        else
+          neu build --architecture mac_x64
+        fi
+        echo "dist_path=desktop/dist/mac_${ARCH}/release" >> "$GITHUB_OUTPUT"
+
+    - name: Copy backend binary into dist
+      shell: bash
+      run: |
+        ARCH=${{ inputs.arch }}
+        cp desktop/build/portkey-gateway "desktop/dist/mac_${ARCH}/release/local-llm-gateway.app/Contents/MacOS/local-llm-gateway"

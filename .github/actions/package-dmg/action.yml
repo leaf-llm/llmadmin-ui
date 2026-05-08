@@ -1,0 +1,19 @@
+name: Package DMG
+description: Packages a macOS .app into a .dmg
+
+inputs:
+  app_path:
+    description: "Path to the .app bundle"
+    required: true
+  output_dmg:
+    description: "Output .dmg filename"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Package DMG
+      shell: bash
+      run: |
+        chmod +x scripts/package-dmg.sh
+        ./scripts/package-dmg.sh "${{ inputs.app_path }}" "${{ inputs.output_dmg }}"
