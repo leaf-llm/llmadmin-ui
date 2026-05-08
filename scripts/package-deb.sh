@@ -19,6 +19,7 @@ rm -rf "$DEB_DIR"
 mkdir -p "$DEB_DIR/DEBIAN"
 mkdir -p "$DEB_DIR/usr/bin"
 mkdir -p "$DEB_DIR/usr/share/${DEB_PKG}"
+mkdir -p "$DEB_DIR/usr/share/applications"
 
 cat > "$DEB_DIR/DEBIAN/control" << CONTROL_EOF
 Package: ${DEB_PKG}
