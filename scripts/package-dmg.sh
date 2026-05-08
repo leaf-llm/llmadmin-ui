@@ -2,28 +2,83 @@
 set -e
 
 # Package Neutralinojs macOS app into a .dmg
-# Usage: ./scripts/package-dmg.sh <app_path> <output_dmg>
-#   app_path:   Path to the .app bundle OR binary (e.g. desktop/dist/local-llm-gateway/local-llm-gateway-mac_x64)
-#   output_dmg: Output .dmg path (e.g. local-llm-gateway_1.0.0_arm64.dmg)
+# Usage: ./scripts/package-dmg.sh <dist_dir> <binary_name> <output_dmg>
+#   dist_dir:    Path to dist directory (e.g. desktop/dist/local-llm-gateway)
+#   binary_name: Neutralinojs runtime binary name (e.g. local-llm-gateway-mac_x64)
+#   output_dmg:  Output .dmg path (e.g. local-llm-gateway_1.0.0_arm64.dmg)
 
-APP_PATH="${1:?Usage: $0 <app_path> <output_dmg>}"
-OUTPUT_DMG="${2:?Usage: $0 <app_path> <output_dmg>}"
+DIST_DIR="${1:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
+BINARY_NAME="${2:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
+OUTPUT_DMG="${3:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 
 VOLUME_NAME="LocalLLMGateway"
 DMG_TMP=$(mktemp -d /tmp/dmg.XXXXXX)
+APP_NAME="LocalLLMGateway"
 
-mkdir -p "$DMG_TMP/${VOLUME_NAME}"
+# Create .app bundle structure
+mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS"
+mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Resources"
 
-if [ -d "$APP_PATH" ]; then
-  # If app_path is a directory (.app bundle), copy it directly
-  cp -R "$APP_PATH" "$DMG_TMP/${VOLUME_NAME}/"
+# Copy Neutralinojs runtime binary
+if [ -f "$DIST_DIR/$BINARY_NAME" ]; then
+  cp "$DIST_DIR/$BINARY_NAME" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/$BINARY_NAME"
+  chmod +x "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/$BINARY_NAME"
+  echo "Copied runtime: $BINARY_NAME"
 else
-  # If app_path is a binary, create .app bundle structure
-  APP_NAME="LocalLLMGateway"
-  mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS"
-  cp "$APP_PATH" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/"
-  chmod +x "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/"*
+  echo "Error: Runtime binary not found: $DIST_DIR/$BINARY_NAME"
+  exit 1
 fi
+
+# Copy portkey-gateway server binary
+if [ -f "$DIST_DIR/portkey-gateway" ]; then
+  cp "$DIST_DIR/portkey-gateway" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
+  chmod +x "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
+  echo "Copied portkey-gateway"
+else
+  echo "Error: portkey-gateway not found: $DIST_DIR/portkey-gateway"
+  exit 1
+fi
+
+# Copy public/ resources
+if [ -d "$DIST_DIR/public" ]; then
+  cp -R "$DIST_DIR/public" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Resources/"
+  echo "Copied public/"
+else
+  echo "Warning: public/ not found: $DIST_DIR/public"
+fi
+
+# Copy resources.neu
+if [ -f "$DIST_DIR/resources.neu" ]; then
+  cp "$DIST_DIR/resources.neu" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Resources/"
+  echo "Copied resources.neu"
+else
+  echo "Warning: resources.neu not found: $DIST_DIR/resources.neu"
+fi
+
+# Create minimal Info.plist
+cat > "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Info.plist" << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>PLIST</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.local-llm-gateway.app</string>
+    <key>CFBundleName</key>
+    <string>LocalLLMGateway</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+</dict>
+</plist>
+PLIST
+
+# Create PkgInfo
+echo "APPL????" > "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/PkgInfo"
 
 # Create DMG using hdiutil
 hdiutil create -srcfolder "$DMG_TMP" -volname "${VOLUME_NAME}" -fs HFS+ \
