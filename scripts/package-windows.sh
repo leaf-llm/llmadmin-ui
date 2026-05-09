@@ -26,7 +26,7 @@ echo "Found exe: $MAIN_EXE"
 echo "Output: $OUTPUT_EXE"
 
 # Enigma Virtual Box command line
-EVB_CMD="EnigmaVirtualBox.exe"
+EVB_CMD="enigmavbconsole.exe"
 
 # Check if EVB is installed
 if ! command -v "$EVB_CMD" &> /dev/null && [ ! -f "$EVB_CMD" ]; then
