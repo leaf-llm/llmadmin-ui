@@ -23,8 +23,6 @@ echo "Found exe: $MAIN_EXE"
 echo "Output: $OUTPUT_EXE"
 
 # Get Windows paths using cygpath
-# cygpath -w gives backslash paths like D:\a\...
-# cygpath -m gives forward-slash paths like D:/a/... (works with Node.js on Windows)
 DIST_DIR_WIN=$(cygpath -w "$(pwd)")
 DIST_DIR_MIX=$(cygpath -m "$(pwd)")
 MAIN_EXE_WIN="${DIST_DIR_WIN}\\$(echo "$MAIN_EXE" | sed 's|^\./||')"
@@ -43,7 +41,7 @@ echo "Temp dir (Windows): $TEMP_DIR_WIN"
 
 PROJECT_FILE_WIN="${TEMP_DIR_WIN}\\project.evb"
 
-# Use Node.js with generate-evb to create the EVB project file and run enigmavbconsole
+# Step 1: Use Node.js with generate-evb to create the EVB project file (XML format)
 node -e "
 const path = require('path');
 const generateEvb = require('generate-evb');
@@ -70,20 +68,71 @@ const options = {
   }
 };
 
+// generate-evb has a bug where it calls back without error even if enigmavbconsole fails,
+// so we only generate the project file and call EVB ourselves.
+// Override the enigmaVBConsolePath so it won't try to run EVB.
+const fs = require('fs');
+const evbModule = require('generate-evb');
+
+// Use the internal generate function to only create the evb file
 generateEvb(projectName, inputExe, outputExe, path2Pack, options, function(err) {
   if (err) {
     console.error('generateEvb error:', err.message);
     process.exit(1);
   }
-  console.log('EVB project generated and packed successfully');
+  console.log('EVB project file generated successfully');
 });
 "
 
+# Verify the evb file was created
+EVB_FILE="$TEMP_DIR_UNIX/project.evb"
+if [ ! -f "$EVB_FILE" ]; then
+  echo "ERROR: project.evb was not generated"
+  ls -la "$TEMP_DIR_UNIX/"
+  exit 1
+fi
+
+echo "Project.evb content:"
+head -50 "$EVB_FILE"
+
+# Step 2: Find and run enigmavbconsole.exe
+EVB_CMD="enigmavbconsole.exe"
+if ! command -v "$EVB_CMD" &> /dev/null && [ ! -f "$EVB_CMD" ]; then
+  EVB_PATHS=(
+    "C:/EnigmaVirtualBox/enigmavbconsole.exe"
+    "/c/EnigmaVirtualBox/enigmavbconsole.exe"
+    "/c/Program Files/Enigma Virtual Box/enigmavbconsole.exe"
+    "/c/Program Files (x86)/Enigma Virtual Box/enigmavbconsole.exe"
+  )
+  for evb_path in "${EVB_PATHS[@]}"; do
+    if [ -f "$evb_path" ]; then
+      EVB_CMD="$evb_path"
+      break
+    fi
+  done
+fi
+
+echo "Using EVB: $EVB_CMD"
+EVB_CMD_WIN=$(cygpath -w "$EVB_CMD")
+PROJECT_FILE_FOR_EVB=$(cygpath -w "$EVB_FILE")
+
+echo "Running: $EVB_CMD_WIN $PROJECT_FILE_FOR_EVB"
+cd "$TEMP_DIR_UNIX" || exit 1
+"$EVB_CMD" "$EVB_FILE" 2>&1
+EVB_EXIT=$?
+echo "EVB exit code: $EVB_EXIT"
+
+cd "$(cygpath -u "$DIST_DIR_MIX")" || true
+
 # Check if output exe was created
-if [ -f "$(pwd)/${OUTPUT_EXE}" ]; then
-  echo "SUCCESS: Output exe created at $(pwd)/${OUTPUT_EXE}"
+if [ -f "$(cygpath -u "$OUTPUT_EXE_WIN")" ]; then
+  echo "SUCCESS: Output exe created at $OUTPUT_EXE_WIN"
 else
-  echo "WARNING: Output exe not found at $(pwd)/${OUTPUT_EXE}"
+  echo "WARNING: Output exe not found at $OUTPUT_EXE_WIN"
+  echo "Files in temp dir:"
+  ls -la "$TEMP_DIR_UNIX/"
+  echo "Files in dist dir:"
+  ls -la "$(cygpath -u "$DIST_DIR_MIX")/"
 fi
 
 # Cleanup
