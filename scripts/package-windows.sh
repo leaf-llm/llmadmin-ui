@@ -26,16 +26,16 @@ echo "Found exe: $MAIN_EXE"
 echo "Output: $OUTPUT_EXE"
 
 # Enigma Virtual Box command line
-EVB_CMD="enigmacvconsole.exe"
+EVB_CMD="enigmavbconsole.exe"
 
 # Check if EVB is installed
 if ! command -v "$EVB_CMD" &> /dev/null && [ ! -f "$EVB_CMD" ]; then
   # Try common installation paths including C:\EnigmaVirtualBox
   EVB_PATHS=(
-    "C:/EnigmaVirtualBox/enigmacvconsole.exe"
-    "/c/EnigmaVirtualBox/enigmacvconsole.exe"
-    "/c/Program Files/Enigma Virtual Box/enigmacvconsole.exe"
-    "/c/Program Files (x86)/Enigma Virtual Box/enigmacvconsole.exe"
+    "C:/EnigmaVirtualBox/enigmavbconsole.exe"
+    "/c/EnigmaVirtualBox/enigmavbconsole.exe"
+    "/c/Program Files/Enigma Virtual Box/enigmavbconsole.exe"
+    "/c/Program Files (x86)/Enigma Virtual Box/enigmavbconsole.exe"
   )
 
   for path in "${EVB_PATHS[@]}"; do
