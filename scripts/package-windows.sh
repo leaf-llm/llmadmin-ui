@@ -29,11 +29,14 @@ echo "Output: $OUTPUT_EXE"
 EVB_CMD="EnigmaVirtualBox.exe"
 
 # Check if EVB is installed
-if ! command -v "$EVB_CMD" &> /dev/null; then
-  # Try common installation paths
+if ! command -v "$EVB_CMD" &> /dev/null && [ ! -f "$EVB_CMD" ]; then
+  # Try common installation paths including C:\EnigmaVirtualBox
   EVB_PATHS=(
     "/c/Program Files/Enigma Virtual Box/EnigmaVirtualBox.exe"
     "/c/Program Files (x86)/Enigma Virtual Box/EnigmaVirtualBox.exe"
+    "C:/EnigmaVirtualBox/EnigmaVirtualBox.exe"
+    "/c/EnigmaVirtualBox/EnigmaVirtualBox.exe"
+    "/c/temp/EnigmaVirtualBox/EnigmaVirtualBox.exe"
   )
 
   for path in "${EVB_PATHS[@]}"; do

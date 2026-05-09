@@ -12,12 +12,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Download Enigma Virtual Box
+    - name: Download and Setup Enigma Virtual Box
       shell: bash
       run: |
-        mkdir -p /tmp/evb
-        curl -L -o /tmp/evb/evb.zip "https://www.enigmacrypto.com/download/EnigmaVirtualBox.zip" 2>/dev/null || true
-        unzip -o /tmp/evb/evb.zip -d /tmp/evb 2>/dev/null || true
+        curl -L -o /c/temp/evb_setup.exe "https://www.enigmacrypto.com/download/EnigmaVirtualBoxSetup.exe"
+        /c/temp/evb_setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="C:\EnigmaVirtualBox" || true
 
     - name: Package Windows exe
       shell: bash
