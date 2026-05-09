@@ -120,15 +120,25 @@ cat "$TEMP_DIR/project.evb"
 ORIG_DIR="$(pwd)"
 echo "Running Enigma Virtual Box... EVB_CMD=$EVB_CMD"
 echo "Working dir: $ORIG_DIR"
+echo "TEMP_DIR: $TEMP_DIR"
+ls -la "$TEMP_DIR/"
 cd "$TEMP_DIR" || exit 1
-"$EVB_CMD" project.evb
+"$EVB_CMD" project.evb 2>&1
 EVB_EXIT=$?
 echo "EVB exit code: $EVB_EXIT"
 cd "$ORIG_DIR" || echo "Warning: could not return to original directory"
 
+echo "Files after EVB run:"
 ls -la "$TEMP_DIR/"
 
+# Check if output exe was created
+if [ -f "$ORIG_DIR/local-llm-gateway.exe" ]; then
+  echo "SUCCESS: Output exe created at $ORIG_DIR/local-llm-gateway.exe"
+else
+  echo "WARNING: Output exe not found at $ORIG_DIR/local-llm-gateway.exe"
+fi
+
 # Alternative: just copy the dist folder for now as a fallback
-echo "Packaging complete: $OUTPUT_EXE"
+echo "Packaging complete"
 
 rm -rf "$TEMP_DIR"
