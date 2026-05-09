@@ -48,10 +48,9 @@ fi
 
 echo "Using EVB: $EVB_CMD"
 
-# Create a temporary project file for Enigma Virtual Box
-TEMP_DIR="/tmp/evb_project_$$"
-mkdir -p "$TEMP_DIR"
-echo "Project file location: $TEMP_DIR/project.evb"
+# Get absolute Windows-style path
+ABS_DIST_DIR=$(pwd)
+echo "Absolute path: $ABS_DIST_DIR"
 
 # Create the project configuration
 cat > "$TEMP_DIR/project.evb" << EVB_EOF
@@ -59,9 +58,9 @@ cat > "$TEMP_DIR/project.evb" << EVB_EOF
 VERSION=10.60
 
 [PROJECT]
-MAIN_BINARY=$MAIN_EXE
-OUTPUT_NAME=$OUTPUT_EXE
-COMPRESS=1
+MAIN_BINARY=${ABS_DIST_DIR}\\local-llm-gateway-win_x64.exe
+OUTPUT_NAME=${ABS_DIST_DIR}\\local-llm-gateway.exe
+COMPRESS=0
 INCLUDE_DEFAULT=1
 
 [OPTIONS]
@@ -69,8 +68,8 @@ VIRTUAL_FILES=1
 VIRTUAL_REGISTRY=0
 VIRTUAL_STARTUP=0
 VIRTUAL_DLLS=0
-COMPRESS_RESOURCES=1
-COMPRESS_METHOD=SPECIAL
+COMPRESS_RESOURCES=0
+COMPRESS_METHOD=STORE
 STRIP_RELOCATION=0
 CHECK_ALREADY_RUN=0
 CHECK_RUNNING=0
@@ -87,21 +86,30 @@ SFX_OVERWRITE=1
 SFX_TEMPLATE=DEFAULT
 
 [FILES]
-$(find . -type f \( -name "*.exe" -o -name "*.dll" -o -name "*.json" -o -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.ico" \) | while read f; do
+EOFB_EOF
+
+# Add files with Windows-style paths
+find . -type f \( -name "*.exe" -o -name "*.dll" -o -name "*.json" -o -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.ico" \) | while read f; do
   rel_path="${f#./}"
-  echo "FILE=$rel_path=$rel_path"
-done)
+  echo "FILE=${ABS_DIST_DIR}\\${rel_path}=${ABS_DIST_DIR}\\${rel_path}" >> "$TEMP_DIR/project.evb"
+done
+
+cat >> "$TEMP_DIR/project.evb" << 'EOF'
 
 [FOLDERS]
-$(find . -type d | grep -v "^\.$" | while read d; do
+EOF
+
+find . -type d | grep -v "^\.$" | while read d; do
   rel_path="${d#./}"
-  echo "FOLDER=$rel_path=$rel_path"
-done)
+  echo "FOLDER=${ABS_DIST_DIR}\\${rel_path}=${ABS_DIST_DIR}\\${rel_path}" >> "$TEMP_DIR/project.evb"
+done
+
+cat >> "$TEMP_DIR/project.evb" << 'EOF'
 
 [REGISTRY]
 [EMPTY]
 [STARTUP]
-EVB_EOF
+EOF
 
 echo "Project.evb content:"
 cat "$TEMP_DIR/project.evb"
