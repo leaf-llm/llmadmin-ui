@@ -120,11 +120,11 @@ cat "$TEMP_DIR/project.evb"
 ORIG_DIR="$(pwd)"
 echo "Running Enigma Virtual Box... EVB_CMD=$EVB_CMD"
 echo "Working dir: $ORIG_DIR"
-cd "$TEMP_DIR"
+cd "$TEMP_DIR" || exit 1
 "$EVB_CMD" project.evb
 EVB_EXIT=$?
 echo "EVB exit code: $EVB_EXIT"
-cd "$ORIG_DIR"
+cd "$ORIG_DIR" || echo "Warning: could not return to original directory"
 
 ls -la "$TEMP_DIR/"
 
