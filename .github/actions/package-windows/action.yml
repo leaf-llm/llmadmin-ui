@@ -25,4 +25,5 @@ runs:
         REPO_ROOT="$GITHUB_WORKSPACE"
         SCRIPT_DIR="$REPO_ROOT/scripts"
         chmod +x "$SCRIPT_DIR/package-windows.sh" 2>/dev/null || true
+        cd "$REPO_ROOT" && npm install generate-evb --no-save
         "$SCRIPT_DIR/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"
