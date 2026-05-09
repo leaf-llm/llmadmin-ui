@@ -13,10 +13,11 @@ runs:
   using: composite
   steps:
     - name: Download and Setup Enigma Virtual Box
-      shell: bash
+      shell: pwsh
       run: |
-        curl -L -o /c/temp/enigmavb.exe "https://enigmaprotector.com/assets/files/enigmavb.exe"
-        /c/temp/enigmavb.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="C:\EnigmaVirtualBox" || true
+        New-Item -ItemType Directory -Force -Path "C:\temp" | Out-Null
+        Invoke-WebRequest -Uri "https://enigmaprotector.com/assets/files/enigmavb.exe" -OutFile "C:\temp\enigmavb.exe" -UseBasicParsing
+        Start-Process -FilePath "C:\temp\enigmavb.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART",'/DIR="C:\EnigmaVirtualBox"' -Wait -PassThru
 
     - name: Package Windows exe
       shell: bash
