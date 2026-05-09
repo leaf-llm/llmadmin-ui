@@ -117,13 +117,14 @@ sed -i "s|%%WORKDIR%%|${ABS_DIST_DIR}|g" "$TEMP_DIR/project.evb"
 echo "Project.evb content:"
 cat "$TEMP_DIR/project.evb"
 
+ORIG_DIR="$(pwd)"
 echo "Running Enigma Virtual Box... EVB_CMD=$EVB_CMD"
-echo "Working dir: $(pwd)"
+echo "Working dir: $ORIG_DIR"
 cd "$TEMP_DIR"
 "$EVB_CMD" project.evb
 EVB_EXIT=$?
 echo "EVB exit code: $EVB_EXIT"
-cd - > /dev/null || true
+cd "$ORIG_DIR"
 
 ls -la "$TEMP_DIR/"
 
