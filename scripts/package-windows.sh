@@ -11,8 +11,11 @@ OUTPUT_EXE="${2:?Usage: $0 <dist_dir> <output_exe>}"
 
 cd "$DIST_DIR"
 
-# Find the main Neutralinojs executable
-MAIN_EXE=$(find . -name "local-llm-gateway.exe" -type f 2>/dev/null | head -1)
+# Find the main Neutralinojs executable (try win_x64 suffix first, then generic)
+MAIN_EXE=$(find . -name "local-llm-gateway-win_x64.exe" -type f 2>/dev/null | head -1)
+if [ -z "$MAIN_EXE" ]; then
+  MAIN_EXE=$(find . -name "local-llm-gateway.exe" -type f 2>/dev/null | head -1)
+fi
 
 if [ -z "$MAIN_EXE" ]; then
   echo "ERROR: Could not find local-llm-gateway.exe in $DIST_DIR"
