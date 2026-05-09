@@ -32,10 +32,10 @@ EVB_CMD="enigmavbconsole.exe"
 if ! command -v "$EVB_CMD" &> /dev/null && [ ! -f "$EVB_CMD" ]; then
   # Try common installation paths including C:\EnigmaVirtualBox
   EVB_PATHS=(
-    "C:/EnigmaVirtualBox/EnigmaVirtualBox.exe"
-    "/c/EnigmaVirtualBox/EnigmaVirtualBox.exe"
-    "/c/Program Files/Enigma Virtual Box/EnigmaVirtualBox.exe"
-    "/c/Program Files (x86)/Enigma Virtual Box/EnigmaVirtualBox.exe"
+    "C:/EnigmaVirtualBox/enigmavbconsole.exe"
+    "/c/EnigmaVirtualBox/enigmavbconsole.exe"
+    "/c/Program Files/Enigma Virtual Box/enigmavbconsole.exe"
+    "/c/Program Files (x86)/Enigma Virtual Box/enigmavbconsole.exe"
   )
 
   for path in "${EVB_PATHS[@]}"; do
