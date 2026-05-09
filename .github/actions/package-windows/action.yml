@@ -22,7 +22,7 @@ runs:
     - name: Package Windows exe
       shell: bash
       run: |
-        ACTION_DIR=$(cygpath -u "${{ github.action_path }}" 2>/dev/null || echo "${{ github.action_path }}")
-        SCRIPT_DIR="$(cd "$ACTION_DIR/../.." && pwd)/scripts"
+        REPO_ROOT="$GITHUB_WORKSPACE"
+        SCRIPT_DIR="$REPO_ROOT/scripts"
         chmod +x "$SCRIPT_DIR/package-windows.sh" 2>/dev/null || true
         "$SCRIPT_DIR/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"
