@@ -52,7 +52,8 @@ echo "Using EVB: $EVB_CMD"
 # Get absolute path and convert to Windows-style path
 # On GitHub Actions Windows runner, /d/a/... maps to D:\a\...
 ORIGINAL_PWD=$(pwd)
-ABS_DIST_DIR=$(echo "$ORIGINAL_PWD" | sed 's|^/d/|D:/|' | sed 's|/|/|g')
+# Convert /d/a/... to D:\a\... (Windows-style with backslashes)
+ABS_DIST_DIR=$(echo "$ORIGINAL_PWD" | sed 's|^/d/|D:\\\\|' | sed 's|/|\\\\|g')
 echo "Absolute path (Windows): $ABS_DIST_DIR"
 
 # Create the project configuration
@@ -61,7 +62,7 @@ echo "Absolute path (Windows): $ABS_DIST_DIR"
   echo "VERSION=10.60"
   echo ""
   echo "[PROJECT]"
-  echo "MAIN_BINARY=${ABS_DIST_DIR}/local-llm-gateway-win_x64.exe"
+  echo "MAIN_BINARY=${ABS_DIST_DIR}\\local-llm-gateway-win_x64.exe"
   echo "OUTPUT_NAME=local-llm-gateway.exe"
   echo "COMPRESS=0"
   echo "INCLUDE_DEFAULT=1"
@@ -94,7 +95,7 @@ echo "Absolute path (Windows): $ABS_DIST_DIR"
 # Add files with absolute Windows paths
 for f in $(find . -type f \( -name "*.exe" -o -name "*.dll" -o -name "*.json" -o -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.ico" \) 2>/dev/null); do
   rel_path="${f#./}"
-  echo "FILE=${ABS_DIST_DIR}/${rel_path}=${ABS_DIST_DIR}/${rel_path}" >> "$TEMP_DIR/project.evb"
+  echo "FILE=${ABS_DIST_DIR}\\${rel_path}=${ABS_DIST_DIR}\\${rel_path}" >> "$TEMP_DIR/project.evb"
 done
 
 {
@@ -106,7 +107,7 @@ done
 for d in $(find . -type d 2>/dev/null); do
   if [ "$d" != "." ]; then
     rel_path="${d#./}"
-    echo "FOLDER=${ABS_DIST_DIR}/${rel_path}=${ABS_DIST_DIR}/${rel_path}" >> "$TEMP_DIR/project.evb"
+    echo "FOLDER=${ABS_DIST_DIR}\\${rel_path}=${ABS_DIST_DIR}\\${rel_path}" >> "$TEMP_DIR/project.evb"
   fi
 done
 
