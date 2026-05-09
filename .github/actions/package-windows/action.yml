@@ -22,5 +22,6 @@ runs:
     - name: Package Windows exe
       shell: bash
       run: |
-        chmod +x "${{ github.action_path }}/../../scripts/package-windows.sh"
-        "./${{ github.action_path }}/../../scripts/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"
+        SCRIPT_DIR="${{ github.action_path }}/../../scripts"
+        chmod +x "$SCRIPT_DIR/package-windows.sh" 2>/dev/null || true
+        "$SCRIPT_DIR/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"
