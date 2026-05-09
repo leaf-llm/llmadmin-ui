@@ -261,12 +261,12 @@ export default function SettingsPage() {
               minHeight: 300,
               fontFamily: 'monospace',
               fontSize: 12,
-              padding: 10,
               border: '1px solid var(--color-border)',
               borderRadius: 4,
               backgroundColor: 'var(--color-surface)',
               color: 'var(--color-text)',
-              resize: 'vertical',
+              resize: 'none',
+              outline: 'none',
             }}
           />
         </div>

@@ -18,7 +18,7 @@ function Header({
   const [copied, setCopied] = useState(false);
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === 'zh' ? 'en' : 'zh';
+    const newLang = i18n.language.startsWith('zh') ? 'en' : 'zh';
     i18n.changeLanguage(newLang);
   };
 
@@ -81,7 +81,7 @@ function Header({
             onClick={toggleLanguage}
             title="Toggle language"
           >
-            {i18n.language === 'zh' ? '中文' : 'EN'}
+            {i18n.language.startsWith('zh') ? '中文' : 'EN'}
           </button>
         </div>
       </div>
