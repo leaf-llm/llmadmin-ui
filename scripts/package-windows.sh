@@ -53,7 +53,7 @@ echo "Using EVB: $EVB_CMD"
 # On GitHub Actions Windows runner, /d/a/... maps to D:\a\...
 ORIGINAL_PWD=$(pwd)
 # Convert /d/a/... to D:\a\... (Windows-style with backslashes)
-ABS_DIST_DIR=$(echo "$ORIGINAL_PWD" | sed 's|^/d/|D:\\\\|' | sed 's|/|\\\\|g')
+ABS_DIST_DIR=$(echo "$ORIGINAL_PWD" | sed 's|^/d/|D:|' | sed 's|/|\\|g')
 echo "Absolute path (Windows): $ABS_DIST_DIR"
 
 # Create the project configuration
