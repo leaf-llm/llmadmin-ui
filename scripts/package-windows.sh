@@ -53,66 +53,66 @@ ABS_DIST_DIR=$(pwd)
 echo "Absolute path: $ABS_DIST_DIR"
 
 # Create the project configuration
-cat > "$TEMP_DIR/project.evb" << 'EVB_EOF'
-[ENIGMA]
-VERSION=10.60
+{
+  echo "[ENIGMA]"
+  echo "VERSION=10.60"
+  echo ""
+  echo "[PROJECT]"
+  echo "MAIN_BINARY=${ABS_DIST_DIR}\\local-llm-gateway-win_x64.exe"
+  echo "OUTPUT_NAME=local-llm-gateway.exe"
+  echo "COMPRESS=0"
+  echo "INCLUDE_DEFAULT=1"
+  echo ""
+  echo "[OPTIONS]"
+  echo "VIRTUAL_FILES=1"
+  echo "VIRTUAL_REGISTRY=0"
+  echo "VIRTUAL_STARTUP=0"
+  echo "VIRTUAL_DLLS=0"
+  echo "COMPRESS_RESOURCES=0"
+  echo "COMPRESS_METHOD=STORE"
+  echo "STRIP_RELOCATION=0"
+  echo "CHECK_ALREADY_RUN=0"
+  echo "CHECK_RUNNING=0"
+  echo "KILL_PREVIOUS=0"
+  echo "KILL_PREVIOUS_PATH="
+  echo "PRIORITY=NORMAL"
+  echo "ENFORCE_WIN7=0"
+  echo "ENFORCE_WIN10=0"
+  echo "SFX_VERSION="
+  echo "SFX_ICON="
+  echo "SFX_LANGUAGE=0"
+  echo "SFX_EXTRA_PARAMETERS="
+  echo "SFX_OVERWRITE=1"
+  echo "SFX_TEMPLATE=DEFAULT"
+  echo ""
+  echo "[FILES]"
+} > "$TEMP_DIR/project.evb"
 
-[PROJECT]
-MAIN_BINARY=%%WORKDIR%%\local-llm-gateway-win_x64.exe
-OUTPUT_NAME=local-llm-gateway.exe
-COMPRESS=0
-INCLUDE_DEFAULT=1
-
-[OPTIONS]
-VIRTUAL_FILES=1
-VIRTUAL_REGISTRY=0
-VIRTUAL_STARTUP=0
-VIRTUAL_DLLS=0
-COMPRESS_RESOURCES=0
-COMPRESS_METHOD=STORE
-STRIP_RELOCATION=0
-CHECK_ALREADY_RUN=0
-CHECK_RUNNING=0
-KILL_PREVIOUS=0
-KILL_PREVIOUS_PATH=
-PRIORITY=NORMAL
-ENFORCE_WIN7=0
-ENFORCE_WIN10=0
-SFX_VERSION=
-SFX_ICON=
-SFX_LANGUAGE=0
-SFX_EXTRA_PARAMETERS=
-SFX_OVERWRITE=1
-SFX_TEMPLATE=DEFAULT
-
-[FILES]
-EVB_EOF
-
-# Add files with Windows-style paths using WORKDIR placeholder
-find . -type f \( -name "*.exe" -o -name "*.dll" -o -name "*.json" -o -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.ico" \) | while read f; do
+# Add files with absolute Windows paths
+for f in $(find . -type f \( -name "*.exe" -o -name "*.dll" -o -name "*.json" -o -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.ico" \) 2>/dev/null); do
   rel_path="${f#./}"
-  echo "FILE=%%WORKDIR%%\${rel_path}=%%WORKDIR%%\${rel_path}" >> "$TEMP_DIR/project.evb"
+  echo "FILE=${ABS_DIST_DIR}\\${rel_path}=${ABS_DIST_DIR}\\${rel_path}" >> "$TEMP_DIR/project.evb"
 done
 
-cat >> "$TEMP_DIR/project.evb" << 'EOF'
+{
+  echo ""
+  echo "[FOLDERS]"
+} >> "$TEMP_DIR/project.evb"
 
-[FOLDERS]
-EOF
-
-find . -type d | grep -v "^\.$" | while read d; do
-  rel_path="${d#./}"
-  echo "FOLDER=%%WORKDIR%%\${rel_path}=%%WORKDIR%%\${rel_path}" >> "$TEMP_DIR/project.evb"
+# Add folders
+for d in $(find . -type d 2>/dev/null); do
+  if [ "$d" != "." ]; then
+    rel_path="${d#./}"
+    echo "FOLDER=${ABS_DIST_DIR}\\${rel_path}=${ABS_DIST_DIR}\\${rel_path}" >> "$TEMP_DIR/project.evb"
+  fi
 done
 
-cat >> "$TEMP_DIR/project.evb" << 'EOF'
-
-[REGISTRY]
-[EMPTY]
-[STARTUP]
-EOF
-
-# Replace %%WORKDIR%% with actual Windows path
-sed -i "s|%%WORKDIR%%|${ABS_DIST_DIR}|g" "$TEMP_DIR/project.evb"
+{
+  echo ""
+  echo "[REGISTRY]"
+  echo "[EMPTY]"
+  echo "[STARTUP]"
+} >> "$TEMP_DIR/project.evb"
 
 echo "Project.evb content:"
 cat "$TEMP_DIR/project.evb"
