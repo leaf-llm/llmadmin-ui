@@ -15,8 +15,8 @@ runs:
     - name: Download and Setup Enigma Virtual Box
       shell: bash
       run: |
-        curl -L -o /c/temp/evb_setup.exe "https://www.enigmacrypto.com/download/EnigmaVirtualBoxSetup.exe"
-        /c/temp/evb_setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="C:\EnigmaVirtualBox" || true
+        curl -L -o /c/temp/enigmavb.exe "https://enigmaprotector.com/assets/files/enigmavb.exe"
+        /c/temp/enigmavb.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="C:\EnigmaVirtualBox" || true
 
     - name: Package Windows exe
       shell: bash

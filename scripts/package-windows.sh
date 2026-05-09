@@ -105,8 +105,7 @@ EVB_EOF
 
 # Run Enigma Virtual Box
 "$EVB_CMD" --help &> /dev/null || {
-  echo "ERROR: Enigma Virtual Box not found. Please install from https://www.enigmacrypto.com/enigma-virtual-box/"
-  echo "Download URL: https://www.enigmacrypto.com/download/EnigmaVirtualBoxSetup.exe"
+  echo "ERROR: Enigma Virtual Box not found. Please install from https://enigmaprotector.com/assets/files/enigmavb.exe"
   exit 1
 }
 
