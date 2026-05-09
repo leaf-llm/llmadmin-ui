@@ -8,6 +8,7 @@ set -e
 
 DIST_DIR="${1:?Usage: $0 <dist_dir> <output_exe>}"
 OUTPUT_EXE="${2:?Usage: $0 <dist_dir> <output_exe>}"
+TEMP_DIR=$(mktemp -d)
 
 cd "$DIST_DIR"
 
@@ -48,9 +49,11 @@ fi
 
 echo "Using EVB: $EVB_CMD"
 
-# Get absolute Windows-style path
-ABS_DIST_DIR=$(pwd)
-echo "Absolute path: $ABS_DIST_DIR"
+# Get absolute path and convert to Windows-style path
+# On GitHub Actions Windows runner, /d/a/... maps to D:\a\...
+ORIGINAL_PWD=$(pwd)
+ABS_DIST_DIR=$(echo "$ORIGINAL_PWD" | sed 's|^/d/|D:/|' | sed 's|/|/|g')
+echo "Absolute path (Windows): $ABS_DIST_DIR"
 
 # Create the project configuration
 {
