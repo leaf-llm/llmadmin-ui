@@ -10,10 +10,6 @@ jobs:
     strategy:
       matrix:
         include:
-          # Server binaries
-          - os: windows-latest
-            artifact: portkey-gateway.exe
-            build_type: server
           # Desktop apps
           - os: ubuntu-latest
             artifact: local-llm-gateway_1.0.0_amd64.deb
@@ -27,6 +23,10 @@ jobs:
             artifact: local-llm-gateway_x64.dmg
             build_type: desktop
             arch: x64
+          # Windows desktop apps
+          - os: windows-latest
+            artifact: local-llm-gateway.exe
+            build_type: desktop
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -64,18 +64,7 @@ jobs:
           sleep 2
 
       # ── Platform-specific build ────────────────────────────────────
-      - name: Build server binary
-        if: matrix.build_type == 'server'
-        shell: bash
-        run: |
-          if [ "${{ matrix.os }}" = "macos-15" ]; then
-            bun build src/start-server.ts --compile --target=bun-macos-x64 --outfile=build/${{ matrix.artifact }}
-          else
-            BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
-          fi
-
       - name: Build desktop app
-        if: matrix.build_type == 'desktop'
         run: |
           npm run desktop:setup
           npm run build:desktop
@@ -94,13 +83,20 @@ jobs:
           binary_name: local-llm-gateway-mac_${{ matrix.arch }}
           output_dmg: ${{ matrix.artifact }}
 
+      - name: Package Windows exe
+        if: matrix.build_type == 'desktop' && runner.os == 'Windows'
+        uses: ./.github/actions/package-windows
+        with:
+          dist_dir: desktop/dist/local-llm-gateway
+          output_exe: ${{ matrix.artifact }}
+
       # ── Upload artifacts ────────────────────────────────────────────
       - name: Upload to Release
         if: github.event_name == 'release'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'build' }}/${{ matrix.artifact }}
+          asset_path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'desktop/dist/local-llm-gateway' }}/${{ matrix.artifact }}
           asset_name: ${{ matrix.artifact }}
           asset_content_type: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'application/vnd.debian.binary-package' || matrix.build_type == 'desktop' && runner.os == 'macOS' && 'application/x-apple-diskimage' || 'application/octet-stream' }}
 
@@ -109,4 +105,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'build' }}/${{ matrix.artifact }}
+          path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'desktop/dist/local-llm-gateway' }}/${{ matrix.artifact }}

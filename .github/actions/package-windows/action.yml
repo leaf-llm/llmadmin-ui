@@ -1,0 +1,26 @@
+name: Package Windows portable exe
+description: Packages a Windows Neutralinojs build into a portable exe
+
+inputs:
+  dist_dir:
+    description: "Path to dist directory containing build outputs"
+    required: true
+  output_exe:
+    description: "Output .exe filename"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Download Enigma Virtual Box
+      shell: bash
+      run: |
+        mkdir -p /tmp/evb
+        curl -L -o /tmp/evb/evb.zip "https://www.enigmacrypto.com/download/EnigmaVirtualBox.zip" 2>/dev/null || true
+        unzip -o /tmp/evb/evb.zip -d /tmp/evb 2>/dev/null || true
+
+    - name: Package Windows exe
+      shell: bash
+      run: |
+        chmod +x "${{ github.action_path }}/../../scripts/package-windows.sh"
+        "./${{ github.action_path }}/../../scripts/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"
