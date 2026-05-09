@@ -51,6 +51,7 @@ echo "Using EVB: $EVB_CMD"
 # Create a temporary project file for Enigma Virtual Box
 TEMP_DIR="/tmp/evb_project_$$"
 mkdir -p "$TEMP_DIR"
+echo "Project file location: $TEMP_DIR/project.evb"
 
 # Create the project configuration
 cat > "$TEMP_DIR/project.evb" << EVB_EOF
@@ -102,10 +103,18 @@ done)
 [STARTUP]
 EVB_EOF
 
-echo "Running Enigma Virtual Box..."
+echo "Project.evb content:"
+cat "$TEMP_DIR/project.evb"
+
+echo "Running Enigma Virtual Box... EVB_CMD=$EVB_CMD"
+echo "Working dir: $(pwd)"
 cd "$TEMP_DIR"
 "$EVB_CMD" project.evb
+EVB_EXIT=$?
+echo "EVB exit code: $EVB_EXIT"
 cd - > /dev/null || true
+
+ls -la "$TEMP_DIR/"
 
 # Alternative: just copy the dist folder for now as a fallback
 echo "Packaging complete: $OUTPUT_EXE"
