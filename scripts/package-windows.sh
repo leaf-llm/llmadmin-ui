@@ -61,9 +61,9 @@ const options = {
     return true;
   },
   evbOptions: {
-    deleteExtractedOnExit: true,
-    compressFiles: false,
-    shareVirtualSystem: false,
+    deleteExtractedOnExit: false,
+    compressFiles: true,
+    shareVirtualSystem: true,
     mapExecutableWithTemporaryFile: false,
     allowRunningOfVirtualExeFiles: true
   }
