@@ -11,9 +11,9 @@ DIST_DIR="${1:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 BINARY_NAME="${2:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 OUTPUT_DMG="${3:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 
-VOLUME_NAME="LocalLLMGateway"
+VOLUME_NAME="SelfHostedLLMGateway"
 DMG_TMP=$(mktemp -d /tmp/dmg.XXXXXX)
-APP_NAME="LocalLLMGateway"
+APP_NAME="SelfHostedLLMGateway"
 
 # Create .app bundle directly under DMG_TMP (no wrapper folder)
 mkdir -p "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/resources"
