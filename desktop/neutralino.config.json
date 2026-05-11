@@ -32,6 +32,16 @@
       "exitProcessOnClose": true
     }
   },
+  "buildScript": {
+    "mac": {
+      "architecture": ["x64"],
+      "minimumOS": "10.13.0",
+      "appName": "SelfHostedLLMGateway",
+      "appBundleName": "SelfHostedLLMGateway",
+      "appIdentifier": "com.local-llm-gateway.app",
+      "appIcon": "resources/icons/icon.icns"
+    }
+  },
   "cli": {
     "binaryName": "local-llm-gateway",
     "resourcesPath": "./resources/",
