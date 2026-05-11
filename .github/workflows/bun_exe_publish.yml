@@ -32,6 +32,11 @@ jobs:
         if: matrix.build_type == 'desktop'
         run: npm install -g @neutralinojs/neu
 
+      - name: Install jq (required for build-mac.sh)
+        if: matrix.build_type == 'desktop'
+        run: |
+          which jq || (command -v brew >/dev/null 2>&1 && brew install jq) || sudo apt-get install -y jq
+
       - name: Install dependencies
         run: bun install
 
@@ -62,11 +67,13 @@ jobs:
             BUN_OUTPUT=build/${{ matrix.artifact }} bun run bun:build
           fi
 
-      - name: Build desktop app
-        if: matrix.build_type == 'desktop'
+      - name: Build desktop app (macOS)
+        if: matrix.build_type == 'desktop' && matrix.arch == 'x64'
         run: |
           npm run desktop:setup
-          npm run build:desktop
+          cd desktop
+          chmod +x build-mac.sh
+          ./build-mac.sh
 
       - name: Package .deb
         if: matrix.build_type == 'desktop' && runner.os == 'Linux'
@@ -74,13 +81,17 @@ jobs:
         with:
           dist_path: desktop/dist/local-llm-gateway
 
-      - name: Package .dmg
-        if: matrix.build_type == 'desktop' && runner.os == 'macOS'
-        uses: ./.github/actions/package-dmg
-        with:
-          dist_dir: desktop/dist/local-llm-gateway
-          binary_name: local-llm-gateway-mac_${{ matrix.arch }}
-          output_dmg: ${{ matrix.artifact }}
+      - name: Package .dmg (from build-mac.sh output)
+        if: matrix.build_type == 'desktop' && matrix.arch == 'x64'
+        shell: bash
+        run: |
+          cd desktop
+          mkdir -p dist
+          hdiutil create -srcfolder "dist/mac_x64/SelfHostedLLMGateway.app" \
+            -volname "SelfHostedLLMGateway" \
+            -fs HFS+ \
+            -format UDZO \
+            "../${{ matrix.artifact }}"
 
       # ── Upload artifacts ────────────────────────────────────────────
       - name: Upload to Release
@@ -88,13 +99,13 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'build' }}/${{ matrix.artifact }}
+          asset_path: desktop/${{ matrix.artifact }}
           asset_name: ${{ matrix.artifact }}
-          asset_content_type: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'application/vnd.debian.binary-package' || matrix.build_type == 'desktop' && runner.os == 'macOS' && 'application/x-apple-diskimage' || 'application/octet-stream' }}
+          asset_content_type: application/x-apple-diskimage
 
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'build' }}/${{ matrix.artifact }}
+          path: desktop/${{ matrix.artifact }}
