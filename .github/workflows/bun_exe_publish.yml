@@ -19,11 +19,8 @@ jobs:
             artifact: local-llm-gateway_1.0.0_amd64.deb
             build_type: desktop
           # macOS desktop apps (self-hosted, targets macOS 12+)
-          - runs-on: self-hosted-macos-arm64
-            artifact: local-llm-gateway_arm64.dmg
-            build_type: desktop
-            arch: arm64
-          - runs-on: self-hosted-macos-x64
+          # TODO: re-enable arm64 after x64 testing
+          - runs-on: self-hosted
             artifact: local-llm-gateway_x64.dmg
             build_type: desktop
             arch: x64
