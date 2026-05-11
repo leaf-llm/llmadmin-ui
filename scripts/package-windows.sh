@@ -22,36 +22,37 @@ fi
 echo "Found exe: $MAIN_EXE"
 echo "Output: $OUTPUT_EXE"
 
-# Get Windows paths using cygpath
-DIST_DIR_WIN=$(cygpath -w "$(pwd)")
+# Use cygpath -m (forward slashes like D:/a/...) for ALL paths passed to Node.js
+# to avoid backslash-escaping issues when bash interpolates into JS strings
 DIST_DIR_MIX=$(cygpath -m "$(pwd)")
-MAIN_EXE_WIN="${DIST_DIR_WIN}\\$(echo "$MAIN_EXE" | sed 's|^\./||')"
-OUTPUT_EXE_WIN="${DIST_DIR_WIN}\\${OUTPUT_EXE}"
+MAIN_EXE_REL=$(echo "$MAIN_EXE" | sed 's|^\./||')
+MAIN_EXE_MIX="${DIST_DIR_MIX}/${MAIN_EXE_REL}"
+OUTPUT_EXE_MIX="${DIST_DIR_MIX}/${OUTPUT_EXE}"
 
 # Temp dir inside the dist folder so it's on the same drive
 TEMP_DIR_UNIX="$(pwd)/.tmp-evb"
 rm -rf "$TEMP_DIR_UNIX"
 mkdir -p "$TEMP_DIR_UNIX"
-TEMP_DIR_WIN=$(cygpath -w "$TEMP_DIR_UNIX")
+TEMP_DIR_MIX=$(cygpath -m "$TEMP_DIR_UNIX")
 
-echo "Dist dir (Windows): $DIST_DIR_WIN"
-echo "Main exe (Windows): $MAIN_EXE_WIN"
-echo "Output exe (Windows): $OUTPUT_EXE_WIN"
-echo "Temp dir (Windows): $TEMP_DIR_WIN"
+echo "Dist dir: $DIST_DIR_MIX"
+echo "Main exe: $MAIN_EXE_MIX"
+echo "Output exe: $OUTPUT_EXE_MIX"
+echo "Temp dir: $TEMP_DIR_MIX"
 
-PROJECT_FILE_WIN="${TEMP_DIR_WIN}\\project.evb"
+PROJECT_FILE_MIX="${TEMP_DIR_MIX}/project.evb"
 
 # Step 1: Use Node.js with generate-evb to create the EVB project file (XML format)
+# All paths use forward slashes - Node.js handles this fine on Windows
 node -e "
 const path = require('path');
 const generateEvb = require('generate-evb');
 
-const projectName = '${PROJECT_FILE_WIN}';
-const inputExe = '${MAIN_EXE_WIN}';
-const outputExe = '${OUTPUT_EXE_WIN}';
+const projectName = '${PROJECT_FILE_MIX}';
+const inputExe = '${MAIN_EXE_MIX}';
+const outputExe = '${OUTPUT_EXE_MIX}';
 const path2Pack = '${DIST_DIR_MIX}';
-
-const mainExeName = '${MAIN_EXE}'.replace(/^\\.\\//, '');
+const mainExeName = '${MAIN_EXE_REL}';
 
 const options = {
   filter: function(fullPath, name, isDir) {
@@ -68,19 +69,12 @@ const options = {
   }
 };
 
-// generate-evb has a bug where it calls back without error even if enigmavbconsole fails,
-// so we only generate the project file and call EVB ourselves.
-// Override the enigmaVBConsolePath so it won't try to run EVB.
-const fs = require('fs');
-const evbModule = require('generate-evb');
-
-// Use the internal generate function to only create the evb file
 generateEvb(projectName, inputExe, outputExe, path2Pack, options, function(err) {
   if (err) {
     console.error('generateEvb error:', err.message);
     process.exit(1);
   }
-  console.log('EVB project file generated successfully');
+  console.log('EVB project file generated');
 });
 "
 
@@ -88,12 +82,13 @@ generateEvb(projectName, inputExe, outputExe, path2Pack, options, function(err) 
 EVB_FILE="$TEMP_DIR_UNIX/project.evb"
 if [ ! -f "$EVB_FILE" ]; then
   echo "ERROR: project.evb was not generated"
-  ls -la "$TEMP_DIR_UNIX/"
+  echo "Temp dir contents:"
+  ls -la "$TEMP_DIR_UNIX/" 2>/dev/null || echo "(dir not found)"
   exit 1
 fi
 
-echo "Project.evb content:"
-head -50 "$EVB_FILE"
+echo "Project.evb content (first 30 lines):"
+head -30 "$EVB_FILE"
 
 # Step 2: Find and run enigmavbconsole.exe
 EVB_CMD="enigmavbconsole.exe"
@@ -113,26 +108,19 @@ if ! command -v "$EVB_CMD" &> /dev/null && [ ! -f "$EVB_CMD" ]; then
 fi
 
 echo "Using EVB: $EVB_CMD"
-EVB_CMD_WIN=$(cygpath -w "$EVB_CMD")
-PROJECT_FILE_FOR_EVB=$(cygpath -w "$EVB_FILE")
-
-echo "Running: $EVB_CMD_WIN $PROJECT_FILE_FOR_EVB"
+echo "Running enigmavbconsole..."
 cd "$TEMP_DIR_UNIX" || exit 1
-"$EVB_CMD" "$EVB_FILE" 2>&1
+"$EVB_CMD" project.evb 2>&1
 EVB_EXIT=$?
 echo "EVB exit code: $EVB_EXIT"
 
-cd "$(cygpath -u "$DIST_DIR_MIX")" || true
+cd "$DIST_DIR" || true
 
 # Check if output exe was created
-if [ -f "$(cygpath -u "$OUTPUT_EXE_WIN")" ]; then
-  echo "SUCCESS: Output exe created at $OUTPUT_EXE_WIN"
+if [ -f "$OUTPUT_EXE" ]; then
+  echo "SUCCESS: Output exe created at $(pwd)/$OUTPUT_EXE"
 else
-  echo "WARNING: Output exe not found at $OUTPUT_EXE_WIN"
-  echo "Files in temp dir:"
-  ls -la "$TEMP_DIR_UNIX/"
-  echo "Files in dist dir:"
-  ls -la "$(cygpath -u "$DIST_DIR_MIX")/"
+  echo "WARNING: Output exe not found at $(pwd)/$OUTPUT_EXE"
 fi
 
 # Cleanup
