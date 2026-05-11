@@ -15,14 +15,14 @@ VOLUME_NAME="LocalLLMGateway"
 DMG_TMP=$(mktemp -d /tmp/dmg.XXXXXX)
 APP_NAME="LocalLLMGateway"
 
-# Create .app bundle structure
-mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/resources"
-mkdir -p "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Resources"
+# Create .app bundle directly under DMG_TMP (no wrapper folder)
+mkdir -p "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/resources"
+mkdir -p "$DMG_TMP/${APP_NAME}.app/Contents/Resources"
 
 # Copy Neutralinojs runtime binary
 if [ -f "$DIST_DIR/$BINARY_NAME" ]; then
-  cp "$DIST_DIR/$BINARY_NAME" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/$BINARY_NAME"
-  chmod +x "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/$BINARY_NAME"
+  cp "$DIST_DIR/$BINARY_NAME" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/$BINARY_NAME"
+  chmod +x "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/$BINARY_NAME"
   echo "Copied runtime: $BINARY_NAME"
 else
   echo "Error: Runtime binary not found: $DIST_DIR/$BINARY_NAME"
@@ -31,31 +31,32 @@ fi
 
 # Copy portkey-gateway server binary
 if [ -f "$DIST_DIR/portkey-gateway" ]; then
-  cp "$DIST_DIR/portkey-gateway" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
-  chmod +x "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
+  cp "$DIST_DIR/portkey-gateway" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
+  chmod +x "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
   echo "Copied portkey-gateway"
 else
   echo "Error: portkey-gateway not found: $DIST_DIR/portkey-gateway"
   exit 1
 fi
 
-# All files directly in Contents/MacOS/
+# Copy public assets
 if [ -d "$DIST_DIR/public" ]; then
-  cp -R "$DIST_DIR/public" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/"
+  cp -R "$DIST_DIR/public" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/"
   echo "Copied public/"
 else
   echo "Warning: public/ not found: $DIST_DIR/public"
 fi
 
+# Copy resources.neu
 if [ -f "$DIST_DIR/resources.neu" ]; then
-  cp "$DIST_DIR/resources.neu" "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/MacOS/"
+  cp "$DIST_DIR/resources.neu" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/"
   echo "Copied resources.neu"
 else
   echo "Warning: resources.neu not found: $DIST_DIR/resources.neu"
 fi
 
 # Create minimal Info.plist
-cat > "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Info.plist" << PLIST
+cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -77,9 +78,14 @@ cat > "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/Info.plist" << PLIST
 PLIST
 
 # Create PkgInfo
-echo "APPL????" > "$DMG_TMP/${VOLUME_NAME}/${APP_NAME}.app/Contents/PkgInfo"
+echo "APPL????" > "$DMG_TMP/${APP_NAME}.app/Contents/PkgInfo"
+
+# Create Applications symlink at DMG root
+ln -s "/Applications" "$DMG_TMP/Applications"
+echo "Created Applications symlink"
 
 # Create DMG using hdiutil
+# DMG_TMP now has: LocalLLMGateway.app/ and Applications@ at root level
 hdiutil create -srcfolder "$DMG_TMP" -volname "${VOLUME_NAME}" -fs HFS+ \
   -format UDZO "$OUTPUT_DMG"
 
