@@ -11,15 +11,6 @@ jobs:
       matrix:
         include:
           # Server binaries
-          - os: windows-latest
-            artifact: portkey-gateway.exe
-            build_type: server
-          # Desktop apps
-          - os: ubuntu-latest
-            artifact: local-llm-gateway_1.0.0_amd64.deb
-            build_type: desktop
-          # macOS desktop apps (self-hosted, targets macOS 12+)
-          # TODO: re-enable arm64 after x64 testing
           - runs-on: self-hosted
             artifact: local-llm-gateway_x64.dmg
             build_type: desktop
