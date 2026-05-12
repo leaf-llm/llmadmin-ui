@@ -29,19 +29,19 @@ else
   exit 1
 fi
 
-# Copy portkey-gateway server binary
+# Copy portkey-gateway server binary (to .app root for lookup)
 if [ -f "$DIST_DIR/portkey-gateway" ]; then
-  cp "$DIST_DIR/portkey-gateway" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
-  chmod +x "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
+  cp "$DIST_DIR/portkey-gateway" "$DMG_TMP/${APP_NAME}.app/portkey-gateway"
+  chmod +x "$DMG_TMP/${APP_NAME}.app/portkey-gateway"
   echo "Copied portkey-gateway"
 else
   echo "Error: portkey-gateway not found: $DIST_DIR/portkey-gateway"
   exit 1
 fi
 
-# Copy public assets
+# Copy public assets (to .app root)
 if [ -d "$DIST_DIR/public" ]; then
-  cp -R "$DIST_DIR/public" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/"
+  cp -R "$DIST_DIR/public" "$DMG_TMP/${APP_NAME}.app/"
   echo "Copied public/"
 else
   echo "Warning: public/ not found: $DIST_DIR/public"
