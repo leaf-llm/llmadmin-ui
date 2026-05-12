@@ -46,7 +46,11 @@ async function startBackend() {
   Neutralino.debug.log('NL_PATH: ' + window.NL_PATH, 'INFO');
 
   let backendBinary = null;
-  const candidates = [`./${binaryName}`, `../build/${binaryName}`];
+  const candidates = [
+    `${NL_PATH}/${binaryName}`,
+    `./${binaryName}`,
+    `../build/${binaryName}`
+  ];
   for (const candidate of candidates) {
     try {
       const check = isWindows
