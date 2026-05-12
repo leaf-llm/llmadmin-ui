@@ -31,7 +31,7 @@ spec:
         imagePullPolicy: IfNotPresent
         name: portkeyai
         ports:
-        - containerPort: 8787
+        - containerPort: 8700
           protocol: TCP
         resources: {}
       dnsPolicy: ClusterFirst
@@ -46,9 +46,9 @@ metadata:
   namespace: portkeyai
 spec:
   ports:
-  - port: 8787
+  - port: 8700
     protocol: TCP
-    targetPort: 8787
+    targetPort: 8700
   selector:
     app: portkeyai
     version: v1

@@ -24,7 +24,7 @@ export class RequestBuilder {
     };
     this._method = 'POST';
     this._client = new Portkey({
-      baseURL: 'http://localhost:8787/v1',
+      baseURL: 'http://localhost:8700/v1',
       config: {
         provider: 'anthropic',
         api_key: creds.anthropic.apiKey,
@@ -159,7 +159,7 @@ export class RequestBuilder {
 }
 
 export class URLBuilder {
-  private _url: string = 'http://localhost:8787/v1';
+  private _url: string = 'http://localhost:8700/v1';
 
   constructor() {}
 
@@ -198,7 +198,7 @@ export class URLBuilder {
   }
 
   clear() {
-    this._url = 'http://localhost:8787/v1';
+    this._url = 'http://localhost:8700/v1';
     return this;
   }
 }

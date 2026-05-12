@@ -69,9 +69,9 @@ The [**AI Gateway**](https://portkey.wiki/gh-10) is designed for fast, reliable 
 # Run the gateway locally (needs Node.js and npm)
 npx @portkey-ai/gateway
 ```
-> The Gateway is running on `http://localhost:8787/v1`
+> The Gateway is running on `http://localhost:8700/v1`
 > 
-> The Gateway Console is running on `http://localhost:8787/public/`
+> The Gateway Console is running on `http://localhost:8700/public/`
 
 <sup>
 Deployment guides:
@@ -120,7 +120,7 @@ client.chat.completions.create(
 &nbsp; [More..](https://portkey.wiki/gh-26)
 </sup>
 
-On the Gateway Console (`http://localhost:8787/public/`) you can see all of your local logs in one place.
+On the Gateway Console (`http://localhost:8700/public/`) you can see all of your local logs in one place.
 
 <img src="https://github.com/user-attachments/assets/362bc916-0fc9-43f1-a39e-4bd71aac4a3a" width="400" />
 

@@ -2,7 +2,7 @@ import { describe, test, expect } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const GATEWAY_URL = 'http://localhost:8787';
+const GATEWAY_URL = 'http://localhost:8700';
 const CHAT_COMPLETIONS_URL = `${GATEWAY_URL}/v1/chat/completions`;
 const MESSAGES_URL = `${GATEWAY_URL}/v1/messages`;
 
