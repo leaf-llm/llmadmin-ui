@@ -39,7 +39,6 @@ cp portkey-gateway "$DEB_DIR/usr/share/${DEB_PKG}/portkey-gateway"
 chmod 755 "$DEB_DIR/usr/share/${DEB_PKG}/portkey-gateway"
 
 cp resources.neu "$DEB_DIR/usr/share/${DEB_PKG}/"
-cp -r public "$DEB_DIR/usr/share/${DEB_PKG}/"
 
 # Wrapper script in /usr/bin to launch from correct directory
 cat > "$DEB_DIR/usr/bin/${DEB_PKG}" << WRAPPER_EOF
