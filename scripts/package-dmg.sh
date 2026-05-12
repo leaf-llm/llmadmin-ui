@@ -55,6 +55,15 @@ else
   echo "Warning: resources.neu not found: $DIST_DIR/resources.neu"
 fi
 
+# Copy conf.json (needed at runtime)
+if [ -f "$DIST_DIR/../conf.json" ]; then
+  cp "$DIST_DIR/../conf.json" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/"
+  echo "Copied conf.json"
+elif [ -f "$DIST_DIR/../conf.example.json" ]; then
+  cp "$DIST_DIR/../conf.example.json" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/conf.json"
+  echo "Copied conf.example.json as conf.json"
+fi
+
 # Create minimal Info.plist
 cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
