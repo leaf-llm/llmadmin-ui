@@ -27,7 +27,7 @@ jobs:
         run: |
           npm run build/start-server.js &
           echo "Waiting for gateway to start..."
-          while ! curl -s http://localhost:8787 > /dev/null; do
+          while ! curl -s http://localhost:8700 > /dev/null; do
             sleep 1
           done
           echo "Gateway is ready. Running tests..."

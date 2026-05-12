@@ -40,7 +40,7 @@ export function getValueOrFileContents(value?: string, ignore?: boolean) {
 
 const nodeEnv = {
   NODE_ENV: getValueOrFileContents(process.env.NODE_ENV, true),
-  PORT: getValueOrFileContents(process.env.PORT) || 8787,
+  PORT: getValueOrFileContents(process.env.PORT) || 8700,
 
   TLS_KEY_PATH: getValueOrFileContents(process.env.TLS_KEY_PATH, true),
   TLS_CERT_PATH: getValueOrFileContents(process.env.TLS_CERT_PATH, true),

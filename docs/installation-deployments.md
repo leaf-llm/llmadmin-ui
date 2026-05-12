@@ -125,7 +125,7 @@ curl --request POST \
   --url https://$DISTRIBUTED_CLOUD_TENANT.console.ves.volterra.io/api/config/namespaces/$DISTRIBUTED_CLOUD_NAMESPACE/origin_pools \
   --header 'authorization: APIToken $DISTRIBUTED_CLOUD_API_TOKEN' \
   --header 'content-type: application/json' \
-  --data '{"metadata": {"name": "$DISTRIBUTED_CLOUD_SERVICE_NAME","namespace": "$DISTRIBUTED_CLOUD_NAMESPACE","labels": {},"annotations": {},"description": "","disable": false},"spec": {"origin_servers": [{"k8s_service": {"service_name": "$DISTRIBUTED_CLOUD_SERVICE_NAME.$DISTRIBUTED_CLOUD_APP_STACK_NAMESPACE","site_locator": {"site": {"tenant": "$DISTRIBUTED_CLOUD_TENANT_ID","namespace": "system","name": "$DISTRIBUTED_CLOUD_APP_STACK_SITE"}},"inside_network": {}},"labels": {}}],"no_tls": {},"port": 8787,"same_as_endpoint_port": {},"healthcheck": [],"loadbalancer_algorithm": "LB_OVERRIDE","endpoint_selection": "LOCAL_PREFERRED","advanced_options": null}}'
+  --data '{"metadata": {"name": "$DISTRIBUTED_CLOUD_SERVICE_NAME","namespace": "$DISTRIBUTED_CLOUD_NAMESPACE","labels": {},"annotations": {},"description": "","disable": false},"spec": {"origin_servers": [{"k8s_service": {"service_name": "$DISTRIBUTED_CLOUD_SERVICE_NAME.$DISTRIBUTED_CLOUD_APP_STACK_NAMESPACE","site_locator": {"site": {"tenant": "$DISTRIBUTED_CLOUD_TENANT_ID","namespace": "system","name": "$DISTRIBUTED_CLOUD_APP_STACK_SITE"}},"inside_network": {}},"labels": {}}],"no_tls": {},"port": 8700,"same_as_endpoint_port": {},"healthcheck": [],"loadbalancer_algorithm": "LB_OVERRIDE","endpoint_selection": "LOCAL_PREFERRED","advanced_options": null}}'
 ```
 or [use the UI](https://docs.cloud.f5.com/docs/how-to/app-networking/origin-pools)
 
@@ -206,7 +206,7 @@ For more details, refer to [Cloudflare Workers official](https://developers.clou
 **Run through the latest Docker Hub image:**
 
 ```sh
-docker run --rm  -p 8787:8787 portkeyai/gateway:latest
+docker run --rm  -p 8700:8700 portkeyai/gateway:latest
 ```
 
 For more information on the Docker image, check [here](https://hub.docker.com/r/portkeyai/gateway)
@@ -228,7 +228,7 @@ wget "https://raw.githubusercontent.com/Portkey-AI/gateway/main/docker-compose.y
 ```sh
 docker compose up -d
 ```
-> The service is now running and listening on port 8787
+> The service is now running and listening on port 8700
 
 For more details, refer to [Docker Compose official](https://docs.docker.com/compose/).
 <br>
@@ -274,7 +274,7 @@ Resources:
           sudo yum install -y docker
           sudo systemctl start docker
           sudo systemctl enable docker
-          sudo docker run -p 8787:8787 -d portkeyai/gateway:latest
+          sudo docker run -p 8700:8700 -d portkeyai/gateway:latest
       Tags:
         - Key: Name
           Value: PortkeyGateway
@@ -286,8 +286,8 @@ Resources:
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 8787
-          ToPort: 8787
+          FromPort: 8700
+          ToPort: 8700
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: -1
@@ -340,7 +340,7 @@ Mappings:
 Outputs:
   PortkeyGatewayURL:
     Description: URL to access Portkey Gateway
-    Value: !Sub http://${EC2Instance.PublicDnsName}:8787
+    Value: !Sub http://${EC2Instance.PublicDnsName}:8700
 ```
 
 2. Create a new stack in the AWS CloudFormation console with the template above(you can upload in your S3 or directly upload the template).

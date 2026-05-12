@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
       host: '::',
       proxy: {
         '/admin': {
-          target: 'http://localhost:8787',
+          target: 'http://localhost:8700',
           changeOrigin: true,
         },
       },
