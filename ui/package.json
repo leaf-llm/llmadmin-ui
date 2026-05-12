@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --port 5173 --strictPort --open",
     "build": "vite build",
+    "build:desktop": "vite build --mode desktop",
     "preview": "vite preview --port 5173 --strictPort"
   },
   "dependencies": {

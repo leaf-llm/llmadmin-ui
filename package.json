@@ -28,6 +28,7 @@
     "dev:workerd": "wrangler dev src/index.ts",
     "dev:ui": "npm --prefix ui run dev",
     "build:ui": "npm --prefix ui run build",
+    "build:ui:desktop": "npm --prefix ui run build:desktop",
     "deploy": "wrangler deploy --minify src/index.ts",
     "build": "rollup -c",
     "build-plugins": "tsx plugins/build.ts",
@@ -41,7 +42,7 @@
     "bun:build": "bun build src/start-server.ts --compile --target=bun --minify --outfile=build/portkey-gateway",
     "bun:start": "bun run build/portkey-gateway",
     "desktop:setup": "cd desktop && neu update",
-    "build:desktop": "npm run bun:build && npm run build:ui && cd desktop && neu build && node scripts/copy-binary.js",
+    "build:desktop": "npm run bun:build && rm -rf desktop/resources/assets desktop/resources/index.html && npm run build:ui:desktop && cd desktop && neu build && node scripts/copy-binary.js",
     "dev:desktop": "npm run bun:dev & cd desktop && neu run"
   },
   "dependencies": {

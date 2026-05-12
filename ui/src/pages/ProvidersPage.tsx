@@ -21,8 +21,6 @@ import { MODEL_CATEGORY_MAP, getModelsByProvider, PROVIDER_API_KEY_URLS } from '
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
-const GATEWAY_URL = 'http://127.0.0.1:8787';
-
 interface ProvidersPageProps {
   onNavigateAllProviders: () => void;
 }

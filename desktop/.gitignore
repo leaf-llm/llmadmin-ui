@@ -7,6 +7,8 @@ resources/js/public/
 
 # Build output
 dist/
+resources/index.html
+resources/assets/
 
 # Temp files
 .tmp/
