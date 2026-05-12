@@ -30,7 +30,10 @@ const setupStaticServing = async () => {
   const { readFileSync, existsSync, statSync } = await import('fs');
 
   // Detect if running as compiled bun binary
-  const isBunBinary = import.meta.url.startsWith('file:///$bunfs/');
+  // On Windows, import.meta.url may not have the $bunfs prefix, so we also check
+  // if process.execPath points to a .exe file
+  const isBunBinary = import.meta.url.startsWith('file:///$bunfs/') ||
+    (process.platform === 'win32' && process.execPath.endsWith('.exe'));
   let publicDir: string;
   let scriptDir: string;
 

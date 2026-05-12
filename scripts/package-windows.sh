@@ -21,6 +21,17 @@ fi
 
 echo "Found exe: $MAIN_EXE"
 echo "Output: $OUTPUT_EXE"
+echo "Contents:"
+ls -la
+
+# Verify public folder exists (required for portkey-gateway)
+if [ ! -d "./public" ]; then
+  echo "ERROR: public/ folder not found in $DIST_DIR"
+  echo "portkey-gateway requires public/ folder for UI files"
+  exit 1
+fi
+
+echo "Public folder found"
 
 # Find 7z.exe
 SEVENZ_CMD="7z.exe"
@@ -40,7 +51,7 @@ fi
 
 echo "Using 7-Zip: $SEVENZ_CMD"
 
-# Find 7zSD.sfx (optional SFX module for smaller size, fallback to 7z.sfx)
+# Find 7z.sfx module
 SFX_MODULE=""
 SFX_PATHS=(
   "C:/Program Files/7-Zip/7z.sfx"
@@ -62,6 +73,10 @@ else
 
   # Create 7z archive (no SFX flag, we'll prepend the module)
   "$SEVENZ_CMD" a -mx=9 "${OUTPUT_EXE}.7z" . -xr!*.tmp -xr!node_modules -xr!.git -xr!.tmp-evb
+
+  # Verify archive contents
+  echo "Archive contents:"
+  "$SEVENZ_CMD" l "${OUTPUT_EXE}.7z" | head -30
 
   # Prepend SFX module to create the final exe
   cat "$SFX_MODULE" "${OUTPUT_EXE}.7z" > "$OUTPUT_EXE"
