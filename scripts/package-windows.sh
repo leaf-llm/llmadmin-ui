@@ -8,6 +8,7 @@ DIST_DIR="${1:?Usage: $0 <dist_dir> <output_exe>}"
 OUTPUT_EXE="${2:?Usage: $0 <dist_dir> <output_exe>}"
 
 cd "$DIST_DIR"
+DIST_DIR_ABS="$(pwd)"
 
 # Find the main Neutralinojs executable (try win_x64 suffix first, then generic)
 MAIN_EXE=$(find . -name "local-llm-gateway-win_x64.exe" -type f 2>/dev/null | head -1)
@@ -58,6 +59,8 @@ const options = {
   filter: function(fullPath, name, isDir) {
     if (name === mainExeName) return false;
     if (name === '.git' || name === 'node_modules' || name === '.tmp-evb') return false;
+    // Exclude non-Windows binaries
+    if (name.startsWith('local-llm-gateway-linux') || name.startsWith('local-llm-gateway-mac')) return false;
     return true;
   },
   evbOptions: {
@@ -114,7 +117,7 @@ cd "$TEMP_DIR_UNIX" || exit 1
 EVB_EXIT=$?
 echo "EVB exit code: $EVB_EXIT"
 
-cd "$DIST_DIR" || true
+cd "$DIST_DIR_ABS" || true
 
 # Check if output exe was created
 if [ -f "$OUTPUT_EXE" ]; then
