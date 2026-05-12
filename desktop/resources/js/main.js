@@ -46,7 +46,11 @@ async function startBackend() {
   Neutralino.debug.log('NL_PATH: ' + window.NL_PATH, 'INFO');
 
   let backendBinary = null;
-  const candidates = [`./${binaryName}`, `Contents/MacOS/${binaryName}`, `../build/${binaryName}`];
+  const candidates = [
+    `./${binaryName}`,
+    `Contents/MacOS/${binaryName}`,
+    `../build/${binaryName}`,
+  ];
   for (const candidate of candidates) {
     try {
       const check = isWindows
@@ -91,7 +95,7 @@ async function waitForBackend() {
       const result = await Neutralino.os.execCommand(
         'curl -s -o /dev/null -w "%{http_code}" http://localhost:' +
           BACKEND_PORT +
-          '/ 2>&1 || echo "CURL_FAILED"'
+          '/public/admin/ 2>&1 || echo "CURL_FAILED"'
       );
 
       const stdout = result.stdOut?.trim() || result.stdout?.trim() || '';
@@ -106,7 +110,7 @@ async function waitForBackend() {
     await sleep(POLL_INTERVAL_MS);
   }
   Neutralino.debug.log('Backend timeout', 'ERROR');
-  showError('Backend failed to start within ' + (POLL_TIMEOUT_MS / 1000) + 's.');
+  showError('Backend failed to start within ' + POLL_TIMEOUT_MS / 1000 + 's.');
 }
 
 function setStatus(msg) {

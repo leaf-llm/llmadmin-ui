@@ -252,21 +252,33 @@ async function showLoadingAnimation() {
 
   return new Promise((resolve) => {
     const interval = setInterval(() => {
-      process.stdout.write(`\r${frames[i]} Starting AI Gateway...`);
+      try {
+        process.stdout.write(`\r${frames[i]} Starting AI Gateway...`);
+      } catch {
+        // stdout may not be available in GUI mode
+      }
       i = (i + 1) % frames.length;
     }, 80);
 
     // Stop after 1 second
     setTimeout(() => {
       clearInterval(interval);
-      process.stdout.write('\r');
+      try {
+        process.stdout.write('\r');
+      } catch {
+        // ignore
+      }
       resolve(undefined);
     }, 1000);
   });
 }
 
 // Clear the console and show animation before main output
-console.clear();
+try {
+  console.clear();
+} catch {
+  // ignore if stdout not available
+}
 await showLoadingAnimation();
 
 // Main server information with minimal spacing
