@@ -29,11 +29,19 @@ function copyDist(destDir) {
     return;
   }
 
-  const binarySrc = path.join(buildDir, 'portkey-gateway');
+  // Find portkey-gateway binary (with or without .exe on Windows)
+  let binarySrc = path.join(buildDir, 'portkey-gateway');
+  if (!fs.existsSync(binarySrc) && process.platform === 'win32') {
+    binarySrc = path.join(buildDir, 'portkey-gateway.exe');
+  }
+
   if (fs.existsSync(binarySrc)) {
-    const binaryDest = path.join(destDir, 'portkey-gateway');
+    const ext = path.extname(binarySrc);
+    const binaryDest = path.join(destDir, 'portkey-gateway' + ext);
     fs.copyFileSync(binarySrc, binaryDest);
-    fs.chmodSync(binaryDest, 0o755);
+    if (process.platform !== 'win32') {
+      fs.chmodSync(binaryDest, 0o755);
+    }
     console.log('Binary copied to:', binaryDest);
   } else {
     console.log('Binary not found:', binarySrc);

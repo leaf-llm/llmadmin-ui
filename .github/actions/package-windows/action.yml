@@ -12,15 +12,18 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Download Enigma Virtual Box
-      shell: bash
+    - name: Download and Setup Enigma Virtual Box
+      shell: pwsh
       run: |
-        mkdir -p /tmp/evb
-        curl -L -o /tmp/evb/evb.zip "https://www.enigmacrypto.com/download/EnigmaVirtualBox.zip" 2>/dev/null || true
-        unzip -o /tmp/evb/evb.zip -d /tmp/evb 2>/dev/null || true
+        New-Item -ItemType Directory -Force -Path "C:\temp" | Out-Null
+        Invoke-WebRequest -Uri "https://enigmaprotector.com/assets/files/enigmavb.exe" -OutFile "C:\temp\enigmavb.exe" -UseBasicParsing
+        Start-Process -FilePath "C:\temp\enigmavb.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART",'/DIR="C:\EnigmaVirtualBox"' -Wait -PassThru
 
     - name: Package Windows exe
       shell: bash
       run: |
-        chmod +x "${{ github.action_path }}/../../scripts/package-windows.sh"
-        "./${{ github.action_path }}/../../scripts/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"
+        REPO_ROOT="$GITHUB_WORKSPACE"
+        SCRIPT_DIR="$REPO_ROOT/scripts"
+        chmod +x "$SCRIPT_DIR/package-windows.sh" 2>/dev/null || true
+        cd "$REPO_ROOT" && npm install generate-evb --no-save
+        "$SCRIPT_DIR/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"

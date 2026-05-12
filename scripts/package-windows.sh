@@ -3,17 +3,17 @@ set -e
 
 # Package Windows portable exe using Enigma Virtual Box
 # Usage: ./scripts/package-windows.sh <dist_dir> <output_exe>
-#   dist_dir:   Path to the neu build output (e.g. desktop/dist/local-llm-gateway)
-#   output_exe: Output filename (e.g. local-llm-gateway.exe)
 
 DIST_DIR="${1:?Usage: $0 <dist_dir> <output_exe>}"
 OUTPUT_EXE="${2:?Usage: $0 <dist_dir> <output_exe>}"
 
 cd "$DIST_DIR"
 
-# Find the main Neutralinojs executable
-MAIN_EXE=$(find . -name "local-llm-gateway.exe" -type f 2>/dev/null | head -1)
-
+# Find the main Neutralinojs executable (try win_x64 suffix first, then generic)
+MAIN_EXE=$(find . -name "local-llm-gateway-win_x64.exe" -type f 2>/dev/null | head -1)
+if [ -z "$MAIN_EXE" ]; then
+  MAIN_EXE=$(find . -name "local-llm-gateway.exe" -type f 2>/dev/null | head -1)
+fi
 if [ -z "$MAIN_EXE" ]; then
   echo "ERROR: Could not find local-llm-gateway.exe in $DIST_DIR"
   exit 1
@@ -22,95 +22,108 @@ fi
 echo "Found exe: $MAIN_EXE"
 echo "Output: $OUTPUT_EXE"
 
-# Enigma Virtual Box command line
-EVB_CMD="EnigmaVirtualBox.exe"
+# Use cygpath -m (forward slashes like D:/a/...) for ALL paths passed to Node.js
+# to avoid backslash-escaping issues when bash interpolates into JS strings
+DIST_DIR_MIX=$(cygpath -m "$(pwd)")
+MAIN_EXE_REL=$(echo "$MAIN_EXE" | sed 's|^\./||')
+MAIN_EXE_MIX="${DIST_DIR_MIX}/${MAIN_EXE_REL}"
+OUTPUT_EXE_MIX="${DIST_DIR_MIX}/${OUTPUT_EXE}"
 
-# Check if EVB is installed
-if ! command -v "$EVB_CMD" &> /dev/null; then
-  # Try common installation paths
+# Temp dir inside the dist folder so it's on the same drive
+TEMP_DIR_UNIX="$(pwd)/.tmp-evb"
+rm -rf "$TEMP_DIR_UNIX"
+mkdir -p "$TEMP_DIR_UNIX"
+TEMP_DIR_MIX=$(cygpath -m "$TEMP_DIR_UNIX")
+
+echo "Dist dir: $DIST_DIR_MIX"
+echo "Main exe: $MAIN_EXE_MIX"
+echo "Output exe: $OUTPUT_EXE_MIX"
+echo "Temp dir: $TEMP_DIR_MIX"
+
+PROJECT_FILE_MIX="${TEMP_DIR_MIX}/project.evb"
+
+# Step 1: Use Node.js with generate-evb to create the EVB project file (XML format)
+# All paths use forward slashes - Node.js handles this fine on Windows
+node -e "
+const path = require('path');
+const generateEvb = require('generate-evb');
+
+const projectName = '${PROJECT_FILE_MIX}';
+const inputExe = '${MAIN_EXE_MIX}';
+const outputExe = '${OUTPUT_EXE_MIX}';
+const path2Pack = '${DIST_DIR_MIX}';
+const mainExeName = '${MAIN_EXE_REL}';
+
+const options = {
+  filter: function(fullPath, name, isDir) {
+    if (name === mainExeName) return false;
+    if (name === '.git' || name === 'node_modules' || name === '.tmp-evb') return false;
+    return true;
+  },
+  evbOptions: {
+    deleteExtractedOnExit: false,
+    compressFiles: true,
+    shareVirtualSystem: true,
+    mapExecutableWithTemporaryFile: false,
+    allowRunningOfVirtualExeFiles: true
+  }
+};
+
+generateEvb(projectName, inputExe, outputExe, path2Pack, options, function(err) {
+  if (err) {
+    console.error('generateEvb error:', err.message);
+    process.exit(1);
+  }
+  console.log('EVB project file generated');
+});
+"
+
+# Verify the evb file was created
+EVB_FILE="$TEMP_DIR_UNIX/project.evb"
+if [ ! -f "$EVB_FILE" ]; then
+  echo "ERROR: project.evb was not generated"
+  echo "Temp dir contents:"
+  ls -la "$TEMP_DIR_UNIX/" 2>/dev/null || echo "(dir not found)"
+  exit 1
+fi
+
+echo "Project.evb content (first 30 lines):"
+head -30 "$EVB_FILE"
+
+# Step 2: Find and run enigmavbconsole.exe
+EVB_CMD="enigmavbconsole.exe"
+if ! command -v "$EVB_CMD" &> /dev/null && [ ! -f "$EVB_CMD" ]; then
   EVB_PATHS=(
-    "/c/Program Files/Enigma Virtual Box/EnigmaVirtualBox.exe"
-    "/c/Program Files (x86)/Enigma Virtual Box/EnigmaVirtualBox.exe"
+    "C:/EnigmaVirtualBox/enigmavbconsole.exe"
+    "/c/EnigmaVirtualBox/enigmavbconsole.exe"
+    "/c/Program Files/Enigma Virtual Box/enigmavbconsole.exe"
+    "/c/Program Files (x86)/Enigma Virtual Box/enigmavbconsole.exe"
   )
-
-  for path in "${EVB_PATHS[@]}"; do
-    if [ -f "$path" ]; then
-      EVB_CMD="$path"
+  for evb_path in "${EVB_PATHS[@]}"; do
+    if [ -f "$evb_path" ]; then
+      EVB_CMD="$evb_path"
       break
     fi
   done
 fi
 
 echo "Using EVB: $EVB_CMD"
+echo "Running enigmavbconsole..."
+cd "$TEMP_DIR_UNIX" || exit 1
+"$EVB_CMD" project.evb 2>&1
+EVB_EXIT=$?
+echo "EVB exit code: $EVB_EXIT"
 
-# Create a temporary project file for Enigma Virtual Box
-TEMP_DIR="/tmp/evb_project_$$"
-mkdir -p "$TEMP_DIR"
+cd "$DIST_DIR" || true
 
-# Create the project configuration
-cat > "$TEMP_DIR/project.evb" << EVB_EOF
-[ENIGMA]
-VERSION=10.60
+# Check if output exe was created
+if [ -f "$OUTPUT_EXE" ]; then
+  echo "SUCCESS: Output exe created at $(pwd)/$OUTPUT_EXE"
+else
+  echo "WARNING: Output exe not found at $(pwd)/$OUTPUT_EXE"
+fi
 
-[PROJECT]
-MAIN_BINARY=$MAIN_EXE
-OUTPUT_NAME=$OUTPUT_EXE
-COMPRESS=1
-INCLUDE_DEFAULT=1
+# Cleanup
+rm -rf "$TEMP_DIR_UNIX"
 
-[OPTIONS]
-VIRTUAL_FILES=1
-VIRTUAL_REGISTRY=0
-VIRTUAL_STARTUP=0
-VIRTUAL_DLLS=0
-COMPRESS_RESOURCES=1
-COMPRESS_METHOD=SPECIAL
-STRIP_RELOCATION=0
-CHECK_ALREADY_RUN=0
-CHECK_RUNNING=0
-KILL_PREVIOUS=0
-KILL_PREVIOUS_PATH=
-PRIORITY=NORMAL
-ENFORCE_WIN7=0
-ENFORCE_WIN10=0
-SFX_VERSION=
-SFX_ICON=
-SFX_LANGUAGE=0
-SFX_EXTRA_PARAMETERS=
-SFX_OVERWRITE=1
-SFX_TEMPLATE=DEFAULT
-
-[FILES]
-$(find . -type f \( -name "*.exe" -o -name "*.dll" -o -name "*.json" -o -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.ico" \) | while read f; do
-  rel_path="${f#./}"
-  echo "FILE=$rel_path=$rel_path"
-done)
-
-[FOLDERS]
-$(find . -type d | grep -v "^\.$" | while read d; do
-  rel_path="${d#./}"
-  echo "FOLDER=$rel_path=$rel_path"
-done)
-
-[REGISTRY]
-[EMPTY]
-[STARTUP]
-EVB_EOF
-
-# Run Enigma Virtual Box
-"$EVB_CMD" --help &> /dev/null || {
-  echo "ERROR: Enigma Virtual Box not found. Please install from https://www.enigmacrypto.com/enigma-virtual-box/"
-  echo "Download URL: https://www.enigmacrypto.com/download/EnigmaVirtualBoxSetup.exe"
-  exit 1
-}
-
-echo "Running Enigma Virtual Box..."
-"$EVB_CMD" --project "$TEMP_DIR/project.evb" --encrypt &> /dev/null || {
-  echo "Note: EVB command line mode may not be fully supported"
-  echo "Please run Enigma Virtual Box manually with project file: $TEMP_DIR/project.evb"
-}
-
-# Alternative: just copy the dist folder for now as a fallback
-echo "Packaging complete: $OUTPUT_EXE"
-
-rm -rf "$TEMP_DIR"
+echo "Packaging complete"
