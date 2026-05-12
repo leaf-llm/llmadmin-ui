@@ -101,6 +101,8 @@
     "categoryVideo": "Video",
     "categoryAudio": "Audio",
     "categoryMcp": "MCP",
-    "running": "Running"
+    "running": "Running",
+    "connecting": "Connecting...",
+    "connectionFailed": "Connection Failed"
   }
 }

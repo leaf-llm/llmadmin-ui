@@ -4,15 +4,21 @@ import ProvidersPage from './pages/ProvidersPage';
 import AllProvidersPage from './pages/AllProvidersPage';
 import UsagePage from './pages/UsagePage';
 import SettingsPage from './pages/SettingsPage';
+import { useBackendHealth, BackendStatus } from './hooks/useBackendHealth';
+import { getApiBaseUrl } from './api/config';
 
 type Page = 'providers' | 'all-providers' | 'usage' | 'settings';
 
 function Header({
   active,
   onNavigate,
+  backendStatus,
+  onRetry,
 }: {
   active: Page;
   onNavigate: (page: Page) => void;
+  backendStatus: BackendStatus;
+  onRetry: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -23,10 +29,24 @@ function Header({
   };
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText('http://127.0.0.1:8787');
+    navigator.clipboard.writeText(getApiBaseUrl() || 'http://127.0.0.1:8787');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const statusDotClass =
+    backendStatus === 'connected'
+      ? 'status-dot status-dot--connected'
+      : backendStatus === 'connecting'
+        ? 'status-dot status-dot--connecting'
+        : 'status-dot status-dot--error';
+
+  const statusText =
+    backendStatus === 'connected'
+      ? t('common.running')
+      : backendStatus === 'connecting'
+        ? t('common.connecting', '连接中...')
+        : t('common.connectionFailed', '连接失败');
 
   return (
     <header className="app-header">
@@ -57,9 +77,7 @@ function Header({
             </button>
             <button
               className={
-                active === 'settings'
-                  ? 'app-nav__link is-active'
-                  : 'app-nav__link'
+                active === 'settings' ? 'app-nav__link is-active' : 'app-nav__link'
               }
               onClick={() => onNavigate('settings')}
             >
@@ -70,11 +88,15 @@ function Header({
 
         <div className="header-right">
           <div className="gateway-url" onClick={handleCopyUrl} style={{ cursor: 'pointer' }}>
-            <span>{copied ? t('common.copied') : 'http://127.0.0.1:8787'}</span>
+            <span>{copied ? t('common.copied') : (getApiBaseUrl() || 'http://127.0.0.1:8787')}</span>
           </div>
-          <div className="status-indicator">
-            <span className="status-dot"></span>
-            <span>{t('common.running')}</span>
+          <div
+            className="status-indicator"
+            onClick={backendStatus === 'error' ? onRetry : undefined}
+            style={backendStatus === 'error' ? { cursor: 'pointer' } : undefined}
+          >
+            <span className={statusDotClass}></span>
+            <span>{statusText}</span>
           </div>
           <button
             className="lang-toggle"
@@ -91,6 +113,7 @@ function Header({
 
 export default function App() {
   const [activePage, setActivePage] = useState<Page>('providers');
+  const { status: backendStatus, retry } = useBackendHealth();
 
   useEffect(() => {
     const path = window.location.pathname;
@@ -111,7 +134,12 @@ export default function App() {
   return (
     <div className="app-root">
       {activePage !== 'all-providers' && (
-        <Header active={activePage} onNavigate={handleNavigate} />
+        <Header
+          active={activePage}
+          onNavigate={handleNavigate}
+          backendStatus={backendStatus}
+          onRetry={retry}
+        />
       )}
       <main
         className={

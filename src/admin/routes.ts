@@ -41,9 +41,13 @@ function tryParseBearerToken(authHeader: string | undefined) {
 }
 
 async function adminAuth(c: any, next: any) {
-  // CORS (primarily for local UI)
+  // CORS (local admin UI — Neutralino desktop uses a random localhost port)
   const origin = c.req.header('origin');
-  if (origin && origin.startsWith('http://localhost:5173')) {
+  if (
+    origin &&
+    (origin.startsWith('http://localhost') ||
+      origin.startsWith('http://127.0.0.1'))
+  ) {
     c.header('Access-Control-Allow-Origin', origin);
     c.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
     c.header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
@@ -64,6 +68,8 @@ async function adminAuth(c: any, next: any) {
 }
 
 adminApp.use('*', adminAuth);
+
+adminApp.get('/health', (c) => c.json({ ok: true }));
 
 function getCategoryParam(c: any): ModelCategory {
   const category = c.req.query('category') as string;

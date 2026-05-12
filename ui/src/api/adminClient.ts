@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from './config';
+
 export type ProviderId = string;
 
 export const SUPPORTED_PROVIDERS: ProviderId[] = [
@@ -88,12 +90,21 @@ export type MetricsResponse = {
 };
 
 const ADMIN_TOKEN_KEY = 'adminToken';
+const REQUEST_TIMEOUT_MS = 5000;
+const MAX_RETRIES = 2;
 
 function getAdminToken() {
   return localStorage.getItem(ADMIN_TOKEN_KEY) ?? '';
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const baseUrl = getApiBaseUrl();
+  const url = baseUrl + path;
+
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers instanceof Headers
@@ -106,41 +117,56 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(path, {
-    ...options,
-    headers,
-  });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  let payload: any = null;
-  try {
-    payload = await res.json();
-  } catch {
-    // ignore non-json responses
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers,
+      });
+      clearTimeout(timeout);
+
+      let payload: any = null;
+      try {
+        payload = await res.json();
+      } catch {
+        // ignore non-json responses
+      }
+
+      if (!res.ok) {
+        const msg =
+          payload?.message ||
+          payload?.error ||
+          payload?.status ||
+          `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      return payload as T;
+    } catch (err: any) {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError' || err instanceof TypeError) {
+        if (attempt < MAX_RETRIES) {
+          await sleep(1000 * (attempt + 1));
+          continue;
+        }
+        throw new Error('Backend is not responding. Please wait for the gateway to start.');
+      }
+      throw err;
+    }
   }
 
-  if (!res.ok) {
-    const msg =
-      payload?.message ||
-      payload?.error ||
-      payload?.status ||
-      `HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-
-  return payload as T;
+  throw new Error('Max retries exceeded');
 }
 
 export async function getProviders(category?: string): Promise<{
   providers: ProviderSummary[];
 }> {
-  const u = new URL('/admin/providers', window.location.origin);
-  if (category) {
-    u.searchParams.set('category', category);
-  }
-  const qs = u.searchParams.toString();
-  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
-  const res = await adminFetch<{ providers: ProviderSummary[] }>(path);
-  return res;
+  const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+  return adminFetch<{ providers: ProviderSummary[] }>(`/admin/providers${qs}`);
 }
 
 export async function updateProvider(
@@ -148,19 +174,14 @@ export async function updateProvider(
   provider: ProviderId,
   req: ProviderUpdateRequest
 ): Promise<{ ok: boolean; provider?: ProviderSummary }> {
-  const u = new URL(
-    `/admin/providers/${encodeURIComponent(provider)}`,
-    window.location.origin
-  );
-  u.searchParams.set('category', category);
-  const res = await adminFetch<{ ok: boolean; provider?: ProviderSummary }>(
-    u.pathname + u.search,
+  const qs = `?category=${encodeURIComponent(category)}`;
+  return adminFetch<{ ok: boolean; provider?: ProviderSummary }>(
+    `/admin/providers/${encodeURIComponent(provider)}${qs}`,
     {
       method: 'PUT',
       body: JSON.stringify(req),
     }
   );
-  return res;
 }
 
 export async function getUsage(params: {
@@ -168,30 +189,25 @@ export async function getUsage(params: {
   from: string;
   to: string;
 }): Promise<UsageResponse> {
-  const u = new URL('/admin/usage', window.location.origin);
-  u.searchParams.set('from', params.from);
-  u.searchParams.set('to', params.to);
+  const sp = new URLSearchParams();
+  sp.set('from', params.from);
+  sp.set('to', params.to);
   if (params.provider && params.provider !== 'all') {
-    u.searchParams.set('provider', params.provider);
+    sp.set('provider', params.provider);
   }
-
-  // Keep it relative for Vite proxy.
-  const qs = u.searchParams.toString();
-  const relativePath = qs ? `${u.pathname}?${qs}` : u.pathname;
-  return adminFetch<UsageResponse>(relativePath, { method: 'GET' });
+  const qs = sp.toString();
+  return adminFetch<UsageResponse>(`/admin/usage${qs ? `?${qs}` : ''}`, { method: 'GET' });
 }
 
 export async function getMetrics(params: {
   from: string;
   to: string;
 }): Promise<MetricsResponse> {
-  const u = new URL('/admin/metrics', window.location.origin);
-  u.searchParams.set('from', params.from);
-  u.searchParams.set('to', params.to);
-
-  const qs = u.searchParams.toString();
-  const relativePath = qs ? `${u.pathname}?${qs}` : u.pathname;
-  return adminFetch<MetricsResponse>(relativePath, { method: 'GET' });
+  const sp = new URLSearchParams();
+  sp.set('from', params.from);
+  sp.set('to', params.to);
+  const qs = sp.toString();
+  return adminFetch<MetricsResponse>(`/admin/metrics${qs ? `?${qs}` : ''}`);
 }
 
 export function setAdminToken(token: string) {
@@ -203,26 +219,16 @@ export type UserConfig = Record<string, unknown> | null;
 export async function getConfig(
   category?: string
 ): Promise<{ config: UserConfig }> {
-  const u = new URL('/admin/config', window.location.origin);
-  if (category) {
-    u.searchParams.set('category', category);
-  }
-  const qs = u.searchParams.toString();
-  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
-  return adminFetch<{ config: UserConfig }>(path);
+  const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+  return adminFetch<{ config: UserConfig }>(`/admin/config${qs}`);
 }
 
 export async function syncConfig(category?: string): Promise<{
   ok: boolean;
   config?: Record<string, unknown>;
 }> {
-  const u = new URL('/admin/config', window.location.origin);
-  if (category) {
-    u.searchParams.set('category', category);
-  }
-  const qs = u.searchParams.toString();
-  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
-  return adminFetch<{ ok: boolean; config?: Record<string, unknown> }>(path, {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+  return adminFetch<{ ok: boolean; config?: Record<string, unknown> }>(`/admin/config${qs}`, {
     method: 'POST',
   });
 }
@@ -230,24 +236,18 @@ export async function syncConfig(category?: string): Promise<{
 export async function deleteConfig(
   category?: string
 ): Promise<{ ok: boolean }> {
-  const u = new URL('/admin/config', window.location.origin);
-  if (category) {
-    u.searchParams.set('category', category);
-  }
-  const qs = u.searchParams.toString();
-  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
-  return adminFetch<{ ok: boolean }>(path, {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+  return adminFetch<{ ok: boolean }>(`/admin/config${qs}`, {
     method: 'DELETE',
   });
 }
 
 export async function exportConfig(): Promise<Record<string, unknown>> {
-  const u = new URL('/admin/config/export', window.location.origin);
   const res = await adminFetch<{
     config?: Record<string, unknown>;
     ok?: boolean;
     message?: string;
-  }>(u.pathname);
+  }>('/admin/config/export');
   if (!res.config) {
     throw new Error(res.message || 'Failed to export config');
   }
@@ -266,13 +266,8 @@ export async function importConfig(
 export async function getRouting(category?: string): Promise<{
   routing: RoutingEntry[];
 }> {
-  const u = new URL('/admin/routing', window.location.origin);
-  if (category) {
-    u.searchParams.set('category', category);
-  }
-  const qs = u.searchParams.toString();
-  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
-  return adminFetch<{ routing: RoutingEntry[] }>(path);
+  const qs = category ? `?category=${encodeURIComponent(category)}` : '';
+  return adminFetch<{ routing: RoutingEntry[] }>(`/admin/routing${qs}`);
 }
 
 export async function addRoutingModel(
@@ -282,13 +277,9 @@ export async function addRoutingModel(
   configId: string,
   isPrimary?: boolean
 ): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
-  const u = new URL(
-    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}`,
-    window.location.origin
-  );
-  u.searchParams.set('category', category);
+  const qs = `?category=${encodeURIComponent(category)}`;
   return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
-    u.pathname + u.search,
+    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}${qs}`,
     {
       method: 'POST',
       body: JSON.stringify({ configId, isPrimary }),
@@ -303,13 +294,9 @@ export async function updateRoutingPrimary(
   configId: string,
   isPrimary: boolean
 ): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
-  const u = new URL(
-    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}`,
-    window.location.origin
-  );
-  u.searchParams.set('category', category);
+  const qs = `?category=${encodeURIComponent(category)}`;
   return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
-    u.pathname + u.search,
+    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}${qs}`,
     {
       method: 'PUT',
       body: JSON.stringify({ configId, isPrimary }),
@@ -323,16 +310,11 @@ export async function removeRoutingModel(
   model: string,
   configId?: string
 ): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
-  const u = new URL(
-    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}`,
-    window.location.origin
-  );
-  u.searchParams.set('category', category);
-  if (configId) {
-    u.searchParams.set('configId', configId);
-  }
+  const sp = new URLSearchParams();
+  sp.set('category', category);
+  if (configId) sp.set('configId', configId);
   return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
-    u.pathname + u.search,
+    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}?${sp.toString()}`,
     { method: 'DELETE' }
   );
 }
@@ -344,15 +326,12 @@ export async function moveRoutingEntry(
   configId: string,
   direction: 'up' | 'down'
 ): Promise<{ ok: boolean; routing: RoutingEntry[] }> {
-  const u = new URL(
-    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}/move`,
-    window.location.origin
-  );
-  u.searchParams.set('category', category);
-  u.searchParams.set('configId', configId);
-  u.searchParams.set('direction', direction);
+  const sp = new URLSearchParams();
+  sp.set('category', category);
+  sp.set('configId', configId);
+  sp.set('direction', direction);
   return adminFetch<{ ok: boolean; routing: RoutingEntry[] }>(
-    u.pathname + u.search,
+    `/admin/routing/${encodeURIComponent(provider)}/${encodeURIComponent(model)}/move?${sp.toString()}`,
     { method: 'PUT' }
   );
 }
@@ -371,12 +350,10 @@ export async function getProviderModels(
   provider: ProviderId,
   configId: string
 ): Promise<ProviderModelsResponse> {
-  const u = new URL('/admin/provider-models', window.location.origin);
-  u.searchParams.set('provider', provider);
-  u.searchParams.set('configId', configId);
-  const qs = u.searchParams.toString();
-  const path = qs ? `${u.pathname}?${qs}` : u.pathname;
-  return adminFetch<ProviderModelsResponse>(path);
+  const sp = new URLSearchParams();
+  sp.set('provider', provider);
+  sp.set('configId', configId);
+  return adminFetch<ProviderModelsResponse>(`/admin/provider-models?${sp.toString()}`);
 }
 
 export async function deleteProviderConfig(
@@ -384,14 +361,11 @@ export async function deleteProviderConfig(
   provider: ProviderId,
   configId: string
 ): Promise<{ ok: boolean }> {
-  const u = new URL(
-    `/admin/providers/${encodeURIComponent(provider)}/config/${encodeURIComponent(configId)}`,
-    window.location.origin
+  const qs = `?category=${encodeURIComponent(category)}`;
+  return adminFetch<{ ok: boolean }>(
+    `/admin/providers/${encodeURIComponent(provider)}/config/${encodeURIComponent(configId)}${qs}`,
+    { method: 'DELETE' }
   );
-  u.searchParams.set('category', category);
-  return adminFetch<{ ok: boolean }>(u.pathname + u.search, {
-    method: 'DELETE',
-  });
 }
 
 export type TestConnectivityResponse = {
@@ -404,12 +378,11 @@ export async function testProviderConnectivity(
   provider: ProviderId,
   params: { apiKey: string; baseUrl?: string; configId?: string }
 ): Promise<TestConnectivityResponse> {
-  const u = new URL(
+  return adminFetch<TestConnectivityResponse>(
     `/admin/providers/${encodeURIComponent(provider)}/test-connectivity`,
-    window.location.origin
+    {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }
   );
-  return adminFetch<TestConnectivityResponse>(u.pathname, {
-    method: 'POST',
-    body: JSON.stringify(params),
-  });
 }
