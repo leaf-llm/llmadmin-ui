@@ -101,6 +101,8 @@
     "categoryVideo": "视频生成",
     "categoryAudio": "音频生成",
     "categoryMcp": "MCP",
-    "running": "运行中"
+    "running": "运行中",
+    "connecting": "连接中...",
+    "connectionFailed": "连接失败"
   }
 }

@@ -1,21 +1,41 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
-  plugins: [react()],
-  base: '/public/admin/',
-  build: {
-    outDir: '../build/public/admin',
-    emptyOutDir: true,
-  },
-  server: {
-    host: '::',
-    proxy: {
-      // In local-dev mode, forward admin API calls to the gateway.
-      '/admin': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
+function neutralinoInjectPlugin() {
+  let isDesktop = false;
+  return {
+    name: 'neutralino-inject',
+    configResolved(config: any) {
+      isDesktop = config.mode === 'desktop';
+    },
+    transformIndexHtml(html: string) {
+      if (isDesktop) {
+        return html.replace(
+          '</body>',
+          '  <script src="js/neutralino.js"></script>\n  <script src="js/main.js"></script>\n</body>'
+        );
+      }
+    },
+  };
+}
+
+export default defineConfig(({ mode }) => {
+  const isDesktop = mode === 'desktop';
+  return {
+    plugins: [react(), neutralinoInjectPlugin()],
+    base: isDesktop ? '/' : '/public/admin/',
+    build: {
+      outDir: isDesktop ? '../desktop/resources' : '../build/public/admin',
+      emptyOutDir: !isDesktop,
+    },
+    server: {
+      host: '::',
+      proxy: {
+        '/admin': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+        },
       },
     },
-  },
+  };
 });

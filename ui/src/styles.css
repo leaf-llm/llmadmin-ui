@@ -69,6 +69,12 @@ body {
   font-weight: 500;
   color: #047857;
 }
+.status-indicator:has(.status-dot--connecting) {
+  color: #b45309;
+}
+.status-indicator:has(.status-dot--error) {
+  color: #dc2626;
+}
 
 .status-dot {
   width: 8px;
@@ -76,6 +82,18 @@ body {
   border-radius: 50%;
   background: #10b981;
   animation: pulse 2s infinite;
+}
+.status-dot--connected {
+  background: #10b981;
+  animation: pulse 2s infinite;
+}
+.status-dot--connecting {
+  background: #f59e0b;
+  animation: pulse 1s infinite;
+}
+.status-dot--error {
+  background: #ef4444;
+  animation: none;
 }
 
 @keyframes pulse {
