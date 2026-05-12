@@ -1,5 +1,5 @@
 name: Package Windows portable exe
-description: Packages a Windows Neutralinojs build into a portable exe
+description: Packages a Windows Neutralinojs build into a portable exe using 7-Zip SFX
 
 inputs:
   dist_dir:
@@ -12,12 +12,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Download and Setup Enigma Virtual Box
+    - name: Download and Setup 7-Zip
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Force -Path "C:\temp" | Out-Null
-        Invoke-WebRequest -Uri "https://enigmaprotector.com/assets/files/enigmavb.exe" -OutFile "C:\temp\enigmavb.exe" -UseBasicParsing
-        Start-Process -FilePath "C:\temp\enigmavb.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART",'/DIR="C:\EnigmaVirtualBox"' -Wait -PassThru
+        Invoke-WebRequest -Uri "https://www.7-zip.org/a/7z2408.msi" -OutFile "C:\temp\7zip.msi" -UseBasicParsing
+        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i","C:\temp\7zip.msi","/quiet","/norestart" -Wait -PassThru
 
     - name: Package Windows exe
       shell: bash
@@ -25,5 +24,4 @@ runs:
         REPO_ROOT="$GITHUB_WORKSPACE"
         SCRIPT_DIR="$REPO_ROOT/scripts"
         chmod +x "$SCRIPT_DIR/package-windows.sh" 2>/dev/null || true
-        cd "$REPO_ROOT" && npm install generate-evb --no-save
         "$SCRIPT_DIR/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"
