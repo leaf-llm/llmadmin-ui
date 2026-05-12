@@ -70,6 +70,11 @@ jobs:
       - name: Build desktop app (macOS)
         if: matrix.build_type == 'desktop' && matrix.arch == 'x64'
         run: |
+          # Build portkey-gateway first
+          BUN_OUTPUT=build/portkey-gateway bun run bun:build
+          # Build UI
+          bun run build:ui
+          # Run neutralino build scripts
           npm run desktop:setup
           cd desktop
           chmod +x build-mac.sh
