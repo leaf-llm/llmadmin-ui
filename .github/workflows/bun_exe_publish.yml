@@ -14,20 +14,16 @@ jobs:
           - os: ubuntu-latest
             artifact: local-llm-gateway_1.0.0_amd64.deb
             build_type: desktop
-          # macOS desktop apps (build on macOS 13, targets macOS 12+)
-          - os: macos-13
-            artifact: local-llm-gateway_arm64.dmg
-            build_type: desktop
-            arch: arm64
-          - os: macos-13
-            artifact: local-llm-gateway_x64.dmg
+          # macOS desktop apps (build on self-hosted macOS 12 runner)
+          - artifact: local-llm-gateway_x64.dmg
             build_type: desktop
             arch: x64
+            os: ''
           # Windows desktop apps
           - os: windows-latest
             artifact: local-llm-gateway.exe
             build_type: desktop
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os || 'self-hosted' }}
 
     steps:
       - uses: actions/checkout@v4
