@@ -66,13 +66,15 @@ cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
     <key>CFBundleIdentifier</key>
     <string>com.local-llm-gateway.app</string>
     <key>CFBundleName</key>
-    <string>LocalLLMGateway</string>
+    <string>SelfHostedLLMGateway</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.13.0</string>
 </dict>
 </plist>
 PLIST
