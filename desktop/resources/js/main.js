@@ -42,8 +42,12 @@ async function resolvePath(path) {
 async function startBackend() {
   const binaryName = isWindows ? 'portkey-gateway.exe' : 'portkey-gateway';
 
-  // NL_PATH is the path to the Neutralino binary; portkey-gateway sits alongside it.
-  const nlDir = window.NL_PATH ? window.NL_PATH.replace(/[^/\\]*$/, '') : '';
+  // NL_PATH points to the Neutralino app directory (where resources.neu lives).
+  // On macOS .app bundles, this is Contents/ but binaries are in Contents/MacOS/.
+  let nlDir = window.NL_PATH ? window.NL_PATH.replace(/[^/\\]*$/, '') : '';
+  if (!isWindows && nlDir.includes('.app/Contents/')) {
+    nlDir += 'MacOS/';
+  }
 
   let backendBinary = null;
   const candidates = [
