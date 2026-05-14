@@ -10,19 +10,11 @@ jobs:
     strategy:
       matrix:
         include:
-          # Desktop apps
-          - os: ubuntu-latest
-            artifact: local-llm-gateway_1.0.0_amd64.deb
-            build_type: desktop
           # macOS desktop apps (build on self-hosted macOS 12 runner)
           - artifact: local-llm-gateway_x64.dmg
             build_type: desktop
             arch: x64
             os: ''
-          # Windows desktop apps
-          - os: windows-latest
-            artifact: local-llm-gateway.exe
-            build_type: desktop
     runs-on: ${{ matrix.os || 'self-hosted' }}
 
     steps:
@@ -52,39 +44,18 @@ jobs:
       - name: Copy conf.json
         run: cp conf.example.json conf.json
 
-      - name: Start Xvfb (headless display)
-        if: matrix.build_type == 'desktop' && runner.os == 'Linux'
-        run: |
-          which Xvfb || sudo apt-get install -y xvfb
-          Xvfb :99 -screen 0 1024x768x24 &
-          sleep 2
-
       # ── Platform-specific build ────────────────────────────────────
       - name: Build desktop app
         run: |
           npm run desktop:setup
           npm run build:desktop
 
-      - name: Package .deb
-        if: matrix.build_type == 'desktop' && runner.os == 'Linux'
-        uses: ./.github/actions/package-deb
-        with:
-          dist_path: desktop/dist/local-llm-gateway
-
       - name: Package .dmg
-        if: matrix.build_type == 'desktop' && runner.os == 'macOS'
         uses: ./.github/actions/package-dmg
         with:
           dist_dir: desktop/dist/local-llm-gateway
           binary_name: local-llm-gateway-mac_${{ matrix.arch }}
           output_dmg: ${{ matrix.artifact }}
-
-      - name: Package Windows exe
-        if: matrix.build_type == 'desktop' && runner.os == 'Windows'
-        uses: ./.github/actions/package-windows
-        with:
-          dist_dir: desktop/dist/local-llm-gateway
-          output_exe: ${{ matrix.artifact }}
 
       # ── Upload artifacts ────────────────────────────────────────────
       - name: Upload to Release
@@ -92,13 +63,13 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'desktop/dist/local-llm-gateway' }}/${{ matrix.artifact }}
+          asset_path: ./${{ matrix.artifact }}
           asset_name: ${{ matrix.artifact }}
-          asset_content_type: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'application/vnd.debian.binary-package' || matrix.build_type == 'desktop' && runner.os == 'macOS' && 'application/x-apple-diskimage' || 'application/octet-stream' }}
+          asset_content_type: application/x-apple-diskimage
 
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'desktop/dist/local-llm-gateway' }}/${{ matrix.artifact }}
+          path: ./${{ matrix.artifact }}
