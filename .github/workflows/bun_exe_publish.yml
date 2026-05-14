@@ -86,19 +86,13 @@ jobs:
           dist_dir: desktop/dist/local-llm-gateway
           output_exe: ${{ matrix.artifact }}
 
-      # ── Upload artifacts ────────────────────────────────────────────
-      - name: Upload to Release
-        if: github.event_name == 'release'
-        uses: actions/upload-release-asset@v1
+      # ── Upload to server ────────────────────────────────────────────
+      - name: Upload to server via SCP
+        uses: appleboy/scp-action@v0.1.7
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'desktop/dist/local-llm-gateway' }}/${{ matrix.artifact }}
-          asset_name: ${{ matrix.artifact }}
-          asset_content_type: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'application/vnd.debian.binary-package' || matrix.build_type == 'desktop' && runner.os == 'macOS' && 'application/x-apple-diskimage' || 'application/octet-stream' }}
-
-      - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'desktop/dist/local-llm-gateway' }}/${{ matrix.artifact }}
+          host: ${{ secrets.SEVER_HOST }}
+          username: ${{ secrets.SEVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'desktop/dist/local-llm-gateway' }}/${{ matrix.artifact }}
+          target: /home/ubuntu/artifacts
+          strip_components: 0
