@@ -19,7 +19,8 @@
     "window.setTitle",
     "computer.getKernelInfo",
     "events.*",
-    "debug.log"
+    "debug.log",
+    "clipboard.*"
   ],
   "modes": {
     "window": {
