@@ -11,7 +11,7 @@ import { requestValidator } from './middlewares/requestValidator';
 import { addLogClient, removeLogClient } from './middlewares/log/index';
 
 // Extract the port number from the command line arguments
-const defaultPort = 8787;
+const defaultPort = 8700;
 const args = process.argv.slice(2);
 const portArg = args.find((arg) => arg.startsWith('--port='));
 const port = portArg ? parseInt(portArg.split('=')[1]) : defaultPort;

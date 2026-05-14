@@ -1,4 +1,4 @@
-const BACKEND_PORT = 8787;
+const BACKEND_PORT = 8700;
 
 export function isDesktopMode(): boolean {
   return typeof window !== 'undefined' && !!(window as any).NL_PORT;

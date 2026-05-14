@@ -43,8 +43,8 @@ COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/package.json /app/package.json
 COPY --from=build /app/patches /app/patches
 
-# Expose port 8787
-EXPOSE 8787
+# Expose port 8700
+EXPOSE 8700
 
 ENTRYPOINT ["npm"]
 CMD ["run", "start:node"]

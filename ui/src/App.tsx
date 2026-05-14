@@ -29,7 +29,7 @@ function Header({
   };
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(getApiBaseUrl() || 'http://127.0.0.1:8787');
+    navigator.clipboard.writeText(getApiBaseUrl() || 'http://127.0.0.1:8700');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -88,7 +88,7 @@ function Header({
 
         <div className="header-right">
           <div className="gateway-url" onClick={handleCopyUrl} style={{ cursor: 'pointer' }}>
-            <span>{copied ? t('common.copied') : (getApiBaseUrl() || 'http://127.0.0.1:8787')}</span>
+            <span>{copied ? t('common.copied') : (getApiBaseUrl() || 'http://127.0.0.1:8700')}</span>
           </div>
           <div
             className="status-indicator"
