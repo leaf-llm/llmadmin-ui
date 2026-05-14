@@ -354,21 +354,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 },
               }));
             }}
-            onPaste={async (e) => {
-              e.preventDefault();
-              const pasted = await Neutralino.clipboard.readText();
-              setDrafts((prev) => ({
-                ...prev,
-                [key]: {
-                  ...(prev[key] ?? {}),
-                  apiKey: pasted || undefined,
-                  apiKeyMasked: p.apiKeyMasked,
-                  remark: (prev[key] ?? {}).remark,
-                  baseUrl: (prev[key] ?? {}).baseUrl,
-                  testStatus: 'untested',
-                  testMessage: undefined,
-                },
-              }));
             }}
           />
         </div>

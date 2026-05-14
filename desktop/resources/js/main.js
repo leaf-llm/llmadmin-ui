@@ -6,6 +6,22 @@ Neutralino.events.on('ready', async () => {
   try {
     const kernelInfo = await Neutralino.computer.getKernelInfo();
     isWindows = kernelInfo.variant === 'Windows NT';
+
+    // macOS requires a native Edit menu for Cmd+C/V/X shortcuts to work in webview
+    if (!isWindows) {
+      await Neutralino.window.setMainMenu([
+        {
+          id: 'edit',
+          text: 'Edit',
+          menuItems: [
+            { id: 'cut', text: 'Cut' },
+            { id: 'copy', text: 'Copy' },
+            { id: 'paste', text: 'Paste' },
+          ],
+        },
+      ]);
+    }
+
     Neutralino.debug.log('Starting backend...', 'INFO');
     await startBackend();
     Neutralino.debug.log('Backend process spawned', 'INFO');

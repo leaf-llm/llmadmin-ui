@@ -336,19 +336,6 @@ export default function ProvidersPage({
                 },
               }));
             }}
-            onPaste={async (e) => {
-              e.preventDefault();
-              const pasted = await Neutralino.clipboard.readText();
-              setDrafts((prev) => ({
-                ...prev,
-                [p.provider]: {
-                  ...(prev[p.provider] ?? {}),
-                  apiKey: pasted || undefined,
-                  apiKeyMasked: p.apiKeyMasked,
-                  remark: prev[p.provider]?.remark,
-                },
-              }));
-            }}
           />
         </div>
 

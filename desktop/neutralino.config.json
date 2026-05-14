@@ -15,8 +15,7 @@
   "nativeAllowList": [
     "app.*",
     "os.*",
-    "window.navigate",
-    "window.setTitle",
+    "window.*",
     "computer.getKernelInfo",
     "events.*",
     "debug.log",
