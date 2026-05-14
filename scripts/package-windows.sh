@@ -24,14 +24,12 @@ echo "Output: $OUTPUT_EXE"
 echo "Contents:"
 ls -la
 
-# Verify public folder exists (required for portkey-gateway)
-if [ ! -d "./public" ]; then
-  echo "ERROR: public/ folder not found in $DIST_DIR"
-  echo "portkey-gateway requires public/ folder for UI files"
-  exit 1
+# Public folder is optional in desktop mode (UI served by Neutralino via resources.neu)
+if [ -d "./public" ]; then
+  echo "Public folder found"
+else
+  echo "Warning: public/ folder not found (not required for desktop mode)"
 fi
-
-echo "Public folder found"
 
 # Create launcher that creates shortcut and runs app
 cat > "_launcher.bat" << 'BATEOF'
