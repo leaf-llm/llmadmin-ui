@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Package Windows portable exe using 7-Zip SFX
+# Package Windows portable exe using 7-Zip SFX with desktop shortcut
 # Usage: ./scripts/package-windows.sh <dist_dir> <output_exe>
 
 DIST_DIR="${1:?Usage: $0 <dist_dir> <output_exe>}"
@@ -32,6 +32,18 @@ if [ ! -d "./public" ]; then
 fi
 
 echo "Public folder found"
+
+# Create launcher that creates shortcut and runs app
+cat > "_launcher.bat" << 'BATEOF'
+@echo off
+cd /d "%~dp0"
+
+REM Create desktop shortcut using PowerShell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $WshShell = New-Object -ComObject WScript.Shell; $Desktop = [Environment]::GetFolderPath('Desktop'); $Shortcut = $WshShell.CreateShortcut((Join-Path $Desktop 'Local LLM Gateway.lnk')); $Shortcut.TargetPath = Join-Path $PWD 'local-llm-gateway.exe'; $Shortcut.WorkingDirectory = $PWD; $Shortcut.Description = 'Local LLM Gateway'; $Shortcut.Save()" 2>nul
+
+REM Launch the app
+start "" "local-llm-gateway.exe"
+BATEOF
 
 # Find 7z.exe
 SEVENZ_CMD="7z.exe"
@@ -71,7 +83,7 @@ if [ -z "$SFX_MODULE" ]; then
 else
   echo "Using SFX module: $SFX_MODULE"
 
-  # Create 7z archive (no SFX flag, we'll prepend the module)
+  # Create 7z archive with launcher included
   "$SEVENZ_CMD" a -mx=9 "${OUTPUT_EXE}.7z" . -xr!*.tmp -xr!node_modules -xr!.git -xr!.tmp-evb
 
   # Verify archive contents
@@ -81,6 +93,12 @@ else
   # Prepend SFX module to create the final exe
   cat "$SFX_MODULE" "${OUTPUT_EXE}.7z" > "$OUTPUT_EXE"
   rm "${OUTPUT_EXE}.7z"
+
+  echo "SFX archive created with launcher"
 fi
 
+# Cleanup temp files
+rm -f "_launcher.bat"
+
+echo ""
 echo "Packaging complete: $OUTPUT_EXE"
