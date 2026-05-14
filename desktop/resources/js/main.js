@@ -24,6 +24,7 @@ Neutralino.events.on('ready', async () => {
 });
 
 Neutralino.events.on('windowClose', async () => {
+  // Exit without waiting - portkey-gateway will exit on its own via --ppid watcher
   Neutralino.app.exit();
 });
 
