@@ -8,18 +8,22 @@ Neutralino.events.on('ready', async () => {
     isWindows = kernelInfo.variant === 'Windows NT';
 
     // macOS requires a native Edit menu for Cmd+C/V/X shortcuts to work in webview
-    if (!isWindows) {
-      await Neutralino.window.setMainMenu([
-        {
-          id: 'edit',
-          text: 'Edit',
-          menuItems: [
-            { id: 'cut', text: 'Cut' },
-            { id: 'copy', text: 'Copy' },
-            { id: 'paste', text: 'Paste' },
-          ],
-        },
-      ]);
+    if (!isWindows && Neutralino.window && Neutralino.window.setMainMenu) {
+      try {
+        await Neutralino.window.setMainMenu([
+          {
+            id: 'edit',
+            text: 'Edit',
+            menuItems: [
+              { id: 'cut', text: 'Cut', action: 'cut:', shortcut: 'x' },
+              { id: 'copy', text: 'Copy', action: 'copy:', shortcut: 'c' },
+              { id: 'paste', text: 'Paste', action: 'paste:', shortcut: 'v' },
+            ],
+          },
+        ]);
+      } catch (menuErr) {
+        Neutralino.debug.log('Menu setup skipped: ' + menuErr.message, 'INFO');
+      }
     }
 
     Neutralino.debug.log('Starting backend...', 'INFO');
