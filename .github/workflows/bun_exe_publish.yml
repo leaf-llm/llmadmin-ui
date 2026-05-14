@@ -95,13 +95,20 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
           # Determine source path based on OS
-          if [ "${{ runner.os }}" == "Linux" ]; then
-            SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
-          elif [ "${{ runner.os }}" == "macOS" ]; then
-            SOURCE_PATH="${{ matrix.artifact }}"
-          else
-            SOURCE_PATH="${{ matrix.artifact }}"
-          fi
+          case "${{ runner.os }}" in
+            Linux)
+              SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
+              ;;
+            macOS)
+              SOURCE_PATH="${{ matrix.artifact }}"
+              ;;
+            Windows)
+              SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
+              ;;
+          esac
+
+          echo "Uploading: $SOURCE_PATH"
+          ls -la "$SOURCE_PATH" || dir "$SOURCE_PATH"
 
           # Write SSH key and set permissions
           echo "$SSH_KEY" > /tmp/upload_key
