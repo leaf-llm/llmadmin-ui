@@ -7,23 +7,10 @@ Neutralino.events.on('ready', async () => {
     const kernelInfo = await Neutralino.computer.getKernelInfo();
     isWindows = kernelInfo.variant === 'Windows NT';
 
-    // macOS requires a native Edit menu for Cmd+C/V/X shortcuts to work in webview
-    if (!isWindows && Neutralino.window && Neutralino.window.setMainMenu) {
-      try {
-        await Neutralino.window.setMainMenu([
-          {
-            id: 'edit',
-            text: 'Edit',
-            menuItems: [
-              { id: 'cut', text: 'Cut', action: 'cut:', shortcut: 'x' },
-              { id: 'copy', text: 'Copy', action: 'copy:', shortcut: 'c' },
-              { id: 'paste', text: 'Paste', action: 'paste:', shortcut: 'v' },
-            ],
-          },
-        ]);
-      } catch (menuErr) {
-        Neutralino.debug.log('Menu setup skipped: ' + menuErr.message, 'INFO');
-      }
+    // macOS webview blocks Cmd+C/V/X without a native Edit menu.
+    // Intercept keyboard shortcuts and use Neutralino.clipboard API instead.
+    if (!isWindows) {
+      setupClipboardShortcuts();
     }
 
     Neutralino.debug.log('Starting backend...', 'INFO');
@@ -47,6 +34,54 @@ Neutralino.events.on('windowClose', async () => {
   // Exit without waiting - portkey-gateway will exit on its own via --ppid watcher
   Neutralino.app.exit();
 });
+
+function setupClipboardShortcuts() {
+  document.addEventListener('keydown', async (e) => {
+    const isMod = e.metaKey || e.ctrlKey;
+    if (!isMod) return;
+
+    const active = document.activeElement;
+    const isEditable =
+      active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+    if (!isEditable) return;
+
+    if (e.key === 'v' || e.key === 'V') {
+      e.preventDefault();
+      try {
+        const text = await Neutralino.clipboard.readText();
+        if (text) {
+          document.execCommand('insertText', false, text);
+        }
+      } catch {}
+    } else if (e.key === 'c' || e.key === 'C') {
+      e.preventDefault();
+      try {
+        const selected = window.getSelection()?.toString() || '';
+        if (selected) {
+          await Neutralino.clipboard.writeText(selected);
+        }
+      } catch {}
+    } else if (e.key === 'x' || e.key === 'X') {
+      e.preventDefault();
+      try {
+        const selected = window.getSelection()?.toString() || '';
+        if (selected) {
+          await Neutralino.clipboard.writeText(selected);
+          document.execCommand('delete');
+        }
+      } catch {}
+    } else if (e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      try {
+        if (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA') {
+          active.select();
+        } else {
+          document.execCommand('selectAll');
+        }
+      } catch {}
+    }
+  });
+}
 
 async function resolvePath(path) {
   try {
