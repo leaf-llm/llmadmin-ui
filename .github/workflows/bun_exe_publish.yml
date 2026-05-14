@@ -100,7 +100,7 @@ jobs:
               SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
               ;;
             macOS)
-              SOURCE_PATH="${{ matrix.artifact }}"
+              SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
               ;;
             Windows)
               SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
