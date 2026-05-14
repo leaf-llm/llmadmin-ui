@@ -31,8 +31,16 @@ Neutralino.events.on('ready', async () => {
 });
 
 Neutralino.events.on('windowClose', async () => {
-  // Exit without waiting - portkey-gateway will exit on its own via --ppid watcher
-  Neutralino.app.exit();
+  // Neutralino.app.exit() is async IPC — on macOS, the WKWebView event loop
+  // can throw objc_exception_rethrow before the exit completes, causing a crash.
+  // Sync-kill our own process to avoid the race. The portkey-gateway child
+  // process exits on its own via the --ppid watcher.
+  try {
+    await Neutralino.os.execCommand(`kill ${window.NL_PID}`);
+  } catch {
+    // Fallback: try the normal exit path
+    Neutralino.app.exit();
+  }
 });
 
 function setupClipboardShortcuts() {
