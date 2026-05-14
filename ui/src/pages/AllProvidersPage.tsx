@@ -354,7 +354,6 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 },
               }));
             }}
-            }}
           />
         </div>
         <div className="field">
