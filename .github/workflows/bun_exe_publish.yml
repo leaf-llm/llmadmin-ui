@@ -88,11 +88,27 @@ jobs:
 
       # ── Upload to server ────────────────────────────────────────────
       - name: Upload to server via SCP
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: ${{ matrix.build_type == 'desktop' && runner.os == 'Linux' && 'desktop/dist/local-llm-gateway' || matrix.build_type == 'desktop' && runner.os == 'macOS' && '.' || 'desktop/dist/local-llm-gateway' }}/${{ matrix.artifact }}
-          target: /home/ubuntu/artifacts
-          strip_components: 0
+        shell: bash
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          # Determine source path based on OS
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            SOURCE_PATH="${{ matrix.artifact }}"
+          else
+            SOURCE_PATH="${{ matrix.artifact }}"
+          fi
+
+          # Write SSH key and set permissions
+          echo "$SSH_KEY" > /tmp/upload_key
+          chmod 600 /tmp/upload_key
+
+          # Upload via SCP
+          scp -o StrictHostKeyChecking=no -i /tmp/upload_key "$SOURCE_PATH" "$SERVER_USER@$SERVER_HOST:/home/ubuntu/artifacts/"
+
+          # Cleanup
+          rm -f /tmp/upload_key
