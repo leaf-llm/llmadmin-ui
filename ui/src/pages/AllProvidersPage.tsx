@@ -354,6 +354,22 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 },
               }));
             }}
+            onPaste={(e) => {
+              e.preventDefault();
+              const pasted = e.clipboardData.getData('text');
+              setDrafts((prev) => ({
+                ...prev,
+                [key]: {
+                  ...(prev[key] ?? {}),
+                  apiKey: pasted || undefined,
+                  apiKeyMasked: p.apiKeyMasked,
+                  remark: (prev[key] ?? {}).remark,
+                  baseUrl: (prev[key] ?? {}).baseUrl,
+                  testStatus: 'untested',
+                  testMessage: undefined,
+                },
+              }));
+            }}
           />
         </div>
         <div className="field">

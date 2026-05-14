@@ -111,6 +111,13 @@ function maskApiKey(key: string): string {
 
 function getConfigPath() {
   // In local dev, the process cwd is repository root.
+  // In compiled bun binary (.app bundle on macOS), cwd is the filesystem root (/)
+  // which is read-only, so write to the binary directory instead.
+  const isBunBinary =
+    typeof import.meta !== 'undefined' && import.meta.url?.startsWith('file:///$bunfs/');
+  if (isBunBinary) {
+    return path.join(path.dirname(process.execPath), CONFIG_FILE_NAME);
+  }
   return path.join(process.cwd(), CONFIG_FILE_NAME);
 }
 

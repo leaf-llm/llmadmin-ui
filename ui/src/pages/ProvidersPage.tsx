@@ -336,6 +336,19 @@ export default function ProvidersPage({
                 },
               }));
             }}
+            onPaste={(e) => {
+              e.preventDefault();
+              const pasted = e.clipboardData.getData('text');
+              setDrafts((prev) => ({
+                ...prev,
+                [p.provider]: {
+                  ...(prev[p.provider] ?? {}),
+                  apiKey: pasted || undefined,
+                  apiKeyMasked: p.apiKeyMasked,
+                  remark: prev[p.provider]?.remark,
+                },
+              }));
+            }}
           />
         </div>
 
