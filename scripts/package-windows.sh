@@ -8,14 +8,10 @@ set -e
 # On Windows: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
 
 DIST_DIR="${1:?Usage: $0 <dist_dir> [output_dir]}"
-OUTPUT_DIR="${2:-.}"
+OUTPUT_DIR="${2:-$DIST_DIR}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISS_FILE="$SCRIPT_DIR/package-windows.iss"
-
-# Convert to absolute path
-DIST_DIR="$(cd "$DIST_DIR" && pwd)"
-OUTPUT_DIR="$(cd "$OUTPUT_DIR" 2>/dev/null && pwd || echo "$OUTPUT_DIR")"
 
 echo "Distribution directory: $DIST_DIR"
 echo "Output directory: $OUTPUT_DIR"
@@ -41,20 +37,29 @@ echo "Using Inno Setup: $ISCC"
 # Get version from package.json
 APP_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "1.15.2")
 
-# Create a temporary copy of the ISS file in a temp location
-TEMP_DIR=$(mktemp -d)
-TEMP_ISS="${TEMP_DIR}/package-windows-temp.iss"
-cat "$ISS_FILE" | sed \
-  -e "s|#define MyAppSourceDir.*|#define MyAppSourceDir \"$DIST_DIR\"|" \
-  -e "s|OutputDir=.|OutputDir=$OUTPUT_DIR|" \
-  -e "s|#define MyAppVersion.*|#define MyAppVersion \"$APP_VERSION\"|" \
-  > "$TEMP_ISS"
+# Create temp ISS in DIST_DIR (ISCC resolves SourceDir relative to ISS file location)
+TEMP_ISS="${DIST_DIR}/package-windows-temp.iss"
+
+awk -v version="$APP_VERSION" '
+{
+  if (/^#define MyAppSourceDir/) {
+    print "#define MyAppSourceDir \".\""
+  } else if (/^OutputDir=/) {
+    print "OutputDir=."
+  } else if (/^#define MyAppVersion/) {
+    printf "#define MyAppVersion \"%s\"\n", version
+  } else {
+    print
+  }
+}
+' "$ISS_FILE" > "$TEMP_ISS"
 
 echo "Compiling Inno Setup script..."
+cd "$DIST_DIR"
 "$ISCC" "$TEMP_ISS"
 
 # Cleanup
-rm -rf "$TEMP_DIR"
+rm -f "$TEMP_ISS"
 
 echo ""
-echo "Packaging complete. Output in: $OUTPUT_DIR"
+echo "Packaging complete. Output in: $DIST_DIR"
