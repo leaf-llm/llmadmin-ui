@@ -6,13 +6,16 @@ set -e
 #
 # Requires Inno Setup 6.x to be installed (https://jrsoftware.org/isinfo.php)
 # On Windows: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
-# On macOS/Linux with Wine: wine ISCC.exe
 
 DIST_DIR="${1:?Usage: $0 <dist_dir> [output_dir]}"
 OUTPUT_DIR="${2:-.}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISS_FILE="$SCRIPT_DIR/package-windows.iss"
+
+# Convert to absolute path
+DIST_DIR="$(cd "$DIST_DIR" && pwd)"
+OUTPUT_DIR="$(cd "$OUTPUT_DIR" 2>/dev/null && pwd || echo "$OUTPUT_DIR")"
 
 echo "Distribution directory: $DIST_DIR"
 echo "Output directory: $OUTPUT_DIR"
