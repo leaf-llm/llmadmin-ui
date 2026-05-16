@@ -38,10 +38,11 @@ echo "Using Inno Setup: $ISCC"
 # Get version from package.json
 APP_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "1.15.2")
 
-# Create a temporary copy of the ISS file with correct paths
-TEMP_ISS="${DIST_DIR}/package-windows-temp.iss"
+# Create a temporary copy of the ISS file in a temp location
+TEMP_DIR=$(mktemp -d)
+TEMP_ISS="${TEMP_DIR}/package-windows-temp.iss"
 cat "$ISS_FILE" | sed \
-  -e "s|#define MyAppSourceDir \".\"|#define MyAppSourceDir \"$DIST_DIR\"|" \
+  -e "s|#define MyAppSourceDir.*|#define MyAppSourceDir \"$DIST_DIR\"|" \
   -e "s|OutputDir=.|OutputDir=$OUTPUT_DIR|" \
   -e "s|#define MyAppVersion.*|#define MyAppVersion \"$APP_VERSION\"|" \
   > "$TEMP_ISS"
@@ -50,7 +51,7 @@ echo "Compiling Inno Setup script..."
 "$ISCC" "$TEMP_ISS"
 
 # Cleanup
-rm -f "$TEMP_ISS"
+rm -rf "$TEMP_DIR"
 
 echo ""
 echo "Packaging complete. Output in: $OUTPUT_DIR"
