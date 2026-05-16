@@ -13,23 +13,23 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ISS_FILE="$SCRIPT_DIR/package-windows.iss"
 
 # Convert to Windows path for ISCC
-if [ -f /usr/bin/cygpath ]; then
-  DIST_DIR_WIN=$(/usr/bin/cygpath -w "$DIST_DIR")
-else
-  # Convert /d/path or /c/path to D:\path
-  case "$DIST_DIR" in
+to_windows_path() {
+  local p="$1"
+  case "$p" in
     /[a-z]/*)
-      DRIVE="${DIST_DIR:1:1}"
-      REST="${DIST_DIR:3}"
-      DIST_DIR_WIN="${DRIVE}:\\${REST//\//\\}"
+      local drv="${p:1:1}"
+      local rest="${p:3}"
+      echo "${drv}:\\${rest//\//\\}"
       ;;
     *)
-      DIST_DIR_WIN="$DIST_DIR"
+      echo "$p"
       ;;
   esac
-fi
+}
 
-echo "Distribution directory: $DIST_DIR"
+DIST_DIR_WIN=$(to_windows_path "$DIST_DIR")
+ISS_FILE_WIN=$(to_windows_path "$ISS_FILE")
+
 echo "Distribution directory (Windows): $DIST_DIR_WIN"
 
 # Find Inno Setup compiler
@@ -53,18 +53,13 @@ echo "Using Inno Setup: $ISCC"
 # Get version from package.json
 APP_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "1.15.2")
 
-# Create temp ISS file using node to avoid shell escaping issues
+# Copy ISS to temp location with modified values
 TEMP_ISS="${DIST_DIR}/package-windows-temp.iss"
 
-node - << EOF
-const fs = require('fs');
-const content = fs.readFileSync('$ISS_FILE', 'utf8');
-const modified = content
-  .replace(/#define MyAppSourceDir "[^"]*"/, '#define MyAppSourceDir "."')
-  .replace(/OutputDir=./, 'OutputDir=.')
-  .replace(/#define MyAppVersion "[^"]*"/, '#define MyAppVersion "$APP_VERSION"');
-fs.writeFileSync('$TEMP_ISS', modified);
-EOF
+cp "$ISS_FILE" "$TEMP_ISS"
+sed -i "s|^#define MyAppSourceDir.*|#define MyAppSourceDir \".\"|" "$TEMP_ISS"
+sed -i "s|^OutputDir=.|OutputDir=.|" "$TEMP_ISS"
+sed -i "s|^#define MyAppVersion.*|#define MyAppVersion \"$APP_VERSION\"|" "$TEMP_ISS"
 
 echo "Compiling Inno Setup script..."
 cd "$DIST_DIR"
