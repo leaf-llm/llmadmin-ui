@@ -233,6 +233,21 @@ const url = `http://localhost:${port}`;
 
 injectWebSocket(server);
 
+// Shutdown endpoint for desktop app — kills the Neutralino parent process and exits
+if (ppid > 0) {
+  app.post('/shutdown', async (c) => {
+    // Respond first, then kill — don't await the kill
+    c.json({ ok: true });
+    setTimeout(() => {
+      try {
+        process.kill(ppid, 'SIGTERM');
+      } catch {}
+      server.close();
+      process.exit(0);
+    }, 100);
+  });
+}
+
 // When launched by the desktop app, watch the parent process and exit when it dies
 if (ppid > 0) {
   setInterval(() => {
