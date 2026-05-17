@@ -1,5 +1,5 @@
-name: Package Windows portable exe
-description: Packages a Windows Neutralinojs build into a portable exe using 7-Zip SFX
+name: Package Windows installer
+description: Packages a Windows Neutralinojs build into an Inno Setup installer
 
 inputs:
   dist_dir:
@@ -8,20 +8,22 @@ inputs:
   output_exe:
     description: "Output .exe filename"
     required: true
+  version:
+    description: "Application version (read from package.json if omitted)"
+    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
-    - name: Download and Setup 7-Zip
+    - name: Install Inno Setup
       shell: pwsh
-      run: |
-        Invoke-WebRequest -Uri "https://www.7-zip.org/a/7z2408.msi" -OutFile "C:\temp\7zip.msi" -UseBasicParsing
-        Start-Process -FilePath "msiexec.exe" -ArgumentList "/i","C:\temp\7zip.msi","/quiet","/norestart" -Wait -PassThru
+      run: choco install innosetup --yes --no-progress
 
-    - name: Package Windows exe
+    - name: Package Windows installer
       shell: bash
       run: |
         REPO_ROOT="$GITHUB_WORKSPACE"
         SCRIPT_DIR="$REPO_ROOT/scripts"
         chmod +x "$SCRIPT_DIR/package-windows.sh" 2>/dev/null || true
-        "$SCRIPT_DIR/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}"
+        "$SCRIPT_DIR/package-windows.sh" "${{ inputs.dist_dir }}" "${{ inputs.output_exe }}" "${{ inputs.version }}"
