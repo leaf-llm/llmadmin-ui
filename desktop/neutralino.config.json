@@ -15,11 +15,11 @@
   "nativeAllowList": [
     "app.*",
     "os.*",
-    "window.navigate",
-    "window.setTitle",
+    "window.*",
     "computer.getKernelInfo",
     "events.*",
-    "debug.log"
+    "debug.log",
+    "clipboard.*"
   ],
   "modes": {
     "window": {

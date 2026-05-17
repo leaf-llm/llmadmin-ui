@@ -10,6 +10,7 @@ set -e
 DIST_DIR="${1:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 BINARY_NAME="${2:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 OUTPUT_DMG="${3:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
+ENTITLEMENTS="${4:-}"  # Optional: path to entitlements file for code signing
 
 VOLUME_NAME="LocalLLMGateway"
 DMG_TMP=$(mktemp -d /tmp/dmg.XXXXXX)
@@ -76,6 +77,12 @@ cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
 </dict>
 </plist>
 PLIST
+
+# Copy entitlements if provided
+if [ -n "$ENTITLEMENTS" ] && [ -f "$ENTITLEMENTS" ]; then
+  cp "$ENTITLEMENTS" "$DMG_TMP/${APP_NAME}.app/Contents/Entitlements.plist"
+  echo "Copied entitlements: $ENTITLEMENTS"
+fi
 
 # Create PkgInfo
 echo "APPL????" > "$DMG_TMP/${APP_NAME}.app/Contents/PkgInfo"
