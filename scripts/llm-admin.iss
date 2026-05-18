@@ -29,14 +29,15 @@ ArchitecturesInstallIn64BitMode=x64compatible
 Source: "llm-admin-win_x64.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "llm-gateway.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "resources.neu"; DestDir: "{app}"; Flags: ignoreversion
+Source: "icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 #if DirExists("public")
 Source: "public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
 #endif
 
 [Icons]
-Name: "{group}\LLM Admin"; Filename: "{app}\llm-admin-win_x64.exe"
+Name: "{group}\LLM Admin"; Filename: "{app}\llm-admin-win_x64.exe"; IconFilename: "{app}\icon.ico"
 Name: "{group}\Uninstall LLM Admin"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\LLM Admin"; Filename: "{app}\llm-admin-win_x64.exe"; Tasks: desktopicon
+Name: "{autodesktop}\LLM Admin"; Filename: "{app}\llm-admin-win_x64.exe"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
