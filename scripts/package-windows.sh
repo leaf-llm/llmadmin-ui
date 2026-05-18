@@ -65,7 +65,9 @@ OUTPUT_DIR="$(dirname "$OUTPUT_EXE")"
 OUTPUT_FILENAME="$(basename "$OUTPUT_EXE" .exe)"
 
 # Compile the installer
-"$ISCC" /DAppVersion="$VERSION" //O"$OUTPUT_DIR" //F"$OUTPUT_FILENAME" "./local-llm-gateway.iss"
+# MSYS_NO_PATHCONV=1 prevents Git Bash (MSYS2) from converting /D, /O, /F
+# flags into Windows paths, which ISCC would misinterpret as script filenames.
+MSYS_NO_PATHCONV=1 "$ISCC" /DAppVersion="$VERSION" /O"$OUTPUT_DIR" /F"$OUTPUT_FILENAME" "./local-llm-gateway.iss"
 
 # Verify output
 if [ ! -f "$OUTPUT_EXE" ]; then
