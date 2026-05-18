@@ -59,6 +59,12 @@ jobs:
           Xvfb :99 -screen 0 1024x768x24 &
           sleep 2
 
+      # ── Version extraction ─────────────────────────────────────────
+      - name: Get version from package.json
+        if: matrix.build_type == 'desktop'
+        id: pkg_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
       # ── Platform-specific build ────────────────────────────────────
       - name: Build desktop app
         run: |
@@ -79,12 +85,13 @@ jobs:
           binary_name: local-llm-gateway-mac_${{ matrix.arch }}
           output_dmg: ${{ matrix.artifact }}
 
-      - name: Package Windows exe
+      - name: Package Windows installer
         if: matrix.build_type == 'desktop' && runner.os == 'Windows'
         uses: ./.github/actions/package-windows
         with:
           dist_dir: desktop/dist/local-llm-gateway
           output_exe: ${{ matrix.artifact }}
+          version: ${{ steps.pkg_version.outputs.version }}
 
       # ── Upload to server ────────────────────────────────────────────
       - name: Upload to server via SCP
