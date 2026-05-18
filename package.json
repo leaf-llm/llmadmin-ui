@@ -1,6 +1,6 @@
 {
   "name": "@portkey-ai/gateway",
-  "version": "1.15.2",
+  "version": "0.1.0",
   "description": "A fast AI gateway by Portkey",
   "repository": {
     "type": "git",
@@ -39,8 +39,8 @@
     "test:plugins": "jest plugins/",
     "pre-push": "npm run build && node start-test.js",
     "bun:dev": "bun run src/start-server.ts",
-    "bun:build": "bun build src/start-server.ts --compile --target=bun --minify --outfile=build/portkey-gateway",
-    "bun:start": "bun run build/portkey-gateway",
+    "bun:build": "bun build src/start-server.ts --compile --target=bun --minify --outfile=build/llm-gateway",
+    "bun:start": "bun run build/llm-gateway",
     "desktop:setup": "cd desktop && neu update",
     "build:desktop": "npm run bun:build && rm -rf desktop/resources/assets desktop/resources/index.html && npm run build:ui:desktop && cd desktop && neu build && node scripts/copy-binary.js",
     "dev:desktop": "npm run bun:dev & cd desktop && neu run"

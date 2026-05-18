@@ -3,18 +3,18 @@ set -e
 
 # Package Neutralinojs macOS app into a .dmg
 # Usage: ./scripts/package-dmg.sh <dist_dir> <binary_name> <output_dmg>
-#   dist_dir:    Path to dist directory (e.g. desktop/dist/local-llm-gateway)
-#   binary_name: Neutralinojs runtime binary name (e.g. local-llm-gateway-mac_x64)
-#   output_dmg:  Output .dmg path (e.g. local-llm-gateway_1.0.0_arm64.dmg)
+#   dist_dir:    Path to dist directory (e.g. desktop/dist/llm-admin)
+#   binary_name: Neutralinojs runtime binary name (e.g. llm-admin-mac_x64)
+#   output_dmg:  Output .dmg path (e.g. llm-admin_0.1.0_arm64.dmg)
 
 DIST_DIR="${1:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 BINARY_NAME="${2:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 OUTPUT_DMG="${3:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 ENTITLEMENTS="${4:-}"  # Optional: path to entitlements file for code signing
 
-VOLUME_NAME="LocalLLMGateway"
+VOLUME_NAME="LLMAdmin"
 DMG_TMP=$(mktemp -d /tmp/dmg.XXXXXX)
-APP_NAME="LocalLLMGateway"
+APP_NAME="LLMAdmin"
 
 # Create .app bundle directly under DMG_TMP (no wrapper folder)
 mkdir -p "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/resources"
@@ -30,13 +30,13 @@ else
   exit 1
 fi
 
-# Copy portkey-gateway server binary
-if [ -f "$DIST_DIR/portkey-gateway" ]; then
-  cp "$DIST_DIR/portkey-gateway" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
-  chmod +x "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/portkey-gateway"
-  echo "Copied portkey-gateway"
+# Copy llm-gateway server binary
+if [ -f "$DIST_DIR/llm-gateway" ]; then
+  cp "$DIST_DIR/llm-gateway" "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/llm-gateway"
+  chmod +x "$DMG_TMP/${APP_NAME}.app/Contents/MacOS/llm-gateway"
+  echo "Copied llm-gateway"
 else
-  echo "Error: portkey-gateway not found: $DIST_DIR/portkey-gateway"
+  echo "Error: llm-gateway not found: $DIST_DIR/llm-gateway"
   exit 1
 fi
 
@@ -65,13 +65,13 @@ cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
     <key>CFBundleExecutable</key>
     <string>${BINARY_NAME}</string>
     <key>CFBundleIdentifier</key>
-    <string>com.local-llm-gateway.app</string>
+    <string>com.llm-admin.app</string>
     <key>CFBundleName</key>
-    <string>LocalLLMGateway</string>
+    <string>LLMAdmin</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>0.1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
 </dict>
@@ -92,7 +92,7 @@ ln -s "/Applications" "$DMG_TMP/Applications"
 echo "Created Applications symlink"
 
 # Create DMG using hdiutil
-# DMG_TMP now has: LocalLLMGateway.app/ and Applications@ at root level
+# DMG_TMP now has: LLMAdmin.app/ and Applications@ at root level
 hdiutil create -srcfolder "$DMG_TMP" -volname "${VOLUME_NAME}" -fs HFS+ \
   -format UDZO "$OUTPUT_DMG"
 
