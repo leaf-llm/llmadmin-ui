@@ -65,7 +65,7 @@ OUTPUT_DIR="$(dirname "$OUTPUT_EXE")"
 OUTPUT_FILENAME="$(basename "$OUTPUT_EXE" .exe)"
 
 # Compile the installer
-"$ISCC" /DAppVersion="$VERSION" /O"$OUTPUT_DIR" /F"$OUTPUT_FILENAME" "./local-llm-gateway.iss"
+"$ISCC" /DAppVersion="$VERSION" //O"$OUTPUT_DIR" //F"$OUTPUT_FILENAME" "./local-llm-gateway.iss"
 
 # Verify output
 if [ ! -f "$OUTPUT_EXE" ]; then
