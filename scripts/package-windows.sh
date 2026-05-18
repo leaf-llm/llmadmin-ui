@@ -30,7 +30,7 @@ done
 
 # Copy icon and ISS script into dist dir (so relative Source paths in .iss resolve)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cp "$SCRIPT_DIR/../desktop/resources/icon.ico" "./icon.ico"
+cp "$SCRIPT_DIR/../desktop/icons/icon.ico" "./icon.ico"
 cp "$SCRIPT_DIR/llm-admin.iss" "./llm-admin.iss"
 
 # Find ISCC.exe (Inno Setup Command Line Compiler)

@@ -56,6 +56,15 @@ else
   echo "Warning: resources.neu not found: $DIST_DIR/resources.neu"
 fi
 
+# Copy app icon
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "$SCRIPT_DIR/../desktop/icons/icon.icns" ]; then
+  cp "$SCRIPT_DIR/../desktop/icons/icon.icns" "$DMG_TMP/${APP_NAME}.app/Contents/Resources/icon.icns"
+  echo "Copied icon.icns"
+else
+  echo "Warning: icon.icns not found"
+fi
+
 # Create minimal Info.plist
 cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -74,6 +83,8 @@ cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
     <string>0.1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>CFBundleIconFile</key>
+    <string>icon.icns</string>
 </dict>
 </plist>
 PLIST

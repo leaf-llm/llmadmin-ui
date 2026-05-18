@@ -34,8 +34,20 @@ body {
   justify-content: space-between;
 }
 
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-header__logo {
+  height: 32px;
+  width: auto;
+  display: block;
+}
+
 .app-header__title {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 14px;
 }
 

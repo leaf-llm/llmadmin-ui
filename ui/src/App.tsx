@@ -6,6 +6,7 @@ import UsagePage from './pages/UsagePage';
 import SettingsPage from './pages/SettingsPage';
 import { useBackendHealth, BackendStatus } from './hooks/useBackendHealth';
 import { getApiBaseUrl } from './api/config';
+import logoUrl from './assets/logo.png';
 
 type Page = 'providers' | 'all-providers' | 'usage' | 'settings';
 
@@ -53,6 +54,7 @@ function Header({
       <div className="app-header__inner">
         <div className="header-left">
           <div className="app-header__brand">
+            <img className="app-header__logo" src={logoUrl} alt="LLM Admin" />
             <div className="app-header__title">LLM Admin</div>
           </div>
 
