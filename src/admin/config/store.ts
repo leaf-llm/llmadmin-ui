@@ -1,5 +1,5 @@
 import { getRuntimeKey } from 'hono/adapter';
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
 import {
@@ -110,15 +110,10 @@ function maskApiKey(key: string): string {
 }
 
 function getConfigPath() {
-  // In local dev, the process cwd is repository root.
-  // In compiled bun binary (.app bundle on macOS), cwd is the filesystem root (/)
-  // which is read-only, so write to the binary directory instead.
-  const isBunBinary =
-    typeof import.meta !== 'undefined' && import.meta.url?.startsWith('file:///$bunfs/');
-  if (isBunBinary) {
-    return path.join(path.dirname(process.execPath), CONFIG_FILE_NAME);
-  }
-  return path.join(process.cwd(), CONFIG_FILE_NAME);
+  // Use user-writable location: ~/.llm-admin/conf.ui.json
+  // This works in both dev and production (Bun binary) modes.
+  const userConfigDir = path.join(process.env.HOME || '', '.llm-admin');
+  return path.join(userConfigDir, CONFIG_FILE_NAME);
 }
 
 export async function loadUiConfig(): Promise<UiConfigFile> {
@@ -261,6 +256,13 @@ export async function saveUiConfig(config: UiConfigFile) {
     return; // silently no-op, config cannot be saved in non-node/bun runtimes
   }
   const configPath = getConfigPath();
+  // Ensure the directory exists before writing
+  const dir = path.dirname(configPath);
+  try {
+    await mkdir(dir, { recursive: true });
+  } catch (e: any) {
+    if (e?.code !== 'EEXIST') throw e;
+  }
   await writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
 }
 
