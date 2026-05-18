@@ -14,14 +14,14 @@ if [ -z "$VERSION" ]; then
   VERSION=$(node -p "require('$REPO_ROOT/package.json').version" 2>/dev/null || echo "1.0.0")
 fi
 
-echo "Packaging Local LLM Gateway v$VERSION"
+echo "Packaging LLM Admin v$VERSION"
 echo "Dist dir: $DIST_DIR"
 echo "Output: $OUTPUT_EXE"
 
 cd "$DIST_DIR"
 
 # Verify required files exist
-for f in "local-llm-gateway-win_x64.exe" "portkey-gateway.exe" "resources.neu"; do
+for f in "llm-admin-win_x64.exe" "llm-gateway.exe" "resources.neu"; do
   if [ ! -f "$f" ]; then
     echo "ERROR: Required file not found: $f"
     exit 1
@@ -31,7 +31,7 @@ done
 # Copy icon and ISS script into dist dir (so relative Source paths in .iss resolve)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cp "$SCRIPT_DIR/../desktop/resources/icon.ico" "./icon.ico"
-cp "$SCRIPT_DIR/local-llm-gateway.iss" "./local-llm-gateway.iss"
+cp "$SCRIPT_DIR/llm-admin.iss" "./llm-admin.iss"
 
 # Find ISCC.exe (Inno Setup Command Line Compiler)
 ISCC=""
@@ -67,7 +67,7 @@ OUTPUT_FILENAME="$(basename "$OUTPUT_EXE" .exe)"
 # Compile the installer
 # MSYS_NO_PATHCONV=1 prevents Git Bash (MSYS2) from converting /D, /O, /F
 # flags into Windows paths, which ISCC would misinterpret as script filenames.
-MSYS_NO_PATHCONV=1 "$ISCC" /DAppVersion="$VERSION" /O"$OUTPUT_DIR" /F"$OUTPUT_FILENAME" "./local-llm-gateway.iss"
+MSYS_NO_PATHCONV=1 "$ISCC" /DAppVersion="$VERSION" /O"$OUTPUT_DIR" /F"$OUTPUT_FILENAME" "./llm-admin.iss"
 
 # Verify output
 if [ ! -f "$OUTPUT_EXE" ]; then
@@ -76,7 +76,7 @@ if [ ! -f "$OUTPUT_EXE" ]; then
 fi
 
 # Cleanup temp files
-rm -f "./icon.ico" "./local-llm-gateway.iss"
+rm -f "./icon.ico" "./llm-admin.iss"
 
 echo ""
 echo "Packaging complete: $OUTPUT_EXE"
