@@ -1,102 +1,83 @@
 #!/bin/bash
 set -e
 
-# Package Windows portable exe using 7-Zip SFX with desktop shortcut
-# Usage: ./scripts/package-windows.sh <dist_dir> <output_exe>
+# Package Windows installer using Inno Setup
+# Usage: ./scripts/package-windows.sh <dist_dir> <output_exe> [version]
 
-DIST_DIR="${1:?Usage: $0 <dist_dir> <output_exe>}"
-OUTPUT_EXE="${2:?Usage: $0 <dist_dir> <output_exe>}"
+DIST_DIR="${1:?Usage: $0 <dist_dir> <output_exe> [version]}"
+OUTPUT_EXE="${2:?Usage: $0 <dist_dir> <output_exe> [version]}"
+VERSION="${3:-}"
+
+# Read version from package.json if not provided
+if [ -z "$VERSION" ]; then
+  REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+  VERSION=$(node -p "require('$REPO_ROOT/package.json').version" 2>/dev/null || echo "1.0.0")
+fi
+
+echo "Packaging Local LLM Gateway v$VERSION"
+echo "Dist dir: $DIST_DIR"
+echo "Output: $OUTPUT_EXE"
 
 cd "$DIST_DIR"
 
-# Find the main Neutralinojs executable
-MAIN_EXE=$(find . -name "llm-admin-win_x64.exe" -type f 2>/dev/null | head -1)
-if [ -z "$MAIN_EXE" ]; then
-  MAIN_EXE=$(find . -name "llm-admin.exe" -type f 2>/dev/null | head -1)
-fi
-if [ -z "$MAIN_EXE" ]; then
-  echo "ERROR: Could not find llm-admin.exe in $DIST_DIR"
-  exit 1
-fi
+# Verify required files exist
+for f in "local-llm-gateway-win_x64.exe" "portkey-gateway.exe" "resources.neu"; do
+  if [ ! -f "$f" ]; then
+    echo "ERROR: Required file not found: $f"
+    exit 1
+  fi
+done
 
-echo "Found exe: $MAIN_EXE"
-echo "Output: $OUTPUT_EXE"
-echo "Contents:"
-ls -la
+# Copy icon and ISS script into dist dir (so relative Source paths in .iss resolve)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cp "$SCRIPT_DIR/../desktop/resources/icon.ico" "./icon.ico"
+cp "$SCRIPT_DIR/local-llm-gateway.iss" "./local-llm-gateway.iss"
 
-# Public folder is optional in desktop mode (UI served by Neutralino via resources.neu)
-if [ -d "./public" ]; then
-  echo "Public folder found"
-else
-  echo "Warning: public/ folder not found (not required for desktop mode)"
-fi
-
-# Create launcher that creates shortcut and runs app
-cat > "_launcher.bat" << 'BATEOF'
-@echo off
-cd /d "%~dp0"
-
-REM Create desktop shortcut using PowerShell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $WshShell = New-Object -ComObject WScript.Shell; $Desktop = [Environment]::GetFolderPath('Desktop'); $Shortcut = $WshShell.CreateShortcut((Join-Path $Desktop 'LLM Admin.lnk')); $Shortcut.TargetPath = Join-Path $PWD 'llm-admin.exe'; $Shortcut.WorkingDirectory = $PWD; $Shortcut.Description = 'LLM Admin'; $Shortcut.Save()" 2>nul
-
-REM Launch the app
-start "" "llm-admin.exe"
-BATEOF
-
-# Find 7z.exe
-SEVENZ_CMD="7z.exe"
-if ! command -v "$SEVENZ_CMD" &> /dev/null && [ ! -f "$SEVENZ_CMD" ]; then
-  SEVENZ_PATHS=(
-    "C:/Program Files/7-Zip/7z.exe"
-    "/c/Program Files/7-Zip/7z.exe"
-    "C:/Program Files (x86)/7-Zip/7z.exe"
-  )
-  for sz_path in "${SEVENZ_PATHS[@]}"; do
-    if [ -f "$sz_path" ]; then
-      SEVENZ_CMD="$sz_path"
-      break
-    fi
-  done
-fi
-
-echo "Using 7-Zip: $SEVENZ_CMD"
-
-# Find 7z.sfx module
-SFX_MODULE=""
-SFX_PATHS=(
-  "C:/Program Files/7-Zip/7z.sfx"
-  "/c/Program Files/7-Zip/7z.sfx"
-  "C:/Program Files (x86)/7-Zip/7z.sfx"
+# Find ISCC.exe (Inno Setup Command Line Compiler)
+ISCC=""
+CANDIDATES=(
+  "C:/Program Files (x86)/Inno Setup 6/ISCC.exe"
+  "C:/Program Files/Inno Setup 6/ISCC.exe"
 )
-for sfx_path in "${SFX_PATHS[@]}"; do
-  if [ -f "$sfx_path" ]; then
-    SFX_MODULE="$sfx_path"
+for c in "${CANDIDATES[@]}"; do
+  if [ -f "$c" ]; then
+    ISCC="$c"
     break
   fi
 done
 
-if [ -z "$SFX_MODULE" ]; then
-  echo "WARNING: 7z.sfx not found, using -sfx flag instead"
-  "$SEVENZ_CMD" a -sfx -mx=9 "$OUTPUT_EXE" . -xr!*.tmp -xr!node_modules -xr!.git -xr!.tmp-evb
-else
-  echo "Using SFX module: $SFX_MODULE"
+if [ -z "$ISCC" ]; then
+  # Also check PATH
+  if command -v ISCC.exe &>/dev/null; then
+    ISCC="ISCC.exe"
+  elif command -v iscc &>/dev/null; then
+    ISCC="iscc"
+  else
+    echo "ERROR: ISCC.exe not found. Install Inno Setup 6."
+    exit 1
+  fi
+fi
 
-  # Create 7z archive with launcher included
-  "$SEVENZ_CMD" a -mx=9 "${OUTPUT_EXE}.7z" . -xr!*.tmp -xr!node_modules -xr!.git -xr!.tmp-evb
+echo "Using ISCC: $ISCC"
 
-  # Verify archive contents
-  echo "Archive contents:"
-  "$SEVENZ_CMD" l "${OUTPUT_EXE}.7z" | head -30
+# Determine output directory and filename
+OUTPUT_DIR="$(dirname "$OUTPUT_EXE")"
+OUTPUT_FILENAME="$(basename "$OUTPUT_EXE" .exe)"
 
-  # Prepend SFX module to create the final exe
-  cat "$SFX_MODULE" "${OUTPUT_EXE}.7z" > "$OUTPUT_EXE"
-  rm "${OUTPUT_EXE}.7z"
+# Compile the installer
+# MSYS_NO_PATHCONV=1 prevents Git Bash (MSYS2) from converting /D, /O, /F
+# flags into Windows paths, which ISCC would misinterpret as script filenames.
+MSYS_NO_PATHCONV=1 "$ISCC" /DAppVersion="$VERSION" /O"$OUTPUT_DIR" /F"$OUTPUT_FILENAME" "./local-llm-gateway.iss"
 
-  echo "SFX archive created with launcher"
+# Verify output
+if [ ! -f "$OUTPUT_EXE" ]; then
+  echo "ERROR: Installer was not created at $OUTPUT_EXE"
+  exit 1
 fi
 
 # Cleanup temp files
-rm -f "_launcher.bat"
+rm -f "./icon.ico" "./local-llm-gateway.iss"
 
 echo ""
 echo "Packaging complete: $OUTPUT_EXE"
+ls -la "$OUTPUT_EXE"
