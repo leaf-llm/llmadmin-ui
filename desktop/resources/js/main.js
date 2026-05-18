@@ -33,8 +33,8 @@ Neutralino.events.on('ready', async () => {
 Neutralino.events.on('windowClose', async () => {
   // Neutralino.app.exit() and execCommand are async IPC — on macOS the WKWebView
   // event loop crashes (objc_exception_rethrow) before they complete.
-  // Instead, use a browser-native fetch to tell portkey-gateway to kill us.
-  // portkey-gateway has our PID via --ppid and will SIGTERM us then exit itself.
+  // Instead, use a browser-native fetch to tell llm-gateway to kill us.
+  // llm-gateway has our PID via --ppid and will SIGTERM us then exit itself.
   try {
     navigator.sendBeacon('http://127.0.0.1:8700/shutdown');
   } catch {
@@ -104,7 +104,7 @@ async function resolvePath(path) {
 }
 
 async function startBackend() {
-  const binaryName = isWindows ? 'portkey-gateway.exe' : 'portkey-gateway';
+  const binaryName = isWindows ? 'llm-gateway.exe' : 'llm-gateway';
 
   // NL_PATH points to the Neutralino app directory (where resources.neu lives).
   // On macOS .app bundles, this is Contents/ but binaries are in Contents/MacOS/.

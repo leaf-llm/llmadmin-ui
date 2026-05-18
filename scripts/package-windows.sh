@@ -10,12 +10,12 @@ OUTPUT_EXE="${2:?Usage: $0 <dist_dir> <output_exe>}"
 cd "$DIST_DIR"
 
 # Find the main Neutralinojs executable
-MAIN_EXE=$(find . -name "local-llm-gateway-win_x64.exe" -type f 2>/dev/null | head -1)
+MAIN_EXE=$(find . -name "llm-admin-win_x64.exe" -type f 2>/dev/null | head -1)
 if [ -z "$MAIN_EXE" ]; then
-  MAIN_EXE=$(find . -name "local-llm-gateway.exe" -type f 2>/dev/null | head -1)
+  MAIN_EXE=$(find . -name "llm-admin.exe" -type f 2>/dev/null | head -1)
 fi
 if [ -z "$MAIN_EXE" ]; then
-  echo "ERROR: Could not find local-llm-gateway.exe in $DIST_DIR"
+  echo "ERROR: Could not find llm-admin.exe in $DIST_DIR"
   exit 1
 fi
 
@@ -37,10 +37,10 @@ cat > "_launcher.bat" << 'BATEOF'
 cd /d "%~dp0"
 
 REM Create desktop shortcut using PowerShell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $WshShell = New-Object -ComObject WScript.Shell; $Desktop = [Environment]::GetFolderPath('Desktop'); $Shortcut = $WshShell.CreateShortcut((Join-Path $Desktop 'Local LLM Gateway.lnk')); $Shortcut.TargetPath = Join-Path $PWD 'local-llm-gateway.exe'; $Shortcut.WorkingDirectory = $PWD; $Shortcut.Description = 'Local LLM Gateway'; $Shortcut.Save()" 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $WshShell = New-Object -ComObject WScript.Shell; $Desktop = [Environment]::GetFolderPath('Desktop'); $Shortcut = $WshShell.CreateShortcut((Join-Path $Desktop 'LLM Admin.lnk')); $Shortcut.TargetPath = Join-Path $PWD 'llm-admin.exe'; $Shortcut.WorkingDirectory = $PWD; $Shortcut.Description = 'LLM Admin'; $Shortcut.Save()" 2>nul
 
 REM Launch the app
-start "" "local-llm-gateway.exe"
+start "" "llm-admin.exe"
 BATEOF
 
 # Find 7z.exe

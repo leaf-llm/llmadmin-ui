@@ -12,16 +12,16 @@ jobs:
         include:
           # Desktop apps
           - os: ubuntu-latest
-            artifact: local-llm-gateway_1.0.0_amd64.deb
+            artifact: llm-admin_0.1.0_amd64.deb
             build_type: desktop
           # macOS desktop apps (build on self-hosted macOS 12 runner)
-          - artifact: local-llm-gateway_x64.dmg
+          - artifact: llm-admin_x64.dmg
             build_type: desktop
             arch: x64
             os: ''
           # Windows desktop apps
           - os: windows-latest
-            artifact: local-llm-gateway.exe
+            artifact: llm-admin.exe
             build_type: desktop
     runs-on: ${{ matrix.os || 'self-hosted' }}
 
@@ -69,21 +69,21 @@ jobs:
         if: matrix.build_type == 'desktop' && runner.os == 'Linux'
         uses: ./.github/actions/package-deb
         with:
-          dist_path: desktop/dist/local-llm-gateway
+          dist_path: desktop/dist/llm-admin
 
       - name: Package .dmg
         if: matrix.build_type == 'desktop' && runner.os == 'macOS'
         uses: ./.github/actions/package-dmg
         with:
-          dist_dir: desktop/dist/local-llm-gateway
-          binary_name: local-llm-gateway-mac_${{ matrix.arch }}
+          dist_dir: desktop/dist/llm-admin
+          binary_name: llm-admin-mac_${{ matrix.arch }}
           output_dmg: ${{ matrix.artifact }}
 
       - name: Package Windows exe
         if: matrix.build_type == 'desktop' && runner.os == 'Windows'
         uses: ./.github/actions/package-windows
         with:
-          dist_dir: desktop/dist/local-llm-gateway
+          dist_dir: desktop/dist/llm-admin
           output_exe: ${{ matrix.artifact }}
 
       # ── Upload to server ────────────────────────────────────────────
@@ -97,13 +97,13 @@ jobs:
           # Determine source path based on OS
           case "${{ runner.os }}" in
             Linux)
-              SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
+              SOURCE_PATH="desktop/dist/llm-admin/${{ matrix.artifact }}"
               ;;
             macOS)
-              SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
+              SOURCE_PATH="desktop/dist/llm-admin/${{ matrix.artifact }}"
               ;;
             Windows)
-              SOURCE_PATH="desktop/dist/local-llm-gateway/${{ matrix.artifact }}"
+              SOURCE_PATH="desktop/dist/llm-admin/${{ matrix.artifact }}"
               ;;
           esac
 

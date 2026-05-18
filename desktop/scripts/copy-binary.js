@@ -11,15 +11,15 @@ function copyDist(destDir) {
     return;
   }
 
-  // Find portkey-gateway binary (with or without .exe on Windows)
-  let binarySrc = path.join(buildDir, 'portkey-gateway');
+  // Find llm-gateway binary (with or without .exe on Windows)
+  let binarySrc = path.join(buildDir, 'llm-gateway');
   if (!fs.existsSync(binarySrc) && process.platform === 'win32') {
-    binarySrc = path.join(buildDir, 'portkey-gateway.exe');
+    binarySrc = path.join(buildDir, 'llm-gateway.exe');
   }
 
   if (fs.existsSync(binarySrc)) {
     const ext = path.extname(binarySrc);
-    const binaryDest = path.join(destDir, 'portkey-gateway' + ext);
+    const binaryDest = path.join(destDir, 'llm-gateway' + ext);
     fs.copyFileSync(binarySrc, binaryDest);
     if (process.platform !== 'win32') {
       fs.chmodSync(binaryDest, 0o755);
@@ -30,5 +30,5 @@ function copyDist(destDir) {
   }
 }
 
-const destDir = path.join(__dirname, '../dist/local-llm-gateway');
+const destDir = path.join(__dirname, '../dist/llm-admin');
 copyDist(destDir);

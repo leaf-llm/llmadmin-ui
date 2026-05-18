@@ -1,6 +1,6 @@
 {
-  "applicationId": "com.local-llm-gateway.app",
-  "version": "1.0.0",
+  "applicationId": "com.llm-admin.app",
+  "version": "0.1.0",
   "defaultMode": "window",
   "port": 0,
   "documentRoot": "/resources/",
@@ -23,7 +23,7 @@
   ],
   "modes": {
     "window": {
-      "title": "Local LLM Gateway",
+      "title": "LLM Admin",
       "width": 1280,
       "height": 840,
       "minWidth": 900,
@@ -33,7 +33,7 @@
     }
   },
   "cli": {
-    "binaryName": "local-llm-gateway",
+    "binaryName": "llm-admin",
     "resourcesPath": "./resources/",
     "extensionsPath": "/extensions/",
     "clientLibrary": "/resources/js/neutralino.js",
