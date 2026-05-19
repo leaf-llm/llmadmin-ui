@@ -19,7 +19,8 @@ const port = portArg ? parseInt(portArg.split('=')[1]) : defaultPort;
 const isHeadless = args.includes('--headless');
 
 // Detect if running as compiled bun binary (production) or in dev mode
-const isBunBinary = import.meta.url.startsWith('file:///$bunfs/') ||
+const isBunBinary =
+  import.meta.url.startsWith('file:///$bunfs/') ||
   (process.platform === 'win32' && process.execPath.endsWith('.exe'));
 
 // When launched by the desktop app, watch the parent process and exit when it dies

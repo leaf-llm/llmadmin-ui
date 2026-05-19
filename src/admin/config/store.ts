@@ -110,6 +110,14 @@ function maskApiKey(key: string): string {
 }
 
 function getConfigPath() {
+  // For macOS .app bundle, store config next to the binary for portability
+  // Check if we're in an app bundle (Neutralino sets NL_PATH env or we detect .app structure)
+  const execPath = process.env.NL_PATH || process.execPath;
+  if (execPath.includes('.app/Contents/MacOS/')) {
+    const appBundleDir = path.dirname(execPath);
+    return path.join(appBundleDir, CONFIG_FILE_NAME);
+  }
+
   // Use user-writable location: ~/.llm-admin/conf.ui.json
   // This works in both dev and production (Bun binary) modes.
   const userConfigDir = path.join(process.env.HOME || '', '.llm-admin');

@@ -10,8 +10,18 @@ interface DatePickerProps {
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 function parseDate(dateStr: string): Date {
@@ -27,7 +37,13 @@ function formatDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-export default function DatePicker({ value, onChange, label, min, max }: DatePickerProps) {
+export default function DatePicker({
+  value,
+  onChange,
+  label,
+  min,
+  max,
+}: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => parseDate(value));
   const ref = useRef<HTMLDivElement>(null);
@@ -89,7 +105,7 @@ export default function DatePicker({ value, onChange, label, min, max }: DatePic
   const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
   const days: (number | null)[] = [
     ...Array(firstDay).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1)
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
   return (
@@ -106,15 +122,29 @@ export default function DatePicker({ value, onChange, label, min, max }: DatePic
         {open && (
           <div className="date-picker__calendar">
             <div className="date-picker__header">
-              <button type="button" className="date-picker__nav" onClick={prevMonth}>&#8249;</button>
+              <button
+                type="button"
+                className="date-picker__nav"
+                onClick={prevMonth}
+              >
+                &#8249;
+              </button>
               <span className="date-picker__title">
                 {MONTHS[viewMonth]} {viewYear}
               </span>
-              <button type="button" className="date-picker__nav" onClick={nextMonth}>&#8250;</button>
+              <button
+                type="button"
+                className="date-picker__nav"
+                onClick={nextMonth}
+              >
+                &#8250;
+              </button>
             </div>
             <div className="date-picker__days">
-              {DAYS.map(d => (
-                <div key={d} className="date-picker__day-name">{d}</div>
+              {DAYS.map((d) => (
+                <div key={d} className="date-picker__day-name">
+                  {d}
+                </div>
               ))}
               {days.map((day, i) => (
                 <button

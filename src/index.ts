@@ -186,8 +186,19 @@ const DISABLED_PATH_PREFIXES = ['/v1/audio/', '/v1/video/', '/v1/fine_tuning/'];
 const DISABLED_PATHS_EXACT = ['/v1/files', '/v1/batches'];
 app.use('*', async (c, next) => {
   const path = c.req.path;
-  if (DISABLED_PATH_PREFIXES.some((p) => path.startsWith(p)) || DISABLED_PATHS_EXACT.some((p) => path === p || path.startsWith(p + '/'))) {
-    return c.json({ error: { message: 'This endpoint is temporarily disabled', type: 'invalid_request_error' } }, 403);
+  if (
+    DISABLED_PATH_PREFIXES.some((p) => path.startsWith(p)) ||
+    DISABLED_PATHS_EXACT.some((p) => path === p || path.startsWith(p + '/'))
+  ) {
+    return c.json(
+      {
+        error: {
+          message: 'This endpoint is temporarily disabled',
+          type: 'invalid_request_error',
+        },
+      },
+      403
+    );
   }
   return next();
 });

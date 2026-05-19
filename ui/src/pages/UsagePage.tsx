@@ -85,17 +85,20 @@ export default function UsagePage() {
       <div className="card">
         <div className="card__title">{t('common.query')}</div>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            alignItems: 'flex-end',
+            flexWrap: 'wrap',
+          }}
+        >
           <DatePicker
             label={t('common.from')}
             value={from}
             onChange={setFrom}
           />
-          <DatePicker
-            label={t('common.to')}
-            value={to}
-            onChange={setTo}
-          />
+          <DatePicker label={t('common.to')} value={to} onChange={setTo} />
           <Select
             label={t('common.provider')}
             value={provider}
@@ -103,7 +106,9 @@ export default function UsagePage() {
             placeholder={t('common.all')}
             options={[
               { value: 'all', label: t('common.all') },
-              ...(loadingProviders ? [] : providers.map((p) => ({ value: p, label: p })))
+              ...(loadingProviders
+                ? []
+                : providers.map((p) => ({ value: p, label: p }))),
             ]}
           />
           <button
@@ -138,13 +143,25 @@ export default function UsagePage() {
             </div>
             <div className="card" style={{ flex: 1 }}>
               <div className="card__title">{t('common.successCount')}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-success, green)' }}>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: 'var(--color-success, green)',
+                }}
+              >
                 {totals?.successCount ?? 0}
               </div>
             </div>
             <div className="card" style={{ flex: 1 }}>
               <div className="card__title">{t('common.failureCount')}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-error, red)' }}>
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: 'var(--color-error, red)',
+                }}
+              >
                 {totals?.failureCount ?? 0}
               </div>
             </div>
@@ -196,8 +213,12 @@ export default function UsagePage() {
                         <td>{row.date}</td>
                         <td>{row.provider}</td>
                         <td>{row.totalRequests}</td>
-                        <td style={{ color: 'var(--color-success, green)' }}>{row.successCount}</td>
-                        <td style={{ color: 'var(--color-error, red)' }}>{row.failureCount}</td>
+                        <td style={{ color: 'var(--color-success, green)' }}>
+                          {row.successCount}
+                        </td>
+                        <td style={{ color: 'var(--color-error, red)' }}>
+                          {row.failureCount}
+                        </td>
                         <td>{row.inputTokens?.toLocaleString() ?? 0}</td>
                         <td>{row.outputTokens?.toLocaleString() ?? 0}</td>
                       </tr>
