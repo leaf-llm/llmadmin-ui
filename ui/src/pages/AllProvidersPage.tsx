@@ -345,14 +345,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                   e.stopPropagation();
                   const url = PROVIDER_API_KEY_URLS[p.provider.toLowerCase()];
                   if (!url) return;
-                  const isWindows = navigator.userAgent.includes('Windows');
-                  const isMac = navigator.platform.includes('Mac');
-                  const cmd = isWindows
-                    ? `start "" "${url}"`
-                    : isMac
-                      ? `open "${url}"`
-                      : `xdg-open "${url}"`;
-                  await window.NL_OS.execCommand(cmd);
+                  await window.NL_OS.open(url);
                 }}
               >
                 {t('common.getApiKey')}
