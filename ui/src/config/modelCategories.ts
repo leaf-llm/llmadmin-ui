@@ -126,7 +126,7 @@ const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
   dashscope: ['qwen-', 'wanx-'],
   moonshot: ['moonshot-'],
   minimax: ['minimax-'],
-  doubao: ['doubao-'],
+  doubao: ['doubao-', 'seedream'],
   deepseek: ['deepseek-'],
 };
 

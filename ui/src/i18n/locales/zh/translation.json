@@ -21,6 +21,7 @@
     "apiKeyRequired": "API Key 为必填项",
     "pleaseEnterApiKeyFirst": "请先输入 API Key",
     "connectionFailed": "连接失败",
+    "connectionDisconnected": "连接断开",
     "connectionVerified": "连接已验证",
     "copied": "已复制",
     "clickToCopy": "点击复制",
@@ -103,6 +104,7 @@
     "categoryMcp": "MCP",
     "running": "运行中",
     "connecting": "连接中...",
-    "connectionFailed": "连接失败"
+    "connectionFailed": "连接失败",
+    "connectionDisconnected": "连接断开"
   }
 }

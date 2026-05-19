@@ -47,7 +47,7 @@ function Header({
       ? t('common.running')
       : backendStatus === 'connecting'
         ? t('common.connecting', '连接中...')
-        : t('common.connectionFailed', '连接失败');
+        : t('common.connectionDisconnected', '连接断开');
 
   return (
     <header className="app-header">

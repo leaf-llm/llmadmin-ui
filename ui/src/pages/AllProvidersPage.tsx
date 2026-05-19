@@ -20,6 +20,7 @@ import {
   getModelsByProvider,
   PROVIDER_API_KEY_URLS,
 } from '../config/modelCategories';
+import { openExternalUrl } from '../api/config';
 import TopNotification from '../components/TopNotification';
 
 type Draft = ProviderUpdateRequest & {
@@ -345,7 +346,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                   e.stopPropagation();
                   const url = PROVIDER_API_KEY_URLS[p.provider.toLowerCase()];
                   if (!url) return;
-                  await window.NL_OS.open(url);
+                  await openExternalUrl(url);
                 }}
               >
                 {t('common.getApiKey')}

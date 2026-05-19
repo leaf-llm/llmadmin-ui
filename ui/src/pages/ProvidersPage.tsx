@@ -22,6 +22,7 @@ import {
   getModelsByProvider,
   PROVIDER_API_KEY_URLS,
 } from '../config/modelCategories';
+import { openExternalUrl } from '../api/config';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
@@ -318,15 +319,18 @@ export default function ProvidersPage({
           <div className="label">
             {t('common.apiKeyRequiredLabel')}
             {PROVIDER_API_KEY_URLS[p.provider.toLowerCase()] && (
-              <a
-                href={PROVIDER_API_KEY_URLS[p.provider.toLowerCase()]}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
                 className="api-key-link"
-                onClick={(e) => e.stopPropagation()}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const url = PROVIDER_API_KEY_URLS[p.provider.toLowerCase()];
+                  if (!url) return;
+                  await openExternalUrl(url);
+                }}
               >
                 {t('common.getApiKey')}
-              </a>
+              </button>
             )}
           </div>
           <input
@@ -739,7 +743,7 @@ export default function ProvidersPage({
                 const filtered = modelIds
                   .map((id) => ({
                     model: id,
-                    category: /(?:^|[-_])image(?:[-_]|$)|img/i.test(id)
+                    category: /(?:^|[-_])image(?:[-_]|$)|img|seedream/i.test(id)
                       ? 'image'
                       : 'text',
                   }))
