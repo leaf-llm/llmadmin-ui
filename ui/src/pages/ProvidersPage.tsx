@@ -674,7 +674,7 @@ export default function ProvidersPage({
       </div>
 
       {showModelDialog && modelDialogProvider && modelDialogConfigId && (
-        <div className="dialog-overlay" onClick={closeModelDialog}>
+        <div className="dialog-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeModelDialog(); }}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
               <h3>{t('common.selectModels', { provider: modelDialogProvider })}</h3>
