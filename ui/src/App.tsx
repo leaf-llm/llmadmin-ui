@@ -79,7 +79,9 @@ function Header({
             </button>
             <button
               className={
-                active === 'settings' ? 'app-nav__link is-active' : 'app-nav__link'
+                active === 'settings'
+                  ? 'app-nav__link is-active'
+                  : 'app-nav__link'
               }
               onClick={() => onNavigate('settings')}
             >
@@ -89,13 +91,23 @@ function Header({
         </div>
 
         <div className="header-right">
-          <div className="gateway-url" onClick={handleCopyUrl} style={{ cursor: 'pointer' }}>
-            <span>{copied ? t('common.copied') : (getApiBaseUrl() || 'http://127.0.0.1:8700')}</span>
+          <div
+            className="gateway-url"
+            onClick={handleCopyUrl}
+            style={{ cursor: 'pointer' }}
+          >
+            <span>
+              {copied
+                ? t('common.copied')
+                : getApiBaseUrl() || 'http://127.0.0.1:8700'}
+            </span>
           </div>
           <div
             className="status-indicator"
             onClick={backendStatus === 'error' ? onRetry : undefined}
-            style={backendStatus === 'error' ? { cursor: 'pointer' } : undefined}
+            style={
+              backendStatus === 'error' ? { cursor: 'pointer' } : undefined
+            }
           >
             <span className={statusDotClass}></span>
             <span>{statusText}</span>

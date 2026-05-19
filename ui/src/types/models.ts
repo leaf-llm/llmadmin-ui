@@ -8,10 +8,7 @@ export const MODEL_CATEGORIES: ModelCategory[] = [
   'mcp',
 ];
 
-export const VISIBLE_CATEGORIES: ModelCategory[] = [
-  'text',
-  'image',
-];
+export const VISIBLE_CATEGORIES: ModelCategory[] = ['text', 'image'];
 
 export const CATEGORY_LABELS: Record<ModelCategory, string> = {
   text: '文本',

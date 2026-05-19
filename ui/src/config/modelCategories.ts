@@ -109,8 +109,9 @@ export function getModelsByCategory(category: ModelCategory): string[] {
     .map(([model]) => model);
 
   if (category === 'image') {
-    const seedreamModels = Object.keys(MODEL_CATEGORY_MAP)
-      .filter(m => m.toLowerCase().includes('seedream'));
+    const seedreamModels = Object.keys(MODEL_CATEGORY_MAP).filter((m) =>
+      m.toLowerCase().includes('seedream')
+    );
     return [...new Set([...baseModels, ...seedreamModels])];
   }
 

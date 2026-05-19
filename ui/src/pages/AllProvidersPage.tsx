@@ -16,7 +16,10 @@ import {
   testProviderConnectivity,
 } from '../api/adminClient';
 import { ModelCategory } from '../types/models';
-import { getModelsByProvider, PROVIDER_API_KEY_URLS } from '../config/modelCategories';
+import {
+  getModelsByProvider,
+  PROVIDER_API_KEY_URLS,
+} from '../config/modelCategories';
 import TopNotification from '../components/TopNotification';
 
 type Draft = ProviderUpdateRequest & {
@@ -30,7 +33,10 @@ interface AllProvidersPageProps {
   onBack: () => void;
 }
 
-function getProviderDisplayName(provider: string, t: (key: string) => string): string {
+function getProviderDisplayName(
+  provider: string,
+  t: (key: string) => string
+): string {
   const providerMap: Record<string, string> = {
     zhipu: t('common.providerZhipu'),
     dashscope: t('common.providerDashscope'),
@@ -38,7 +44,10 @@ function getProviderDisplayName(provider: string, t: (key: string) => string): s
     minimax: 'MiniMax',
     moonshot: 'Moonshot AI',
   };
-  return providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
+  return (
+    providerMap[provider] ||
+    provider.charAt(0).toUpperCase() + provider.slice(1)
+  );
 }
 
 export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
@@ -214,7 +223,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     const key = p.configId ?? p.provider;
     const draft = drafts[key];
     if (!draft?.apiKey) {
-      setNotification({ message: t('common.pleaseEnterApiKeyFirst'), type: 'error' });
+      setNotification({
+        message: t('common.pleaseEnterApiKeyFirst'),
+        type: 'error',
+      });
       return;
     }
 
@@ -274,7 +286,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         onClick={async () => {
           const draft = drafts[key];
           if (isNew && (!draft?.apiKey || draft.apiKey.trim() === '')) {
-            setNotification({ message: t('common.apiKeyRequired'), type: 'error' });
+            setNotification({
+              message: t('common.apiKeyRequired'),
+              type: 'error',
+            });
             return;
           }
           setSavingProvider(key);
@@ -440,11 +455,16 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               disabled={testingProvider === key || !drafts[key]?.apiKey}
               onClick={() => handleTestConnectivity(p, isNew)}
             >
-              {testingProvider === key ? t('common.testing') : t('common.testConnectivity')}
+              {testingProvider === key
+                ? t('common.testing')
+                : t('common.testConnectivity')}
             </button>
           )}
           {drafts[key]?.testStatus === 'passed' && (
-            <span className="test-passed-icon" title={t('common.connectionVerified')}>
+            <span
+              className="test-passed-icon"
+              title={t('common.connectionVerified')}
+            >
               &#10003;
             </span>
           )}
@@ -454,7 +474,9 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             </span>
           )}
           <div className="muted">
-            {p.lastSyncedAt ? t('common.lastSync', { time: p.lastSyncedAt }) : ''}
+            {p.lastSyncedAt
+              ? t('common.lastSync', { time: p.lastSyncedAt })
+              : ''}
           </div>
         </div>
       </div>
@@ -592,15 +614,18 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             <>
               {connectedProviders.length > 0 && (
                 <div className="providers-section">
-                  <h2 className="section-title">{t('common.statusConnected')}</h2>
+                  <h2 className="section-title">
+                    {t('common.statusConnected')}
+                  </h2>
                   <div className="provider-list">
                     {connectedProviders.map((p) => {
                       const isExpanded = expandedProviders.has(
                         p.configId ?? p.provider
                       );
                       const routedModels =
-                        routedProviderModels.get(`${p.provider}:${p.configId}`) ??
-                        [];
+                        routedProviderModels.get(
+                          `${p.provider}:${p.configId}`
+                        ) ?? [];
                       return (
                         <div
                           className="provider-list-item"
@@ -608,7 +633,9 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                         >
                           <div className="provider-list-row">
                             <div className="provider-info">
-                              <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
+                              <span className="provider-name">
+                                {getProviderDisplayName(p.provider, t)}
+                              </span>
                               {p.remark && (
                                 <span className="provider-remark">
                                   {' '}
@@ -620,7 +647,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                               </span>
                               {routedModels.length > 0 && (
                                 <span className="routed-badge">
-                                  {t('common.modelCountInRouting', { count: routedModels.length, plural: routedModels.length > 1 ? 's' : '' })}
+                                  {t('common.modelCountInRouting', {
+                                    count: routedModels.length,
+                                    plural: routedModels.length > 1 ? 's' : '',
+                                  })}
                                 </span>
                               )}
                             </div>
@@ -649,50 +679,54 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
 
               {disconnectedProviders.length > 0 && (
                 <div className="providers-section">
-                    <h2 className="section-title">{t('common.notConfigured')}</h2>
-                    <div className="provider-list">
-                      {disconnectedProviders.map((p) => {
-                        const isExpanded = expandedProviders.has(
-                          p.configId ?? p.provider
-                        );
-                        return (
-                          <div
-                            className="provider-list-item"
-                            key={p.configId ?? p.provider}
-                          >
-                            <div className="provider-list-row">
-                              <div className="provider-info">
-                                <span className="provider-name">{getProviderDisplayName(p.provider, t)}</span>
-                                {p.configCount > 0 && (
-                                  <span
-                                    className="routed-badge"
-                                    style={{ marginLeft: 8 }}
-                                  >
-                                    {t('common.configCount', { count: p.configCount })}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="provider-actions">
-                                <button
-                                  className="expand-btn"
-                                  onClick={() =>
-                                    toggleExpanded(p.configId ?? p.provider)
-                                  }
+                  <h2 className="section-title">{t('common.notConfigured')}</h2>
+                  <div className="provider-list">
+                    {disconnectedProviders.map((p) => {
+                      const isExpanded = expandedProviders.has(
+                        p.configId ?? p.provider
+                      );
+                      return (
+                        <div
+                          className="provider-list-item"
+                          key={p.configId ?? p.provider}
+                        >
+                          <div className="provider-list-row">
+                            <div className="provider-info">
+                              <span className="provider-name">
+                                {getProviderDisplayName(p.provider, t)}
+                              </span>
+                              {p.configCount > 0 && (
+                                <span
+                                  className="routed-badge"
+                                  style={{ marginLeft: 8 }}
                                 >
-                                  {isExpanded ? '▲' : '▼'}
-                                </button>
-                              </div>
+                                  {t('common.configCount', {
+                                    count: p.configCount,
+                                  })}
+                                </span>
+                              )}
                             </div>
-                            {isExpanded && (
-                              <div className="provider-expand-content">
-                                {renderProviderForm(p, true)}
-                              </div>
-                            )}
+                            <div className="provider-actions">
+                              <button
+                                className="expand-btn"
+                                onClick={() =>
+                                  toggleExpanded(p.configId ?? p.provider)
+                                }
+                              >
+                                {isExpanded ? '▲' : '▼'}
+                              </button>
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                          {isExpanded && (
+                            <div className="provider-expand-content">
+                              {renderProviderForm(p, true)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
+                </div>
               )}
             </>
           )}
@@ -703,7 +737,9 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         <div className="dialog-overlay" onClick={closeModelDialog}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
-              <h3>{t('common.selectModels', { provider: modelDialogProvider })}</h3>
+              <h3>
+                {t('common.selectModels', { provider: modelDialogProvider })}
+              </h3>
               <button className="dialog-close" onClick={closeModelDialog}>
                 ×
               </button>
@@ -726,7 +762,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                 if (filtered.length === 0) {
                   return (
                     <div className="muted">
-                      {t('common.noModelsAvailable', { category: activeCategory, provider: modelDialogProvider })}
+                      {t('common.noModelsAvailable', {
+                        category: activeCategory,
+                        provider: modelDialogProvider,
+                      })}
                     </div>
                   );
                 }
@@ -740,7 +779,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
                     />
                     <span className="model-name">{m.model}</span>
                     {routedModels.has(m.model) && (
-                      <span className="muted"> {t('common.alreadyInRouting')}</span>
+                      <span className="muted">
+                        {' '}
+                        {t('common.alreadyInRouting')}
+                      </span>
                     )}
                   </label>
                 ));
@@ -757,7 +799,10 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               >
                 {addingModels
                   ? t('common.adding')
-                  : t('common.addModels', { count: selectedModels.length, plural: selectedModels.length > 1 ? 's' : '' })}
+                  : t('common.addModels', {
+                      count: selectedModels.length,
+                      plural: selectedModels.length > 1 ? 's' : '',
+                    })}
               </button>
             </div>
           </div>

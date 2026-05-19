@@ -153,7 +153,9 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
           await sleep(1000 * (attempt + 1));
           continue;
         }
-        throw new Error('Backend is not responding. Please wait for the gateway to start.');
+        throw new Error(
+          'Backend is not responding. Please wait for the gateway to start.'
+        );
       }
       throw err;
     }
@@ -196,7 +198,9 @@ export async function getUsage(params: {
     sp.set('provider', params.provider);
   }
   const qs = sp.toString();
-  return adminFetch<UsageResponse>(`/admin/usage${qs ? `?${qs}` : ''}`, { method: 'GET' });
+  return adminFetch<UsageResponse>(`/admin/usage${qs ? `?${qs}` : ''}`, {
+    method: 'GET',
+  });
 }
 
 export async function getMetrics(params: {
@@ -228,9 +232,12 @@ export async function syncConfig(category?: string): Promise<{
   config?: Record<string, unknown>;
 }> {
   const qs = category ? `?category=${encodeURIComponent(category)}` : '';
-  return adminFetch<{ ok: boolean; config?: Record<string, unknown> }>(`/admin/config${qs}`, {
-    method: 'POST',
-  });
+  return adminFetch<{ ok: boolean; config?: Record<string, unknown> }>(
+    `/admin/config${qs}`,
+    {
+      method: 'POST',
+    }
+  );
 }
 
 export async function deleteConfig(
@@ -353,7 +360,9 @@ export async function getProviderModels(
   const sp = new URLSearchParams();
   sp.set('provider', provider);
   sp.set('configId', configId);
-  return adminFetch<ProviderModelsResponse>(`/admin/provider-models?${sp.toString()}`);
+  return adminFetch<ProviderModelsResponse>(
+    `/admin/provider-models?${sp.toString()}`
+  );
 }
 
 export async function deleteProviderConfig(

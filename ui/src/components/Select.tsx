@@ -13,11 +13,17 @@ interface SelectProps {
   placeholder?: string;
 }
 
-export default function Select({ value, onChange, options, label, placeholder = 'Select...' }: SelectProps) {
+export default function Select({
+  value,
+  onChange,
+  options,
+  label,
+  placeholder = 'Select...',
+}: SelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const selected = options.find(o => o.value === value);
+  const selected = options.find((o) => o.value === value);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -50,7 +56,7 @@ export default function Select({ value, onChange, options, label, placeholder = 
       }
       return;
     }
-    const currentIndex = options.findIndex(o => o.value === value);
+    const currentIndex = options.findIndex((o) => o.value === value);
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       const next = Math.min(currentIndex + 1, options.length - 1);
@@ -83,7 +89,7 @@ export default function Select({ value, onChange, options, label, placeholder = 
         </button>
         {open && (
           <div className="select__options">
-            {options.map(opt => (
+            {options.map((opt) => (
               <button
                 key={opt.value}
                 type="button"

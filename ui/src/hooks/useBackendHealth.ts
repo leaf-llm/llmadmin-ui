@@ -49,12 +49,17 @@ export function useBackendHealth() {
     const poll = async () => {
       while (!stopped && mountedRef.current) {
         const ok = await checkHealth();
-        if (ok || stopped) break;
+        if (stopped) break;
 
-        retryCountRef.current++;
-        if (retryCountRef.current > 15) {
-          if (mountedRef.current) setStatus('error');
-          break;
+        if (ok) {
+          retryCountRef.current = 0;
+          if (mountedRef.current) setStatus('connected');
+        } else {
+          retryCountRef.current++;
+          if (retryCountRef.current > 15) {
+            if (mountedRef.current) setStatus('error');
+            break;
+          }
         }
 
         const delay = Math.min(
@@ -95,11 +100,17 @@ export function useBackendHealth() {
       const poll = async () => {
         while (!stopped && mountedRef.current) {
           const ok = await checkHealth();
-          if (ok || stopped) break;
-          retryCountRef.current++;
-          if (retryCountRef.current > 15) {
-            if (mountedRef.current) setStatus('error');
-            break;
+          if (stopped) break;
+
+          if (ok) {
+            retryCountRef.current = 0;
+            if (mountedRef.current) setStatus('connected');
+          } else {
+            retryCountRef.current++;
+            if (retryCountRef.current > 15) {
+              if (mountedRef.current) setStatus('error');
+              break;
+            }
           }
           const delay = Math.min(
             500 * Math.pow(2, Math.min(retryCountRef.current - 1, 4)),

@@ -50,7 +50,10 @@ function setupClipboardShortcuts() {
 
     const active = document.activeElement;
     const isEditable =
-      active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+      active &&
+      (active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        active.isContentEditable);
     if (!isEditable) return;
 
     if (e.key === 'v' || e.key === 'V') {
@@ -136,12 +139,17 @@ async function startBackend() {
   }
 
   if (!backendBinary) {
-    throw new Error(`Cannot find ${binaryName}. Tried: ${candidates.join(', ')}`);
+    throw new Error(
+      `Cannot find ${binaryName}. Tried: ${candidates.join(', ')}`
+    );
   }
 
   // Resolve to absolute path so spawnProcess doesn't depend on CWD
   const absPath = await resolvePath(backendBinary);
-  Neutralino.debug.log('Backend binary: ' + backendBinary + ' -> ' + absPath, 'INFO');
+  Neutralino.debug.log(
+    'Backend binary: ' + backendBinary + ' -> ' + absPath,
+    'INFO'
+  );
 
   const ppidFlag = isWindows ? '' : ` --ppid=${window.NL_PID}`;
   const cmd = `"${absPath}" --port=8700 --headless${ppidFlag}`;
