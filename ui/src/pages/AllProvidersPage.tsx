@@ -34,8 +34,9 @@ function getProviderDisplayName(provider: string, t: (key: string) => string): s
   const providerMap: Record<string, string> = {
     zhipu: t('common.providerZhipu'),
     dashscope: t('common.providerDashscope'),
-    doubao: t('common.providerDoubao'),
+    doubao: '豆包大模型',
     minimax: 'MiniMax',
+    moonshot: 'Moonshot AI',
   };
   return providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }
