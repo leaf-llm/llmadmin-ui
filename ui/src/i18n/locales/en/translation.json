@@ -21,6 +21,7 @@
     "apiKeyRequired": "API Key is required",
     "pleaseEnterApiKeyFirst": "Please enter API Key first",
     "connectionFailed": "Connection failed",
+    "connectionDisconnected": "Disconnected",
     "connectionVerified": "Connection verified",
     "copied": "Copied!",
     "clickToCopy": "Click to copy",
@@ -103,6 +104,7 @@
     "categoryMcp": "MCP",
     "running": "Running",
     "connecting": "Connecting...",
-    "connectionFailed": "Connection Failed"
+    "connectionFailed": "Connection Failed",
+    "connectionDisconnected": "Disconnected"
   }
 }

@@ -3,19 +3,23 @@ import { isDesktopMode, getApiBaseUrl } from '../api/config';
 
 export type BackendStatus = 'connecting' | 'connected' | 'error';
 
+const HEALTHY_INTERVAL_MS = 10000;
+const BASE_RETRY_DELAY_MS = 500;
+const MAX_RETRY_DELAY_MS = 30000;
+const MAX_RETRY_COUNT = 15;
+const HEALTH_TIMEOUT_MS = 3000;
+
 export function useBackendHealth() {
-  const [status, setStatus] = useState<BackendStatus>(() =>
-    isDesktopMode() ? 'connecting' : 'connected'
-  );
+  const [status, setStatus] = useState<BackendStatus>('connecting');
   const retryCountRef = useRef(0);
   const mountedRef = useRef(true);
   const pollingRef = useRef(false);
 
-  const checkHealth = useCallback(async () => {
+  const checkHealth = useCallback(async (): Promise<boolean> => {
     try {
       const baseUrl = getApiBaseUrl();
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
+      const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
       const res = await fetch(`${baseUrl}/admin/health`, {
         signal: controller.signal,
       });
@@ -28,18 +32,26 @@ export function useBackendHealth() {
         return true;
       }
     } catch {
-      // backend not ready
+      // backend not reachable
     }
     return false;
   }, []);
 
+  const waitFor = (ms: number): Promise<void> =>
+    new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, ms);
+      const check = setInterval(() => {
+        if (!mountedRef.current) {
+          clearTimeout(timer);
+          clearInterval(check);
+          resolve();
+        }
+      }, 500);
+      setTimeout(() => clearInterval(check), ms + 100);
+    });
+
   useEffect(() => {
     mountedRef.current = true;
-
-    if (!isDesktopMode()) {
-      setStatus('connected');
-      return;
-    }
 
     if (pollingRef.current) return;
     pollingRef.current = true;
@@ -54,29 +66,20 @@ export function useBackendHealth() {
         if (ok) {
           retryCountRef.current = 0;
           if (mountedRef.current) setStatus('connected');
+          await waitFor(HEALTHY_INTERVAL_MS);
         } else {
           retryCountRef.current++;
-          if (retryCountRef.current > 15) {
+          if (retryCountRef.current > MAX_RETRY_COUNT) {
             if (mountedRef.current) setStatus('error');
             break;
           }
+          const delay = Math.min(
+            BASE_RETRY_DELAY_MS *
+              Math.pow(2, Math.min(retryCountRef.current - 1, 5)),
+            MAX_RETRY_DELAY_MS
+          );
+          await waitFor(delay);
         }
-
-        const delay = Math.min(
-          500 * Math.pow(2, Math.min(retryCountRef.current - 1, 4)),
-          5000
-        );
-        await new Promise<void>((resolve) => {
-          const timer = setTimeout(resolve, delay);
-          const check = setInterval(() => {
-            if (!mountedRef.current) {
-              clearTimeout(timer);
-              clearInterval(check);
-              resolve();
-            }
-          }, 500);
-          setTimeout(() => clearInterval(check), delay + 100);
-        });
       }
       pollingRef.current = false;
     };
@@ -92,11 +95,11 @@ export function useBackendHealth() {
   const retry = useCallback(() => {
     retryCountRef.current = 0;
     setStatus('connecting');
-    // Re-trigger polling
     mountedRef.current = true;
     if (!pollingRef.current) {
       pollingRef.current = true;
       let stopped = false;
+
       const poll = async () => {
         while (!stopped && mountedRef.current) {
           const ok = await checkHealth();
@@ -105,20 +108,20 @@ export function useBackendHealth() {
           if (ok) {
             retryCountRef.current = 0;
             if (mountedRef.current) setStatus('connected');
+            await waitFor(HEALTHY_INTERVAL_MS);
           } else {
             retryCountRef.current++;
-            if (retryCountRef.current > 15) {
+            if (retryCountRef.current > MAX_RETRY_COUNT) {
               if (mountedRef.current) setStatus('error');
               break;
             }
+            const delay = Math.min(
+              BASE_RETRY_DELAY_MS *
+                Math.pow(2, Math.min(retryCountRef.current - 1, 5)),
+              MAX_RETRY_DELAY_MS
+            );
+            await waitFor(delay);
           }
-          const delay = Math.min(
-            500 * Math.pow(2, Math.min(retryCountRef.current - 1, 4)),
-            5000
-          );
-          await new Promise<void>((resolve) => {
-            const timer = setTimeout(resolve, delay);
-          });
         }
         pollingRef.current = false;
       };

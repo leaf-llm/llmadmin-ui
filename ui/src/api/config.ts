@@ -14,3 +14,18 @@ export function getApiBaseUrl(): string {
 export function getBackendPort(): number {
   return BACKEND_PORT;
 }
+
+export async function openExternalUrl(url: string) {
+  if (isDesktopMode()) {
+    try {
+      const Neutralino = (window as any).Neutralino;
+      if (Neutralino?.os?.open) {
+        await Neutralino.os.open(url);
+      }
+    } catch {
+      window.open(url, '_blank');
+    }
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
