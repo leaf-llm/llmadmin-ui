@@ -9,8 +9,8 @@
   "enableNativeAPI": true,
   "tokenSecurity": "one-time",
   "logging": {
-    "enabled": true,
-    "writeToLogFile": true
+    "enabled": false,
+    "writeToLogFile": false
   },
   "nativeAllowList": [
     "app.*",
@@ -18,7 +18,6 @@
     "window.*",
     "computer.getKernelInfo",
     "events.*",
-    "debug.log",
     "clipboard.*"
   ],
   "modes": {
