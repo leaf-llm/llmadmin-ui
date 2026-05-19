@@ -18,6 +18,10 @@ const port = portArg ? parseInt(portArg.split('=')[1]) : defaultPort;
 
 const isHeadless = args.includes('--headless');
 
+// Detect if running as compiled bun binary (production) or in dev mode
+const isBunBinary = import.meta.url.startsWith('file:///$bunfs/') ||
+  (process.platform === 'win32' && process.execPath.endsWith('.exe'));
+
 // When launched by the desktop app, watch the parent process and exit when it dies
 const ppidArg = args.find((arg) => arg.startsWith('--ppid='));
 const ppid = ppidArg ? parseInt(ppidArg.split('=')[1]) : 0;
@@ -29,11 +33,6 @@ const setupStaticServing = async () => {
   const { fileURLToPath } = await import('url');
   const { readFileSync, existsSync, statSync } = await import('fs');
 
-  // Detect if running as compiled bun binary
-  // On Windows, import.meta.url may not have the $bunfs prefix, so we also check
-  // if process.execPath points to a .exe file
-  const isBunBinary = import.meta.url.startsWith('file:///$bunfs/') ||
-    (process.platform === 'win32' && process.execPath.endsWith('.exe'));
   let publicDir: string;
   let scriptDir: string;
 
@@ -283,33 +282,34 @@ async function showLoadingAnimation() {
   });
 }
 
-// Clear the console and show animation before main output
-console.clear();
-await showLoadingAnimation();
+// Clear the console and show animation before main output (dev mode only)
+if (!isBunBinary) {
+  console.clear();
+  await showLoadingAnimation();
 
-// Main server information with minimal spacing
-console.log('\x1b[1m%s\x1b[0m', '🚀 Your AI Gateway is running at:');
-console.log('   ' + '\x1b[1;4;32m%s\x1b[0m', `${url}`);
+  // Main server information with minimal spacing
+  console.log('\x1b[1m%s\x1b[0m', '🚀 Your AI Gateway is running at:');
+  console.log('   ' + '\x1b[1;4;32m%s\x1b[0m', `${url}`);
 
-// Secondary information on single lines
-if (!isHeadless) {
-  console.log('\n\x1b[90m📱 UI:\x1b[0m \x1b[36m%s\x1b[0m', `${url}/public/`);
+  // Secondary information on single lines
+  if (!isHeadless) {
+    console.log('\n\x1b[90m📱 UI:\x1b[0m \x1b[36m%s\x1b[0m', `${url}/public/`);
 
-  // Open browser to UI (cross-platform)
-  if (process.platform === 'win32') {
-    import('child_process').then(({ exec }) => {
-      exec(`start ${url}/public/`);
-    });
-  } else {
-    import('child_process').then(({ exec }) => {
-      exec(`open ${url}/public/`);
-    });
+    // Open browser to UI (cross-platform)
+    if (process.platform === 'win32') {
+      import('child_process').then(({ exec }) => {
+        exec(`start ${url}/public/`);
+      });
+    } else {
+      import('child_process').then(({ exec }) => {
+        exec(`open ${url}/public/`);
+      });
+    }
   }
-}
-// console.log('\x1b[90m📚 Docs:\x1b[0m \x1b[36m%s\x1b[0m', 'https://portkey.ai/docs');
 
-// Single-line ready message
-console.log('\n\x1b[32m✨ Ready for connections!\x1b[0m');
+  // Single-line ready message
+  console.log('\n\x1b[32m✨ Ready for connections!\x1b[0m');
+}
 
 process.on('uncaughtException', (err) => {
   console.error('Unhandled exception', err);

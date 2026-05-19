@@ -21,7 +21,7 @@
       "name": "MiniMax",
       "object": "provider",
       "description": "MiniMax is a Chinese AI company providing advanced LLMs including the MiniMax-M2 series.",
-      "base_url": "https://api.minimaxi.com/anthropic"
+      "base_url": "https://api.minimaxi.com/anthropic/v1"
     },
     {
       "id": "ai21",

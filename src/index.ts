@@ -181,6 +181,17 @@ app.post('/v1/images/generations', requestValidator, imageGenerationsHandler);
  */
 app.post('/v1/images/edits', requestValidator, imageEditsHandler);
 
+// Temporarily disabled endpoints — remove this middleware to re-enable
+const DISABLED_PATH_PREFIXES = ['/v1/audio/', '/v1/video/', '/v1/fine_tuning/'];
+const DISABLED_PATHS_EXACT = ['/v1/files', '/v1/batches'];
+app.use('*', async (c, next) => {
+  const path = c.req.path;
+  if (DISABLED_PATH_PREFIXES.some((p) => path.startsWith(p)) || DISABLED_PATHS_EXACT.some((p) => path === p || path.startsWith(p + '/'))) {
+    return c.json({ error: { message: 'This endpoint is temporarily disabled', type: 'invalid_request_error' } }, 403);
+  }
+  return next();
+});
+
 /**
  * POST route for '/v1/audio/speech'.
  * Handles requests by passing them to the createSpeechHandler.

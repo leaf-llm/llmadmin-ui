@@ -35,6 +35,8 @@ function getProviderDisplayName(provider: string, t: (key: string) => string): s
     zhipu: t('common.providerZhipu'),
     dashscope: t('common.providerDashscope'),
     doubao: t('common.providerDoubao'),
+    minimax: 'MiniMax',
+    moonshot: 'Moonshot AI',
   };
   return providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }

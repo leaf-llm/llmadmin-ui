@@ -30,6 +30,8 @@ function getProviderDisplayName(provider: string, t: (key: string) => string): s
     zhipu: t('common.providerZhipu'),
     dashscope: t('common.providerDashscope'),
     doubao: t('common.providerDoubao'),
+    minimax: 'MiniMax',
+    moonshot: 'Moonshot AI',
   };
   return providerMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1);
 }
@@ -674,7 +676,7 @@ export default function ProvidersPage({
       </div>
 
       {showModelDialog && modelDialogProvider && modelDialogConfigId && (
-        <div className="dialog-overlay" onClick={closeModelDialog}>
+        <div className="dialog-overlay" onClick={(e) => { if (e.target === e.currentTarget) closeModelDialog(); }}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
               <h3>{t('common.selectModels', { provider: modelDialogProvider })}</h3>

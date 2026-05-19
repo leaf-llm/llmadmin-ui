@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { ModelCategory, MODEL_CATEGORIES } from '../types/models';
+import { ModelCategory, VISIBLE_CATEGORIES } from '../types/models';
 
 interface CategoryTabsProps {
   activeCategory: ModelCategory;
@@ -22,7 +22,7 @@ export default function CategoryTabs({
 
   return (
     <div className="category-tabs">
-      {MODEL_CATEGORIES.map((category) => (
+      {VISIBLE_CATEGORIES.map((category) => (
         <button
           key={category}
           className={`category-tab ${activeCategory === category ? 'active' : ''}`}
