@@ -321,15 +321,25 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           <div className="label">
             {t('common.apiKeyRequiredLabel')}
             {isNew && PROVIDER_API_KEY_URLS[p.provider.toLowerCase()] && (
-              <a
-                href={PROVIDER_API_KEY_URLS[p.provider.toLowerCase()]}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
                 className="api-key-link"
-                onClick={(e) => e.stopPropagation()}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const url = PROVIDER_API_KEY_URLS[p.provider.toLowerCase()];
+                  if (!url) return;
+                  const isWindows = navigator.userAgent.includes('Windows');
+                  const isMac = navigator.platform.includes('Mac');
+                  const cmd = isWindows
+                    ? `start "" "${url}"`
+                    : isMac
+                      ? `open "${url}"`
+                      : `xdg-open "${url}"`;
+                  await window.NL_OS.execCommand(cmd);
+                }}
               >
                 {t('common.getApiKey')}
-              </a>
+              </button>
             )}
           </div>
           <input
