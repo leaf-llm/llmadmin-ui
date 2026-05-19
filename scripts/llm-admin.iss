@@ -9,9 +9,9 @@
 AppId={{com-llm-admin-app}
 AppName=LLM Admin
 AppVersion={#AppVersion}
-AppPublisher=Portkey AI
-AppPublisherURL=https://portkey.ai
-AppSupportURL=https://github.com/Portkey-AI/gateway
+AppPublisher=LLM Admin
+AppPublisherURL=https://llmadmin.dev
+AppSupportURL=https://github.com/llm-admin/gateway
 DefaultDirName={autopf}\LLM Admin
 DefaultGroupName=LLM Admin
 UninstallDisplayName=LLM Admin
