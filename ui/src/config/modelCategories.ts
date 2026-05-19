@@ -109,8 +109,9 @@ export function getModelsByCategory(category: ModelCategory): string[] {
     .map(([model]) => model);
 
   if (category === 'image') {
-    const seedreamModels = Object.keys(MODEL_CATEGORY_MAP)
-      .filter(m => m.toLowerCase().includes('seedream'));
+    const seedreamModels = Object.keys(MODEL_CATEGORY_MAP).filter((m) =>
+      m.toLowerCase().includes('seedream')
+    );
     return [...new Set([...baseModels, ...seedreamModels])];
   }
 
@@ -133,12 +134,13 @@ export const PROVIDER_API_KEY_URLS: Record<string, string> = {
   openai: 'https://platform.openai.com/api-keys',
   anthropic: 'https://console.anthropic.com/settings/keys',
   google: 'https://aistudio.google.com/app/apikey',
-  zhipu: 'https://open.bigmodel.cn/usercenter/apikeys',
-  dashscope: 'https://dashscope.console.aliyun.com/api-key',
-  moonshot: 'https://console.moonshot.cn/api-key',
-  minimax: 'https://platform.minimaxi.com/api-key',
-  doubao: 'https://console.volcengine.com/ark/region:ark-cn-beijing/api-key',
-  deepseek: 'https://platform.deepseek.com/api-key',
+  zhipu: 'https://open.bigmodel.cn/apikey/platform',
+  dashscope: 'https://bailian.console.aliyun.com/cn-beijing?tab=model#/api-key',
+  moonshot: 'https://platform.moonshot.cn/console/api-keys',
+  minimax:
+    'https://platform.minimaxi.com/user-center/basic-information/interface-key',
+  doubao: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
+  deepseek: 'https://platform.deepseek.com/api_keys',
 };
 
 export function getModelsByProvider(
