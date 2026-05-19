@@ -104,9 +104,17 @@ export const MODEL_CATEGORY_MAP: Record<string, ModelCategory> = {
 };
 
 export function getModelsByCategory(category: ModelCategory): string[] {
-  return Object.entries(MODEL_CATEGORY_MAP)
+  const baseModels = Object.entries(MODEL_CATEGORY_MAP)
     .filter(([, cat]) => cat === category)
     .map(([model]) => model);
+
+  if (category === 'image') {
+    const seedreamModels = Object.keys(MODEL_CATEGORY_MAP)
+      .filter(m => m.toLowerCase().includes('seedream'));
+    return [...new Set([...baseModels, ...seedreamModels])];
+  }
+
+  return baseModels;
 }
 
 const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
