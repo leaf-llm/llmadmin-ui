@@ -1,19 +1,18 @@
 {
-  "name": "@portkey-ai/gateway",
+  "name": "llm-admin/gateway",
   "version": "0.1.0",
-  "description": "A fast AI gateway by Portkey",
+  "description": "A fast AI gateway by LLM Admin",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Portkey-AI/gateway.git"
+    "url": "git+https://github.com/llm-admin/gateway.git"
   },
   "keywords": [
     "AI gateway",
-    "Portkey",
-    "Portkey AI",
+    "LLM Admin",
     "LLM",
     "OpenAI"
   ],
-  "author": "portkey-ai <support@portkey.ai>",
+  "author": "llm-admin <support@llmadmin.dev>",
   "license": "MIT",
   "files": [
     "build",
