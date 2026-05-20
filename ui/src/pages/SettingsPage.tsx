@@ -143,14 +143,12 @@ export default function SettingsPage() {
 
       if (isDesktopMode()) {
         const Neutralino = (window as any).Neutralino;
-        const result = await Neutralino.os.showSaveDialog('Export Config', {
-          defaultPath: 'conf.ui.json',
-        });
-        if (result.selectedEntry) {
-          await Neutralino.filesystem.writeFile({
-            fileName: result.selectedEntry,
-            data: jsonStr,
-          });
+        const filePath: string = await Neutralino.os.showSaveDialog(
+          'Export Config',
+          { defaultPath: 'conf.ui.json' }
+        );
+        if (filePath) {
+          await Neutralino.filesystem.writeFile(filePath, jsonStr);
         }
         return;
       }
@@ -185,12 +183,13 @@ export default function SettingsPage() {
 
     try {
       const Neutralino = (window as any).Neutralino;
-      const result = await Neutralino.os.showOpenDialog('Import Config');
-      const filePath = result.selectedEntry || result.selectedEntries?.[0];
+      const paths: string[] = await Neutralino.os.showOpenDialog(
+        'Import Config'
+      );
+      const filePath = paths?.[0];
       if (!filePath) return;
 
-      const fileData = await Neutralino.filesystem.readFile(filePath);
-      const text = fileData.data;
+      const text: string = await Neutralino.filesystem.readFile(filePath);
       const parsed = JSON.parse(text);
 
       const validationError = validateConfig(parsed);
