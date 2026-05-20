@@ -16,6 +16,8 @@ const DoubaoAPIConfig: ProviderAPIConfig = {
         return providerOptions.apiFormat === 'anthropic'
           ? '/messages'
           : '/chat/completions';
+      case 'imageGenerate':
+        return `/images/generations`;
       case 'listModels':
         return '/models';
       default:

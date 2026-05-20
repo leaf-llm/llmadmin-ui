@@ -16,6 +16,8 @@ export const dashscopeAPIConfig: ProviderAPIConfig = {
           : '/chat/completions';
       case 'embed':
         return `/embeddings`;
+      case 'imageGenerate':
+        return `/images/generations`;
       case 'listModels':
         return '/models';
       default:
