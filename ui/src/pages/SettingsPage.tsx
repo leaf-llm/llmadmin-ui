@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { exportConfig, importConfig } from '../api/adminClient';
+import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
   'providers',
@@ -138,7 +139,21 @@ export default function SettingsPage() {
   async function handleExport() {
     try {
       const fullConfig = await exportConfig();
-      const blob = new Blob([JSON.stringify(fullConfig, null, 2)], {
+      const jsonStr = JSON.stringify(fullConfig, null, 2);
+
+      if (isDesktopMode()) {
+        const Neutralino = (window as any).Neutralino;
+        const result = await Neutralino.os.showSaveDialog('Export Config', {
+          defaultPath: 'conf.ui.json',
+          filters: [{ name: 'JSON Files', extensions: ['json'] }],
+        });
+        if (result.selectedEntry) {
+          await Neutralino.filesystem.writeFile(result.selectedEntry, jsonStr);
+        }
+        return;
+      }
+
+      const blob = new Blob([jsonStr], {
         type: 'application/json',
       });
       const url = URL.createObjectURL(blob);
@@ -155,7 +170,49 @@ export default function SettingsPage() {
   }
 
   async function handleImportClick() {
+    if (isDesktopMode()) {
+      await handleDesktopImport();
+      return;
+    }
     fileInputRef.current?.click();
+  }
+
+  async function handleDesktopImport() {
+    setImportError(null);
+    setImportSuccess(false);
+
+    try {
+      const Neutralino = (window as any).Neutralino;
+      const result = await Neutralino.os.showOpenDialog('Import Config', {
+        filters: [{ name: 'JSON Files', extensions: ['json'] }],
+      });
+      const filePath = result.selectedEntry || result.selectedEntries?.[0];
+      if (!filePath) return;
+
+      const fileData = await Neutralino.filesystem.readFile(filePath);
+      const text = fileData.data;
+      const parsed = JSON.parse(text);
+
+      const validationError = validateConfig(parsed);
+      if (validationError) {
+        setImportError(validationError);
+        return;
+      }
+
+      const res = await importConfig(parsed);
+      if (res.ok) {
+        setImportSuccess(true);
+        await loadConfig();
+      } else {
+        setImportError(res.message || 'Import failed');
+      }
+    } catch (err: any) {
+      if (err instanceof SyntaxError) {
+        setImportError('Invalid JSON file');
+      } else {
+        setImportError(err?.message ?? String(err));
+      }
+    }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
