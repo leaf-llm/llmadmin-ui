@@ -6,7 +6,7 @@ export type BackendStatus = 'connecting' | 'connected' | 'error';
 const HEALTHY_INTERVAL_MS = 10000;
 const BASE_RETRY_DELAY_MS = 500;
 const MAX_RETRY_DELAY_MS = 30000;
-const MAX_RETRY_COUNT = 15;
+const MAX_RETRY_COUNT = 5;
 const HEALTH_TIMEOUT_MS = 3000;
 
 export function useBackendHealth() {
@@ -20,8 +20,10 @@ export function useBackendHealth() {
       const baseUrl = getApiBaseUrl();
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
-      const res = await fetch(`${baseUrl}/admin/health`, {
+      const cacheBust = Date.now();
+      const res = await fetch(`${baseUrl}/admin/health?_=${cacheBust}`, {
         signal: controller.signal,
+        cache: 'no-store',
       });
       clearTimeout(timeout);
       if (res.ok) {
@@ -31,8 +33,9 @@ export function useBackendHealth() {
         }
         return true;
       }
-    } catch {
-      // backend not reachable
+      console.log('[health] not ok:', res.status);
+    } catch (err) {
+      console.log('[health] error:', err);
     }
     return false;
   }, []);
@@ -68,17 +71,20 @@ export function useBackendHealth() {
           if (mountedRef.current) setStatus('connected');
           await waitFor(HEALTHY_INTERVAL_MS);
         } else {
+          console.log('[health] failed, retryCount:', retryCountRef.current + 1, 'max:', MAX_RETRY_COUNT);
           retryCountRef.current++;
           if (retryCountRef.current > MAX_RETRY_COUNT) {
             if (mountedRef.current) setStatus('error');
-            break;
+            await waitFor(MAX_RETRY_DELAY_MS);
+          } else {
+            if (mountedRef.current) setStatus('connecting');
+            const delay = Math.min(
+              BASE_RETRY_DELAY_MS *
+                Math.pow(2, Math.min(retryCountRef.current - 1, 5)),
+              MAX_RETRY_DELAY_MS
+            );
+            await waitFor(delay);
           }
-          const delay = Math.min(
-            BASE_RETRY_DELAY_MS *
-              Math.pow(2, Math.min(retryCountRef.current - 1, 5)),
-            MAX_RETRY_DELAY_MS
-          );
-          await waitFor(delay);
         }
       }
       pollingRef.current = false;
@@ -89,6 +95,7 @@ export function useBackendHealth() {
     return () => {
       stopped = true;
       mountedRef.current = false;
+      pollingRef.current = false;
     };
   }, [checkHealth]);
 
@@ -110,17 +117,20 @@ export function useBackendHealth() {
             if (mountedRef.current) setStatus('connected');
             await waitFor(HEALTHY_INTERVAL_MS);
           } else {
+            console.log('[health] failed (retry), retryCount:', retryCountRef.current + 1, 'max:', MAX_RETRY_COUNT);
             retryCountRef.current++;
             if (retryCountRef.current > MAX_RETRY_COUNT) {
               if (mountedRef.current) setStatus('error');
-              break;
+              await waitFor(MAX_RETRY_DELAY_MS);
+            } else {
+              if (mountedRef.current) setStatus('connecting');
+              const delay = Math.min(
+                BASE_RETRY_DELAY_MS *
+                  Math.pow(2, Math.min(retryCountRef.current - 1, 5)),
+                MAX_RETRY_DELAY_MS
+              );
+              await waitFor(delay);
             }
-            const delay = Math.min(
-              BASE_RETRY_DELAY_MS *
-                Math.pow(2, Math.min(retryCountRef.current - 1, 5)),
-              MAX_RETRY_DELAY_MS
-            );
-            await waitFor(delay);
           }
         }
         pollingRef.current = false;
