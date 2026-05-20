@@ -29,6 +29,7 @@
     "export": "导出",
     "import": "导入",
     "importSuccessful": "导入成功！",
+    "exportSuccessful": "导出成功！文件已保存至 {{path}}",
     "configIsActive": "配置已激活。",
     "noActiveConfig": "无激活配置。",
     "gatewayConfig": "网关配置",

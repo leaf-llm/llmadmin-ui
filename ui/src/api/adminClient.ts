@@ -262,13 +262,13 @@ export async function exportConfig(): Promise<Record<string, unknown>> {
 }
 
 export async function exportConfigToFile(
-  filePath: string
-): Promise<{ ok: boolean; message?: string }> {
-  return adminFetch<{ ok: boolean; message?: string }>(
+  filePath?: string
+): Promise<{ ok: boolean; message?: string; path?: string }> {
+  return adminFetch<{ ok: boolean; message?: string; path?: string }>(
     '/admin/config/export-file',
     {
       method: 'POST',
-      body: JSON.stringify({ path: filePath }),
+      body: JSON.stringify(filePath ? { path: filePath } : {}),
     }
   );
 }

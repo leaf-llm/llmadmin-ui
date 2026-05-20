@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const [rawConfig, setRawConfig] = useState<string>('');
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -137,25 +138,30 @@ export default function SettingsPage() {
   }
 
   async function handleExport() {
+    setConfigError(null);
+    setExportSuccess(null);
     try {
-      const fullConfig = await exportConfig();
-      const jsonStr = JSON.stringify(fullConfig, null, 2);
-
       if (isDesktopMode()) {
+        // Try native save dialog; if it returns nothing (WKWebView issue), fall back to ~/Downloads
         const Neutralino = (window as any).Neutralino;
-        const filePath: string = await Neutralino.os.showSaveDialog(
-          'Export Config',
-          { defaultPath: 'conf.ui.json' }
-        );
-        if (filePath) {
-          const res = await exportConfigToFile(filePath);
-          if (!res.ok) {
-            throw new Error(res.message || 'Export failed');
-          }
+        let filePath = '';
+        try {
+          filePath = await Neutralino.os.showSaveDialog('Export Config', {
+            defaultPath: 'conf.ui.json',
+          });
+        } catch {
+          // dialog not available or failed
         }
+        const res = await exportConfigToFile(filePath || undefined);
+        if (!res.ok) {
+          throw new Error(res.message || 'Export failed');
+        }
+        setExportSuccess(res.path || '~/Downloads/conf.ui.json');
         return;
       }
 
+      const fullConfig = await exportConfig();
+      const jsonStr = JSON.stringify(fullConfig, null, 2);
       const blob = new Blob([jsonStr], {
         type: 'application/json',
       });
@@ -305,6 +311,11 @@ export default function SettingsPage() {
         {importSuccess && (
           <div className="success" style={{ marginTop: 10 }}>
             {t('common.importSuccessful')}
+          </div>
+        )}
+        {exportSuccess && (
+          <div className="success" style={{ marginTop: 10 }}>
+            {t('common.exportSuccessful', { path: exportSuccess })}
           </div>
         )}
       </div>
