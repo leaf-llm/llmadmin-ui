@@ -43,6 +43,8 @@
     "successCount": "成功",
     "failureCount": "失败",
     "successRate": "成功率",
+    "gatewayMetrics": "网关统计",
+    "providerBilling": "供应商账单",
     "dailyUsage": "每日用量",
     "date": "日期",
     "usageByProvider": "按供应商统计",
