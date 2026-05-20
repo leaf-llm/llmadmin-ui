@@ -261,6 +261,18 @@ export async function exportConfig(): Promise<Record<string, unknown>> {
   return res.config;
 }
 
+export async function exportConfigToFile(
+  filePath: string
+): Promise<{ ok: boolean; message?: string }> {
+  return adminFetch<{ ok: boolean; message?: string }>(
+    '/admin/config/export-file',
+    {
+      method: 'POST',
+      body: JSON.stringify({ path: filePath }),
+    }
+  );
+}
+
 export async function importConfig(
   config: Record<string, unknown>
 ): Promise<{ ok: boolean; message?: string }> {

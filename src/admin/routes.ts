@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { writeFile } from 'fs/promises';
 
 import {
   listProviderSummaries,
@@ -231,6 +232,20 @@ adminApp.get('/config/export', async (c) => {
   try {
     const config = await loadUiConfig();
     return c.json({ config });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 500);
+  }
+});
+
+adminApp.post('/config/export-file', async (c) => {
+  try {
+    const { path: filePath } = await c.req.json().catch(() => ({}));
+    if (!filePath || typeof filePath !== 'string') {
+      return c.json({ ok: false, message: 'Missing path' }, 400);
+    }
+    const config = await loadUiConfig();
+    await writeFile(filePath, JSON.stringify(config, null, 2), 'utf-8');
+    return c.json({ ok: true });
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 500);
   }

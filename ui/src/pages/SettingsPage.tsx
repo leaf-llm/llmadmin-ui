@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { exportConfig, importConfig } from '../api/adminClient';
+import { exportConfig, exportConfigToFile, importConfig } from '../api/adminClient';
 import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
@@ -148,7 +148,10 @@ export default function SettingsPage() {
           filters: [{ name: 'JSON Files', extensions: ['json'] }],
         });
         if (result.selectedEntry) {
-          await Neutralino.filesystem.writeFile(result.selectedEntry, jsonStr);
+          const res = await exportConfigToFile(result.selectedEntry);
+          if (!res.ok) {
+            throw new Error(res.message || 'Export failed');
+          }
         }
         return;
       }
