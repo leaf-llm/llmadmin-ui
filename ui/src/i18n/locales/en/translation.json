@@ -43,6 +43,8 @@
     "successCount": "Success",
     "failureCount": "Failure",
     "successRate": "Success Rate",
+    "gatewayMetrics": "Gateway Metrics",
+    "providerBilling": "Provider Billing",
     "dailyUsage": "Daily Usage",
     "date": "Date",
     "usageByProvider": "Usage by Provider",

@@ -3,6 +3,7 @@ import { getRuntimeKey } from 'hono/adapter';
 
 let logId = 0;
 const MAX_RESPONSE_LENGTH = 100000;
+const MAX_METRICS_AGE_DAYS = 90;
 
 // Map to store all connected log clients
 const logClients: Map<string | number, any> = new Map();
@@ -22,6 +23,105 @@ function getDateKey(date: Date = new Date()): string {
   const pad2 = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }
+
+// ---- Persistence ----
+
+let _metricsSavePath: string | null = null;
+let _saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function _getFs() {
+  const { join } = await import('path');
+  const { writeFile, readFile, mkdir } = await import('fs/promises');
+  return { join, writeFile, readFile, mkdir };
+}
+
+async function getMetricsPath(): Promise<string> {
+  if (_metricsSavePath) return _metricsSavePath;
+  const { join } = await _getFs();
+  _metricsSavePath = join(
+    process.env.HOME || '',
+    '.llm-admin',
+    'metrics.json'
+  );
+  return _metricsSavePath;
+}
+
+type MetricsStoreSerialized = Record<
+  string,
+  Record<string, ProviderMetrics>
+>;
+
+function serializeStore(): MetricsStoreSerialized {
+  const data: MetricsStoreSerialized = {};
+  metricsStore.forEach((dailyProviders, dateKey) => {
+    const providers: Record<string, ProviderMetrics> = {};
+    dailyProviders.forEach((metrics, provider) => {
+      providers[provider] = { ...metrics };
+    });
+    data[dateKey] = providers;
+  });
+  return data;
+}
+
+function deserializeStore(data: MetricsStoreSerialized) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - MAX_METRICS_AGE_DAYS);
+
+  for (const [dateKey, providers] of Object.entries(data)) {
+    if (new Date(dateKey) < cutoff) continue;
+    const dailyProviders: DailyMetrics = new Map();
+    for (const [provider, metrics] of Object.entries(providers)) {
+      dailyProviders.set(provider, {
+        total: metrics.total ?? 0,
+        success: metrics.success ?? 0,
+        failure: metrics.failure ?? 0,
+        inputTokens: metrics.inputTokens ?? 0,
+        outputTokens: metrics.outputTokens ?? 0,
+      });
+    }
+    if (dailyProviders.size > 0) {
+      metricsStore.set(dateKey, dailyProviders);
+    }
+  }
+}
+
+// Debounced save (at most once per 5 seconds)
+function scheduleSave() {
+  if (_saveTimer) return;
+  _saveTimer = setTimeout(async () => {
+    _saveTimer = null;
+    try {
+      const { writeFile, mkdir } = await _getFs();
+      const path = await getMetricsPath();
+      const dir = path.substring(0, path.lastIndexOf('/'));
+      await mkdir(dir, { recursive: true });
+      const serialized = serializeStore();
+      await writeFile(path, JSON.stringify(serialized, null, 2), 'utf-8');
+    } catch {
+      // Silently ignore persistence errors — metrics are non-critical
+    }
+  }, 5000);
+}
+
+async function loadPersistedMetrics() {
+  const runtime = getRuntimeKey();
+  if (runtime !== 'node' && runtime !== 'bun') return;
+
+  try {
+    const { readFile } = await _getFs();
+    const path = await getMetricsPath();
+    const raw = await readFile(path, 'utf-8');
+    const data: MetricsStoreSerialized = JSON.parse(raw);
+    if (data && typeof data === 'object') {
+      deserializeStore(data);
+    }
+  } catch {
+    // File doesn't exist yet or is corrupt — start with empty store
+  }
+}
+
+// Load persisted data on module init
+loadPersistedMetrics();
 
 function getProvider(metrics: any): string {
   return metrics?.providerOptions?.provider || 'unknown';
@@ -51,6 +151,65 @@ function extractTokens(
   }
 
   return { inputTokens, outputTokens };
+}
+
+function extractUsageFromSSE(text: string): Record<string, any> | null {
+  if (text.length < 10 || !text.includes('"usage"')) return null;
+  const lines = text.split('\n');
+  // Walk backwards to find the last meaningful SSE data chunk (usually has usage)
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (!line.startsWith('data:') || line === 'data: [DONE]') continue;
+    const jsonStr = line.substring(5).trim();
+    if (!jsonStr) continue;
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (parsed?.usage && typeof parsed.usage === 'object') {
+        // OpenAI: { prompt_tokens, completion_tokens, total_tokens }
+        if (parsed.usage.prompt_tokens !== undefined || parsed.usage.completion_tokens !== undefined) {
+          return { usage: parsed.usage };
+        }
+        // Anthropic SSE delta might have usage_info
+        if (parsed.usage.input_tokens !== undefined || parsed.usage.output_tokens !== undefined) {
+          return { usage: parsed.usage };
+        }
+      }
+      // Anthropic message_delta event: { usage: { output_tokens: N } }
+      if (parsed?.delta?.usage || parsed?.usage) {
+        const u = parsed.delta?.usage || parsed.usage;
+        if (u.output_tokens !== undefined || u.input_tokens !== undefined) {
+          return { usage: u };
+        }
+      }
+    } catch {
+      // Not valid JSON, keep looking
+    }
+  }
+  return null;
+}
+
+async function tryReadStreamUsage(c: any): Promise<Record<string, any> | null> {
+  try {
+    const cloned = c.res.clone();
+    // Limit read to 5 MB to prevent unbounded buffering
+    const reader = cloned.body?.getReader();
+    if (!reader) return null;
+    const chunks: string[] = [];
+    let totalSize = 0;
+    const maxSize = 5 * 1024 * 1024;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const text = typeof value === 'string' ? value : new TextDecoder().decode(value);
+      chunks.push(text);
+      totalSize += text.length;
+      if (totalSize > maxSize) break;
+    }
+    const fullText = chunks.join('');
+    return extractUsageFromSSE(fullText);
+  } catch {
+    return null;
+  }
 }
 
 function recordMetrics(status: number, requestOptionsArray: any[]) {
@@ -89,6 +248,9 @@ function recordMetrics(status: number, requestOptionsArray: any[]) {
     metrics.inputTokens += tokens.inputTokens;
     metrics.outputTokens += tokens.outputTokens;
   }
+
+  // Persist to disk (debounced)
+  scheduleSave();
 }
 
 export const addLogClient = (clientId: any, client: any) => {
@@ -141,9 +303,14 @@ async function processLog(c: Context, start: number) {
   }
 
   try {
-    const response = requestOptionsArray[0].requestParams.stream
-      ? { message: 'The response was a stream.' }
-      : await c.res.clone().json();
+    let response: any;
+    if (requestOptionsArray[0].requestParams.stream) {
+      // Try to extract usage from the streamed SSE response
+      const streamUsage = await tryReadStreamUsage(c);
+      response = streamUsage || { message: 'The response was a stream.' };
+    } else {
+      response = await c.res.clone().json();
+    }
 
     const responseString = JSON.stringify(response);
     if (responseString.length > MAX_RESPONSE_LENGTH) {

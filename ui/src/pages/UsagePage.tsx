@@ -4,7 +4,9 @@ import {
   getProviders,
   ProviderId,
   getMetrics,
+  getUsage,
   MetricsResponse,
+  UsageResponse,
 } from '../api/adminClient';
 import DatePicker from '../components/DatePicker';
 import Select from '../components/Select';
@@ -13,6 +15,8 @@ const pad2 = (n: number) => String(n).padStart(2, '0');
 function toISODate(d: Date) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
+
+type Tab = 'metrics' | 'billing';
 
 export default function UsagePage() {
   const { t } = useTranslation();
@@ -27,8 +31,11 @@ export default function UsagePage() {
   const [to, setTo] = useState(() => toISODate(new Date()));
   const [provider, setProvider] = useState<ProviderId | 'all'>('all');
 
+  const [tab, setTab] = useState<Tab>('metrics');
+
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,6 +59,29 @@ export default function UsagePage() {
       cancelled = true;
     };
   }, []);
+
+  async function loadData() {
+    if (!from || !to) return;
+    setLoading(true);
+    setError(null);
+    try {
+      if (tab === 'metrics') {
+        const res = await getMetrics({ from, to });
+        setMetrics(res);
+      } else {
+        const res = await getUsage({
+          from,
+          to,
+          provider: provider !== 'all' ? provider : undefined,
+        });
+        setUsage(res);
+      }
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +107,8 @@ export default function UsagePage() {
   }, [from, to]);
 
   const totals = metrics?.totals;
+  const usageTotals = usage?.totals;
+  const byModel = usage?.byModel || [];
 
   return (
     <div>
@@ -111,28 +143,24 @@ export default function UsagePage() {
                 : providers.map((p) => ({ value: p, label: p }))),
             ]}
           />
+          {/* Billing tab hidden until provider billing adapters are fully implemented */}
+          {/* <button
+            className={tab === 'billing' ? 'primary' : 'secondary'}
+            onClick={() => setTab('billing')}
+          >
+            {t('common.providerBilling')}
+          </button> */}
           <button
             className="primary"
             disabled={loading || !from || !to}
-            onClick={async () => {
-              setLoading(true);
-              setError(null);
-              try {
-                const res = await getMetrics({ from, to });
-                setMetrics(res);
-              } catch (e: any) {
-                setError(e?.message ?? String(e));
-              } finally {
-                setLoading(false);
-              }
-            }}
+            onClick={loadData}
           >
             {loading ? t('common.loading') : t('common.loadUsage')}
           </button>
         </div>
       </div>
 
-      {metrics ? (
+      {tab === 'metrics' && metrics ? (
         <div style={{ marginTop: 14 }}>
           <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
             <div className="card" style={{ flex: 1 }}>
@@ -224,6 +252,71 @@ export default function UsagePage() {
                       </tr>
                     );
                   })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      {tab === 'billing' && usage ? (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.totalCost')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>
+                ${(usageTotals?.costUSD ?? 0).toFixed(4)}
+              </div>
+            </div>
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.inputTokens')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>
+                {usageTotals?.inputTokens?.toLocaleString() ?? 0}
+              </div>
+            </div>
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.outputTokens')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>
+                {usageTotals?.outputTokens?.toLocaleString() ?? 0}
+              </div>
+            </div>
+            <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.requests')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>
+                {usageTotals?.requests?.toLocaleString() ?? 0}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card__title">{t('common.byModel')}</div>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t('common.model')}</th>
+                  <th>{t('common.requests')}</th>
+                  <th>{t('common.inputTokens')}</th>
+                  <th>{t('common.outputTokens')}</th>
+                  <th>{t('common.costUsd')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byModel.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="muted">
+                      {t('common.noData')}
+                    </td>
+                  </tr>
+                ) : (
+                  byModel.map((row, i) => (
+                    <tr key={row.model || `row-${i}`}>
+                      <td>{row.model || '-'}</td>
+                      <td>{row.requests?.toLocaleString() ?? 0}</td>
+                      <td>{row.inputTokens?.toLocaleString() ?? 0}</td>
+                      <td>{row.outputTokens?.toLocaleString() ?? 0}</td>
+                      <td>${(row.costUSD ?? 0).toFixed(6)}</td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
