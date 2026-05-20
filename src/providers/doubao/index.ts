@@ -1,3 +1,4 @@
+import { DOUBO } from '../../globals';
 import { ProviderConfigs } from '../types';
 import DoubaoAPIConfig from './api';
 import {
@@ -6,6 +7,10 @@ import {
   DoubaoChatCompleteStreamChunkTransform,
 } from './chatComplete';
 import {
+  DoubaoImageGenerateConfig,
+  DoubaoImageGenerateResponseTransform,
+} from './imageGenerate';
+import {
   DoubaoMessagesConfig,
   DoubaoMessagesResponseTransform,
 } from './messages';
@@ -13,11 +18,13 @@ import {
 const DoubaoConfig: ProviderConfigs = {
   chatComplete: DoubaoChatCompleteConfig,
   messages: DoubaoMessagesConfig,
+  imageGenerate: DoubaoImageGenerateConfig,
   api: DoubaoAPIConfig,
   responseTransforms: {
     chatComplete: DoubaoChatCompleteResponseTransform,
     'stream-chatComplete': DoubaoChatCompleteStreamChunkTransform,
     messages: DoubaoMessagesResponseTransform,
+    imageGenerate: DoubaoImageGenerateResponseTransform,
   },
 };
 

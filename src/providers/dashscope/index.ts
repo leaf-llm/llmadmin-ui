@@ -6,6 +6,10 @@ import {
 } from '../open-ai-base';
 import { ProviderConfigs } from '../types';
 import { dashscopeAPIConfig } from './api';
+import {
+  DashScopeImageGenerateConfig,
+  DashScopeImageGenerateResponseTransform,
+} from './imageGenerate';
 
 export const DashScopeConfig: ProviderConfigs = {
   chatComplete: chatCompleteParams(
@@ -33,9 +37,13 @@ export const DashScopeConfig: ProviderConfigs = {
     }
   ),
   embed: embedParams([], { model: 'text-embedding-v1' }),
+  imageGenerate: DashScopeImageGenerateConfig,
   api: dashscopeAPIConfig,
-  responseTransforms: responseTransformers(DASHSCOPE, {
-    chatComplete: true,
-    embed: true,
-  }),
+  responseTransforms: {
+    ...responseTransformers(DASHSCOPE, {
+      chatComplete: true,
+      embed: true,
+    }),
+    imageGenerate: DashScopeImageGenerateResponseTransform,
+  },
 };
