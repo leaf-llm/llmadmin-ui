@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { exportConfig, exportConfigToFile, importConfig } from '../api/adminClient';
+import { exportConfig, importConfig } from '../api/adminClient';
 import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
@@ -145,13 +145,12 @@ export default function SettingsPage() {
         const Neutralino = (window as any).Neutralino;
         const result = await Neutralino.os.showSaveDialog('Export Config', {
           defaultPath: 'conf.ui.json',
-          filters: [{ name: 'JSON Files', extensions: ['json'] }],
         });
         if (result.selectedEntry) {
-          const res = await exportConfigToFile(result.selectedEntry);
-          if (!res.ok) {
-            throw new Error(res.message || 'Export failed');
-          }
+          await Neutralino.filesystem.writeFile({
+            fileName: result.selectedEntry,
+            data: jsonStr,
+          });
         }
         return;
       }
@@ -186,9 +185,7 @@ export default function SettingsPage() {
 
     try {
       const Neutralino = (window as any).Neutralino;
-      const result = await Neutralino.os.showOpenDialog('Import Config', {
-        filters: [{ name: 'JSON Files', extensions: ['json'] }],
-      });
+      const result = await Neutralino.os.showOpenDialog('Import Config');
       const filePath = result.selectedEntry || result.selectedEntries?.[0];
       if (!filePath) return;
 
