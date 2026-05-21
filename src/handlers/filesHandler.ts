@@ -3,6 +3,7 @@ import {
   constructConfigFromRequestHeaders,
   tryTargetsRecursively,
 } from './handlerUtils';
+import { ERROR_CODES, getErrorMessage } from '../i18n';
 import { endpointStrings } from '../providers/types';
 
 function filesHandler(
@@ -33,7 +34,8 @@ function filesHandler(
       return new Response(
         JSON.stringify({
           status: 'failure',
-          message: 'Something went wrong',
+          err_code: ERROR_CODES.ERR_GENERIC,
+          message: getErrorMessage('errors.ERR_GENERIC'),
         }),
         {
           status: 500,

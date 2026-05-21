@@ -3,6 +3,7 @@ import {
   constructConfigFromRequestHeaders,
   tryTargetsRecursively,
 } from './handlerUtils';
+import { ERROR_CODES, getErrorMessage } from '../i18n';
 import { Context } from 'hono';
 
 /**
@@ -33,19 +34,22 @@ export async function imageGenerationsHandler(c: Context): Promise<Response> {
   } catch (err: any) {
     console.error('imageGenerate error: ', err);
     let statusCode = 500;
-    let errorMessage = 'Something went wrong';
+    let errCode = ERROR_CODES.ERR_GENERIC;
+    let errorMessage = getErrorMessage('errors.something_went_wrong');
 
     if (err instanceof RouterError) {
       statusCode = 400;
       errorMessage = err.message;
+      errCode = ERROR_CODES.ERR_GENERIC;
     }
     return new Response(
       JSON.stringify({
         status: 'failure',
-        message: 'Something went wrong',
+        err_code: errCode,
+        message: errorMessage,
       }),
       {
-        status: 500,
+        status: statusCode,
         headers: {
           'content-type': 'application/json',
         },

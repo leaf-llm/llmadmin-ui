@@ -105,7 +105,8 @@
     "categoryVideo": "视频生成",
     "categoryAudio": "音频生成",
     "categoryMcp": "MCP",
-    "running": "运行中",
+    "backendNotResponding": "后端未响应，请等待网关启动。",
+    "maxRetriesExceeded": "超过最大重试次数",
     "connecting": "连接中...",
     "connectionFailed": "连接失败",
     "connectionDisconnected": "连接断开"

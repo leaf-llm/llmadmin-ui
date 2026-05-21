@@ -15,6 +15,7 @@ import { OpenAICompleteResponse } from '../providers/openai/complete';
 import { endpointStrings } from '../providers/types';
 import { Params } from '../types/requestBody';
 import { getStreamModeSplitPattern, type SplitPatternType } from '../utils';
+import { getErrorMessage } from '../i18n';
 
 function readUInt32BE(buffer: Uint8Array, offset: number) {
   return (
@@ -313,7 +314,7 @@ export function handleStreamingMode(
   const fallbackChunkId = `${proxyProvider}-${Date.now().toString()}`;
 
   if (!response.body) {
-    throw new Error('Response format is invalid. Body not found');
+    throw new Error(getErrorMessage('errors.ERR_INVALID_RESPONSE'));
   }
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();

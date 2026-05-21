@@ -28,6 +28,7 @@ import { ConditionalRouter } from '../services/conditionalRouter';
 import { RouterError } from '../errors/RouterError';
 import { GatewayError } from '../errors/GatewayError';
 import { HookType } from '../middlewares/hooks/types';
+import { ERROR_CODES, getErrorMessage } from '../i18n';
 
 // Services
 import { CacheResponseObject, CacheService } from './services/cacheService';
@@ -227,7 +228,7 @@ export function selectProviderByWeight(providers: Options[]): Options {
     randomWeight -= provider.weight;
   }
 
-  throw new Error('No provider selected, please check the weights');
+  throw new Error(getErrorMessage('errors.ERR_NO_PROVIDER'));
 }
 
 export function convertHooksShorthand(
@@ -811,10 +812,12 @@ export async function tryTargetsRecursively(
         const errorMessage =
           error instanceof GatewayError
             ? error.message
-            : 'Something went wrong';
+            : getErrorMessage('errors.ERR_GENERIC');
+        const errCode = ERROR_CODES.ERR_GENERIC;
         response = new Response(
           JSON.stringify({
             status: 'failure',
+            err_code: errCode,
             message: errorMessage,
           }),
           {
@@ -1323,8 +1326,7 @@ export async function beforeRequestHookHandler(
         response: new Response(
           JSON.stringify({
             error: {
-              message:
-                'The guardrail checks defined in the config failed. You can find more information in the `hook_results` object.',
+              message: getErrorMessage('errors.ERR_GUARDRAIL_FAILED'),
               type: 'hooks_failed',
               param: null,
               code: null,

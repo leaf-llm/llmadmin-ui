@@ -9,6 +9,7 @@ import {
   getURLForOutgoingConnection,
 } from './websocketUtils';
 import { RealtimeLlmEventParser } from '../services/realtimeLlmEventParser';
+import { ERROR_CODES, getErrorMessage } from '../i18n';
 
 const getOutgoingWebSocket = async (url: string, options: RequestInit) => {
   let outgoingWebSocket: WebSocket | null = null;
@@ -20,7 +21,7 @@ const getOutgoingWebSocket = async (url: string, options: RequestInit) => {
   }
 
   if (!outgoingWebSocket) {
-    throw new Error('WebSocket connection failed');
+    throw new Error(getErrorMessage('errors.ERR_WEBSOCKET_FAILED'));
   }
 
   outgoingWebSocket.accept();
@@ -79,7 +80,8 @@ export async function realTimeHandler(c: Context): Promise<Response> {
     return new Response(
       JSON.stringify({
         status: 'failure',
-        message: 'Something went wrong',
+        err_code: ERROR_CODES.ERR_GENERIC,
+        message: getErrorMessage('errors.ERR_GENERIC'),
       }),
       {
         status: 500,
