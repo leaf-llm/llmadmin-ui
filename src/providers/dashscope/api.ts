@@ -14,6 +14,10 @@ export const dashscopeAPIConfig: ProviderAPIConfig = {
         return providerOptions.apiFormat === 'anthropic'
           ? '/messages'
           : '/chat/completions';
+      case 'messages':
+        return providerOptions.apiFormat === 'anthropic'
+          ? '/messages'
+          : '/chat/completions';
       case 'embed':
         return `/embeddings`;
       case 'imageGenerate':

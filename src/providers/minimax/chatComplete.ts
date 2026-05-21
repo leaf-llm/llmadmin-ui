@@ -88,6 +88,23 @@ interface MinimaxChatCompleteResponse {
   };
 }
 
+interface MinimaxOpenAIResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  choices: {
+    index: number;
+    message: { role: string; content: string };
+    finish_reason: string | null;
+  }[];
+}
+
 interface MinimaxErrorResponse {
   error: {
     type: string;
@@ -110,7 +127,10 @@ interface MinimaxStreamChunk {
 }
 
 export const MinimaxChatCompleteResponseTransform: (
-  response: MinimaxChatCompleteResponse | MinimaxErrorResponse,
+  response:
+    | MinimaxChatCompleteResponse
+    | MinimaxOpenAIResponse
+    | MinimaxErrorResponse,
   responseStatus: number
 ) => ChatCompletionResponse | ErrorResponse = (response, responseStatus) => {
   if (responseStatus !== 200 && 'error' in response) {
@@ -125,7 +145,7 @@ export const MinimaxChatCompleteResponseTransform: (
     );
   }
 
-  if ('content' in response) {
+  if ('content' in response && Array.isArray(response.content)) {
     let content = '';
     response.content.forEach((item) => {
       if (item.type === 'text' && item.text) {
@@ -158,6 +178,33 @@ export const MinimaxChatCompleteResponseTransform: (
         total_tokens:
           (response.usage?.input_tokens || 0) +
           (response.usage?.output_tokens || 0),
+      },
+    };
+  }
+
+  if ('choices' in response) {
+    const minimaxResponse = response as MinimaxOpenAIResponse;
+    const message = minimaxResponse.choices[0]?.message;
+    return {
+      id: minimaxResponse.id,
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: minimaxResponse.model,
+      provider: MINIMAX,
+      choices: [
+        {
+          message: {
+            role: message?.role || 'assistant',
+            content: message?.content || '',
+          },
+          index: 0,
+          finish_reason: minimaxResponse.choices[0]?.finish_reason || 'stop',
+        },
+      ],
+      usage: {
+        prompt_tokens: minimaxResponse.usage?.prompt_tokens || 0,
+        completion_tokens: minimaxResponse.usage?.completion_tokens || 0,
+        total_tokens: minimaxResponse.usage?.total_tokens || 0,
       },
     };
   }

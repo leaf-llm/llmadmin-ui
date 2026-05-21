@@ -91,22 +91,20 @@ describe('Chinese Providers Forwarding Tests', () => {
         expect(json).toHaveProperty('choices');
       });
 
-      if (provider.name !== 'dashscope') {
-        test(`/v1/messages - should return 200`, async () => {
-          const res = await fetch(MESSAGES_URL, {
-            method: 'POST',
-            headers: createHeaders(
-              provider.name,
-              config.apiKey,
-              config.baseUrl
-            ),
-            body: messagesRequest(provider.model),
-          });
-          expect(res.status).toEqual(200);
-          const json = await res.json();
-          expect(json).toHaveProperty('content');
+      test(`/v1/messages - should return 200`, async () => {
+        const res = await fetch(MESSAGES_URL, {
+          method: 'POST',
+          headers: createHeaders(
+            provider.name,
+            config.apiKey,
+            config.baseUrl
+          ),
+          body: messagesRequest(provider.model),
         });
-      }
+        expect(res.status).toEqual(200);
+        const json = await res.json();
+        expect(json).toHaveProperty('content');
+      });
     });
   }
 });

@@ -10,6 +10,10 @@ import {
   DashScopeImageGenerateConfig,
   DashScopeImageGenerateResponseTransform,
 } from './imageGenerate';
+import {
+  DashScopeMessagesConfig,
+  DashScopeMessagesResponseTransform,
+} from './messages';
 
 export const DashScopeConfig: ProviderConfigs = {
   chatComplete: chatCompleteParams(
@@ -36,6 +40,7 @@ export const DashScopeConfig: ProviderConfigs = {
       },
     }
   ),
+  messages: DashScopeMessagesConfig,
   embed: embedParams([], { model: 'text-embedding-v1' }),
   imageGenerate: DashScopeImageGenerateConfig,
   api: dashscopeAPIConfig,
@@ -44,6 +49,7 @@ export const DashScopeConfig: ProviderConfigs = {
       chatComplete: true,
       embed: true,
     }),
+    messages: DashScopeMessagesResponseTransform,
     imageGenerate: DashScopeImageGenerateResponseTransform,
   },
 };
