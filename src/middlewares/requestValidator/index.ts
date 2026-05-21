@@ -268,7 +268,7 @@ export function isValidCustomHost(customHost: string, c?: Context) {
     if (VALIDATION_PATTERNS.CONTROL_CHARS.test(customHost)) return false;
 
     // Project-specific and obvious disallowed schemes/hosts
-    if (value.indexOf('api.portkey') > -1) return false;
+    if (value.indexOf('api.llmadmin') > -1) return false;
     if (DISALLOWED_SCHEMES.some((scheme) => value.startsWith(scheme)))
       return false;
 

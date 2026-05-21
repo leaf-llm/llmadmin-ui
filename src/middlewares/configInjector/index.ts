@@ -16,7 +16,8 @@ const PATH_TO_CATEGORY: Record<string, ModelCategory> = {
 
 export const configInjector = async (c: Context, next: any) => {
   const configHeader = c.req.header(`x-${POWERED_BY}-config`);
-  if (!configHeader) {
+  const providerHeader = c.req.header(`x-${POWERED_BY}-provider`);
+  if (!configHeader && !providerHeader) {
     const path = c.req.path;
     const category: ModelCategory = PATH_TO_CATEGORY[path] ?? 'text';
     const userConfig = await loadUserConfig(category);
@@ -24,6 +25,20 @@ export const configInjector = async (c: Context, next: any) => {
       c.req.raw.headers.set(
         `x-${POWERED_BY}-config`,
         JSON.stringify(userConfig)
+      );
+    } else {
+      return new Response(
+        JSON.stringify({
+          status: 'failure',
+          message:
+            'No model routing configured. Please add a model route in the admin panel first.',
+        }),
+        {
+          status: 400,
+          headers: {
+            'content-type': 'application/json',
+          },
+        }
       );
     }
   }

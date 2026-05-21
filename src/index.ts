@@ -40,8 +40,6 @@ import { adminApp } from './admin/routes';
 
 // utils
 import { logger } from './apm';
-// Config
-import conf from '../conf.json';
 import { createCacheBackendsRedis } from './shared/services/cache';
 
 // Create a new Hono server instance
@@ -107,9 +105,7 @@ app.get('/v1/models', modelsHandler);
 // Use hooks middleware for all routes
 app.use('*', hooks);
 
-if (conf.cache === true) {
-  app.use('*', memoryCache());
-}
+app.use('*', memoryCache());
 
 // Local admin UI APIs (providers config + usage stats).
 app.route('/admin', adminApp);
