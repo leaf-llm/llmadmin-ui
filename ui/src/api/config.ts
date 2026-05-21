@@ -6,7 +6,7 @@ export function isDesktopMode(): boolean {
 
 export function getApiBaseUrl(): string {
   if (isDesktopMode()) {
-    return `http://localhost:${BACKEND_PORT}`;
+    return `http://127.0.0.1:${BACKEND_PORT}/v1`;
   }
   return '';
 }
