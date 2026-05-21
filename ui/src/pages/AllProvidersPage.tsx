@@ -163,16 +163,22 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           modelDialogConfigId
         );
       }
-      const routingRes = await getRouting(activeCategory);
-      setRouting(routingRes.routing);
-      const providersRes = await getProviders(activeCategory);
-      setProviders(providersRes.providers);
-      closeModelDialog();
     } catch (e: any) {
       setError(e?.message ?? String(e));
-    } finally {
-      setAddingModels(false);
     }
+    // Always refresh state from backend, even on partial failure
+    try {
+      const [routingRes, providersRes] = await Promise.all([
+        getRouting(activeCategory),
+        getProviders(activeCategory),
+      ]);
+      setRouting(routingRes.routing);
+      setProviders(providersRes.providers);
+    } catch (refreshErr: any) {
+      setError(refreshErr?.message ?? String(refreshErr));
+    }
+    closeModelDialog();
+    setAddingModels(false);
   };
 
   const handleRemoveFromRouting = async (

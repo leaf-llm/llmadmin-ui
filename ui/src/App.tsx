@@ -30,7 +30,7 @@ function Header({
   };
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(getApiBaseUrl() || 'http://127.0.0.1:8700');
+    navigator.clipboard.writeText(getApiBaseUrl() || 'http://127.0.0.1:8700/v1');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -99,7 +99,7 @@ function Header({
             <span>
               {copied
                 ? t('common.copied')
-                : getApiBaseUrl() || 'http://127.0.0.1:8700'}
+                : getApiBaseUrl() || 'http://127.0.0.1:8700/v1'}
             </span>
           </div>
           <div

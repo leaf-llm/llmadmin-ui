@@ -193,17 +193,24 @@ export default function ProvidersPage({
           modelDialogConfigId
         );
       }
-      const routingRes = await getRouting(activeCategory);
-      setRouting(routingRes.routing);
-      const providersRes = await getProviders(activeCategory);
-      setProviders(providersRes.providers);
-      closeModelDialog();
       await syncConfig(activeCategory);
     } catch (e: any) {
       setError(e?.message ?? String(e));
-    } finally {
-      setAddingModels(false);
     }
+    // Always refresh state from backend, even on partial failure,
+    // so the "no routing configured" notice disappears immediately.
+    try {
+      const [routingRes, providersRes] = await Promise.all([
+        getRouting(activeCategory),
+        getProviders(activeCategory),
+      ]);
+      setRouting(routingRes.routing);
+      setProviders(providersRes.providers);
+    } catch (refreshErr: any) {
+      setError(refreshErr?.message ?? String(refreshErr));
+    }
+    closeModelDialog();
+    setAddingModels(false);
   };
 
   const handleRemoveFromRouting = async (
@@ -217,7 +224,11 @@ export default function ProvidersPage({
       setRouting(routingRes.routing);
       const providersRes = await getProviders(activeCategory);
       setProviders(providersRes.providers);
-      await syncConfig(activeCategory);
+      try {
+        await syncConfig(activeCategory);
+      } catch {
+        // routing may be empty now, which causes generateConfigFromProviders to throw
+      }
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
@@ -239,7 +250,11 @@ export default function ProvidersPage({
       );
       const routingRes = await getRouting(activeCategory);
       setRouting(routingRes.routing);
-      await syncConfig(activeCategory);
+      try {
+        await syncConfig(activeCategory);
+      } catch {
+        // routing may be empty now, which causes generateConfigFromProviders to throw
+      }
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
@@ -441,9 +456,15 @@ export default function ProvidersPage({
                 <div className="routing-section">
                   <h2 className="section-title">{t('common.modelRouting')}</h2>
                   {routing.length === 0 ? (
-                    <div className="notice">
-                      {t('common.noRoutingConfigured')}
-                    </div>
+                    activeProviders.length > 0 ? (
+                      <div className="notice-warning">
+                        {t('common.noRoutingModels')}
+                      </div>
+                    ) : (
+                      <div className="notice">
+                        {t('common.noRoutingConfigured')}
+                      </div>
+                    )
                   ) : (
                     <div className="routing-groups">
                       {(() => {

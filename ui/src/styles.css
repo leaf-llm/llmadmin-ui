@@ -251,6 +251,14 @@ button:disabled {
   color: #1d4ed8;
 }
 
+.notice-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #b45309;
+}
+
 .error {
   background: rgba(220, 38, 38, 0.08);
   border: 1px solid rgba(220, 38, 38, 0.22);
