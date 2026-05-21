@@ -9,13 +9,13 @@ const MinimaxAPIConfig: ProviderAPIConfig = {
   getEndpoint: ({ fn, providerOptions }) => {
     switch (fn) {
       case 'chatComplete':
-        return providerOptions.apiFormat === 'anthropic'
-          ? '/messages'
-          : '/chat/completions';
+        return providerOptions.apiFormat === 'openai'
+          ? '/chat/completions'
+          : '/messages';
       case 'messages':
-        return providerOptions.apiFormat === 'anthropic'
-          ? '/messages'
-          : '/chat/completions';
+        return providerOptions.apiFormat === 'openai'
+          ? '/chat/completions'
+          : '/messages';
       case 'listModels':
         return '/models';
       default:

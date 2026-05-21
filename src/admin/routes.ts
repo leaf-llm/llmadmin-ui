@@ -128,6 +128,9 @@ async function generateConfigFromProviders(
     if (p.baseUrl?.trim()) {
       target.custom_host = p.baseUrl.trim();
     }
+    if (p.apiFormat) {
+      target.api_format = p.apiFormat;
+    }
     return target;
   }
 
