@@ -720,23 +720,37 @@ export async function updateRoutingPrimary(
   }
 
   const config = await loadUiConfig();
-  if (!config[category].routing) {
+  const routing = config[category].routing;
+  if (!routing) {
     config[category].routing = [];
   }
 
-  const entry = config[category].routing.find(
+  const idx = routing.findIndex(
     (r) =>
       r.provider === provider && r.model === model && r.configId === configId
   );
-  if (entry) {
-    entry.isPrimary = isPrimary;
+  if (idx === -1) throw new Error('Routing entry not found');
+
+  if (isPrimary) {
+    // Remove entry from its current position
+    const [entry] = routing.splice(idx, 1);
+    entry.isPrimary = true;
+    // Insert after the last primary entry so it appears at end of primary list
+    let insertIdx = routing.length;
+    for (let i = routing.length - 1; i >= 0; i--) {
+      if (routing[i].isPrimary) {
+        insertIdx = i + 1;
+        break;
+      }
+    }
+    routing.splice(insertIdx, 0, entry);
   } else {
-    throw new Error('Routing entry not found');
+    routing[idx].isPrimary = false;
   }
 
   await saveUiConfig(config);
   await syncUserConfigFromRouting(category);
-  return { routing: config[category].routing };
+  return { routing };
 }
 
 export async function moveRoutingEntry(

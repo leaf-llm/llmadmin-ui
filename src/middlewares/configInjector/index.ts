@@ -19,7 +19,10 @@ export const configInjector = async (c: Context, next: any) => {
   const providerHeader = c.req.header(`x-${POWERED_BY}-provider`);
   if (!configHeader && !providerHeader) {
     const path = c.req.path;
-    const category: ModelCategory = PATH_TO_CATEGORY[path] ?? 'text';
+    const category = PATH_TO_CATEGORY[path];
+    if (!category) {
+      return next();
+    }
     const userConfig = await loadUserConfig(category);
     if (userConfig) {
       c.req.raw.headers.set(
