@@ -85,6 +85,23 @@ interface MinimaxMessagesResponse {
   };
 }
 
+interface MinimaxOpenAIResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  choices: {
+    index: number;
+    message: { role: string; content: string };
+    finish_reason: string | null;
+  }[];
+}
+
 interface MinimaxErrorResponse {
   error: {
     type: string;
@@ -93,7 +110,7 @@ interface MinimaxErrorResponse {
 }
 
 export const MinimaxMessagesResponseTransform = (
-  response: MinimaxMessagesResponse | MinimaxErrorResponse,
+  response: MinimaxMessagesResponse | MinimaxOpenAIResponse | MinimaxErrorResponse,
   responseStatus: number
 ): MessagesResponse | ErrorResponse => {
   if (responseStatus !== 200 && 'error' in response) {
@@ -108,7 +125,7 @@ export const MinimaxMessagesResponseTransform = (
     );
   }
 
-  if ('content' in response) {
+  if ('content' in response && Array.isArray(response.content)) {
     const textContent = response.content
       .filter((item) => item.type === 'text')
       .map((item) => ({ type: 'text' as const, text: item.text || '' }));
@@ -125,6 +142,27 @@ export const MinimaxMessagesResponseTransform = (
       usage: {
         input_tokens: response.usage?.input_tokens || 0,
         output_tokens: response.usage?.output_tokens || 0,
+      },
+    };
+  }
+
+  if ('choices' in response) {
+    const minimaxResponse = response as MinimaxOpenAIResponse;
+    const message = minimaxResponse.choices[0]?.message;
+    return {
+      id: minimaxResponse.id,
+      type: 'message',
+      role: 'assistant',
+      content: message?.content
+        ? [{ type: 'text' as const, text: message.content }]
+        : [],
+      model: minimaxResponse.model,
+      stop_reason: transformToAnthropicStopReason(
+        minimaxResponse.choices[0]?.finish_reason as ANTHROPIC_STOP_REASON
+      ),
+      usage: {
+        input_tokens: minimaxResponse.usage?.prompt_tokens || 0,
+        output_tokens: minimaxResponse.usage?.completion_tokens || 0,
       },
     };
   }
