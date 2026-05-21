@@ -106,7 +106,8 @@
     "categoryVideo": "Video",
     "categoryAudio": "Audio",
     "categoryMcp": "MCP",
-    "running": "Running",
+    "backendNotResponding": "Backend is not responding. Please wait for the gateway to start.",
+    "maxRetriesExceeded": "Max retries exceeded",
     "connecting": "Connecting...",
     "connectionFailed": "Connection Failed",
     "connectionDisconnected": "Disconnected"

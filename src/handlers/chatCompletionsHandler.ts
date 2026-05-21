@@ -3,6 +3,7 @@ import {
   constructConfigFromRequestHeaders,
   tryTargetsRecursively,
 } from './handlerUtils';
+import { ERROR_CODES, getErrorMessage } from '../i18n';
 import { Context } from 'hono';
 
 /**
@@ -34,16 +35,19 @@ export async function chatCompletionsHandler(c: Context): Promise<Response> {
       `chatCompletionsHandler error: ${err.message} \n\n stackTrace: ${err.stack}`
     );
     let statusCode = 500;
-    let errorMessage = 'Something went wrong';
+    let errCode = ERROR_CODES.ERR_GENERIC;
+    let errorMessage = getErrorMessage('errors.ERR_GENERIC');
 
     if (err instanceof RouterError) {
       statusCode = 400;
       errorMessage = err.message;
+      errCode = ERROR_CODES.ERR_GENERIC;
     }
 
     return new Response(
       JSON.stringify({
         status: 'failure',
+        err_code: errCode,
         message: errorMessage,
       }),
       {

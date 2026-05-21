@@ -1,4 +1,5 @@
 import { Transform } from 'node:stream';
+import { getErrorMessage } from '../i18n';
 /**
  * Returns the boundary from the content-type header of a multipart/form-data request.
  * @param contentType - The content-type header of the original request.
@@ -9,7 +10,7 @@ export const getBoundaryFromContentType = (
   contentType: string | null
 ): string => {
   const match = contentType?.match(/boundary=(?:"([^"]+)"|([^;]+))/i);
-  if (!match) throw new Error('No boundary in content-type');
+  if (!match) throw new Error(getErrorMessage('errors.ERR_MISSING_BOUNDARY'));
   return match[1] || match[2];
 };
 

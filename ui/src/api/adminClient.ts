@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './config';
+import i18n from '../i18n';
 
 export type ProviderId = string;
 
@@ -153,15 +154,13 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
           await sleep(1000 * (attempt + 1));
           continue;
         }
-        throw new Error(
-          'Backend is not responding. Please wait for the gateway to start.'
-        );
+        throw new Error(i18n.t('common.backendNotResponding'));
       }
       throw err;
     }
   }
 
-  throw new Error('Max retries exceeded');
+  throw new Error(i18n.t('common.maxRetriesExceeded'));
 }
 
 export async function getProviders(category?: string): Promise<{
