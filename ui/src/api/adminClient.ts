@@ -397,7 +397,7 @@ export type TestConnectivityResponse = {
 
 export async function testProviderConnectivity(
   provider: ProviderId,
-  params: { apiKey: string; baseUrl?: string; configId?: string }
+  params: { apiKey?: string; baseUrl?: string; configId?: string }
 ): Promise<TestConnectivityResponse> {
   return adminFetch<TestConnectivityResponse>(
     `/admin/providers/${encodeURIComponent(provider)}/test-connectivity`,

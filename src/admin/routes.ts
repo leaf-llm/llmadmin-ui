@@ -606,19 +606,54 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
     return c.json({ ok: false, message: 'Unknown provider' }, 404);
   }
 
-  const { apiKey, baseUrl } = body as { apiKey?: string; baseUrl?: string };
+  const { apiKey, baseUrl, configId } = body as {
+    apiKey?: string;
+    baseUrl?: string;
+    configId?: string;
+  };
 
-  if (!apiKey?.trim()) {
-    return c.json({ ok: false, message: 'API key is required' }, 400);
+  let resolvedApiKey = apiKey?.trim();
+  let resolvedBaseUrl = baseUrl?.trim();
+
+  // When no API key provided but configId exists, look up stored credentials
+  if (!resolvedApiKey && configId) {
+    const uiConfig = await loadUiConfig();
+    for (const providerConfigs of Object.values(uiConfig.providers)) {
+      const matched = providerConfigs?.find((cfg) => cfg.id === configId);
+      if (matched) {
+        resolvedApiKey = matched.apiKey?.trim();
+        if (!resolvedBaseUrl) resolvedBaseUrl = matched.baseUrl?.trim();
+        break;
+      }
+    }
   }
 
-  if (!baseUrl?.trim()) {
+  if (!resolvedApiKey) {
+    return c.json({ ok: false, message: 'API key is required' }, 400);
+  }
+  if (!resolvedBaseUrl) {
     return c.json({ ok: false, message: 'Base URL is required' }, 400);
   }
 
+  // Validate URL format
+  try {
+    const parsedUrl = new URL(resolvedBaseUrl);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return c.json(
+        { ok: false, message: 'Base URL must start with http:// or https://' },
+        400
+      );
+    }
+  } catch {
+    return c.json(
+      { ok: false, message: 'Base URL is not a valid URL' },
+      400
+    );
+  }
+
   const providerOptions = {
-    apiKey: apiKey.trim(),
-    customHost: baseUrl?.trim(),
+    apiKey: resolvedApiKey,
+    customHost: resolvedBaseUrl,
   };
 
   try {
@@ -628,10 +663,10 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
       fn: 'listModels',
       gatewayRequestBodyJSON: {},
       gatewayRequestBody: {},
-      gatewayRequestURL: baseUrl + '/models',
+      gatewayRequestURL: resolvedBaseUrl + '/models',
     });
 
-    const url = baseUrl.trim() + endpoint;
+    const url = resolvedBaseUrl + endpoint;
 
     const headers = await providerConfig.api.headers({
       c: c,
@@ -655,6 +690,24 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
       );
     }
 
+    // Validate response is actually JSON (reject HTML error pages, redirects, etc.)
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return c.json(
+        { ok: false, message: 'Base URL returned non-JSON response — the URL may be incorrect' },
+        200
+      );
+    }
+
+    // Validate the JSON body doesn't contain an API error even on 2xx
+    const modelData = await response.json();
+    if (modelData?.error) {
+      return c.json(
+        { ok: false, message: modelData.error.message || 'API returned an error response' },
+        200
+      );
+    }
+
     // Detect API format by trying both endpoints
     let apiFormat: 'openai' | 'anthropic' = 'openai';
     const testBody = {
@@ -668,14 +721,14 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
     };
 
     // Try /messages endpoint (Anthropic format)
-    const messagesRes = await fetch(baseUrl.trim() + '/messages', {
+    const messagesRes = await fetch(resolvedBaseUrl + '/messages', {
       method: 'POST',
       headers: testHeaders,
       body: JSON.stringify(testBody),
     });
 
     // Try /chat/completions endpoint (OpenAI format)
-    const chatRes = await fetch(baseUrl.trim() + '/chat/completions', {
+    const chatRes = await fetch(resolvedBaseUrl + '/chat/completions', {
       method: 'POST',
       headers: testHeaders,
       body: JSON.stringify(testBody),
