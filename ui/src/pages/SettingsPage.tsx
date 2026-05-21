@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { exportConfig, importConfig } from '../api/adminClient';
+import { exportConfig, exportConfigToFile, importConfig } from '../api/adminClient';
+import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
   'providers',
@@ -30,6 +31,7 @@ export default function SettingsPage() {
   const [rawConfig, setRawConfig] = useState<string>('');
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -136,9 +138,31 @@ export default function SettingsPage() {
   }
 
   async function handleExport() {
+    setConfigError(null);
+    setExportSuccess(null);
     try {
+      if (isDesktopMode()) {
+        // Try native save dialog; if it returns nothing (WKWebView issue), fall back to ~/Downloads
+        const Neutralino = (window as any).Neutralino;
+        let filePath = '';
+        try {
+          filePath = await Neutralino.os.showSaveDialog('Export Config', {
+            defaultPath: 'conf.ui.json',
+          });
+        } catch {
+          // dialog not available or failed
+        }
+        const res = await exportConfigToFile(filePath || undefined);
+        if (!res.ok) {
+          throw new Error(res.message || 'Export failed');
+        }
+        setExportSuccess(res.path || '~/Downloads/conf.ui.json');
+        return;
+      }
+
       const fullConfig = await exportConfig();
-      const blob = new Blob([JSON.stringify(fullConfig, null, 2)], {
+      const jsonStr = JSON.stringify(fullConfig, null, 2);
+      const blob = new Blob([jsonStr], {
         type: 'application/json',
       });
       const url = URL.createObjectURL(blob);
@@ -155,7 +179,48 @@ export default function SettingsPage() {
   }
 
   async function handleImportClick() {
+    if (isDesktopMode()) {
+      await handleDesktopImport();
+      return;
+    }
     fileInputRef.current?.click();
+  }
+
+  async function handleDesktopImport() {
+    setImportError(null);
+    setImportSuccess(false);
+
+    try {
+      const Neutralino = (window as any).Neutralino;
+      const paths: string[] = await Neutralino.os.showOpenDialog(
+        'Import Config'
+      );
+      const filePath = paths?.[0];
+      if (!filePath) return;
+
+      const text: string = await Neutralino.filesystem.readFile(filePath);
+      const parsed = JSON.parse(text);
+
+      const validationError = validateConfig(parsed);
+      if (validationError) {
+        setImportError(validationError);
+        return;
+      }
+
+      const res = await importConfig(parsed);
+      if (res.ok) {
+        setImportSuccess(true);
+        await loadConfig();
+      } else {
+        setImportError(res.message || 'Import failed');
+      }
+    } catch (err: any) {
+      if (err instanceof SyntaxError) {
+        setImportError('Invalid JSON file');
+      } else {
+        setImportError(err?.message ?? String(err));
+      }
+    }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -246,6 +311,11 @@ export default function SettingsPage() {
         {importSuccess && (
           <div className="success" style={{ marginTop: 10 }}>
             {t('common.importSuccessful')}
+          </div>
+        )}
+        {exportSuccess && (
+          <div className="success" style={{ marginTop: 10 }}>
+            {t('common.exportSuccessful', { path: exportSuccess })}
           </div>
         )}
       </div>

@@ -18,7 +18,8 @@
     "window.*",
     "computer.getKernelInfo",
     "events.*",
-    "clipboard.*"
+    "clipboard.*",
+    "filesystem.*"
   ],
   "modes": {
     "window": {

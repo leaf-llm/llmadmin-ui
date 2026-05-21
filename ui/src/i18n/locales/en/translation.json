@@ -29,6 +29,7 @@
     "export": "Export",
     "import": "Import",
     "importSuccessful": "Import successful!",
+    "exportSuccessful": "Export successful! File saved to {{path}}",
     "configIsActive": "Config is active.",
     "noActiveConfig": "No active config.",
     "gatewayConfig": "Gateway Config",

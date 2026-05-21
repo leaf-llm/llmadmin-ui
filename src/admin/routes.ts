@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { writeFile } from 'fs/promises';
+import path from 'path';
 
 import {
   listProviderSummaries,
@@ -231,6 +233,29 @@ adminApp.get('/config/export', async (c) => {
   try {
     const config = await loadUiConfig();
     return c.json({ config });
+  } catch (err: any) {
+    return c.json({ ok: false, message: err.message }, 500);
+  }
+});
+
+adminApp.post('/config/export-file', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const config = await loadUiConfig();
+    const jsonStr = JSON.stringify(config, null, 2);
+
+    // If a path is provided, write to that path (user chose via save dialog)
+    if (body.path && typeof body.path === 'string') {
+      await writeFile(body.path, jsonStr, 'utf-8');
+      return c.json({ ok: true, path: body.path });
+    }
+
+    // Otherwise write to ~/Downloads/conf.ui.json (fallback for desktop without dialog)
+    const home = process.env.HOME || process.env.USERPROFILE || '';
+    const downloadsDir = path.join(home, 'Downloads');
+    const filePath = path.join(downloadsDir, 'conf.ui.json');
+    await writeFile(filePath, jsonStr, 'utf-8');
+    return c.json({ ok: true, path: filePath });
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 500);
   }
