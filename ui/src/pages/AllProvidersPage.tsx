@@ -223,7 +223,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
   const handleTestConnectivity = async (p: ProviderSummary, isNew: boolean) => {
     const key = p.configId ?? p.provider;
     const draft = drafts[key];
-    if (!draft?.apiKey) {
+    if (isNew && !draft?.apiKey) {
       setNotification({
         message: t('common.pleaseEnterApiKeyFirst'),
         type: 'error',
@@ -239,7 +239,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
 
     try {
       const res = await testProviderConnectivity(p.provider, {
-        apiKey: draft.apiKey,
+        ...(draft.apiKey ? { apiKey: draft.apiKey } : {}),
         baseUrl: draft.baseUrl ?? p.baseUrl,
         configId: isNew ? undefined : p.configId,
       });
@@ -446,7 +446,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           {(isNew || drafts[key]?.testStatus !== 'passed') && (
             <button
               className="secondary"
-              disabled={testingProvider === key || !drafts[key]?.apiKey}
+              disabled={testingProvider === key || (isNew && !drafts[key]?.apiKey)}
               onClick={() => handleTestConnectivity(p, isNew)}
             >
               {testingProvider === key
