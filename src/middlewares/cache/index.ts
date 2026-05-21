@@ -1,4 +1,5 @@
 import { Context } from 'hono';
+import { POWERED_BY } from '../../globals';
 
 const inMemoryCache: any = {};
 
@@ -35,7 +36,7 @@ export const getFromCache = async (
   cacheMode: string,
   cacheMaxAge: number | null
 ) => {
-  if ('x-portkey-cache-force-refresh' in requestHeaders) {
+  if (`x-${POWERED_BY}-cache-force-refresh` in requestHeaders) {
     return [null, CACHE_STATUS.REFRESH, null];
   }
   try {
