@@ -681,34 +681,44 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
       headers: {},
     });
 
-    const response = await fetch(url, { headers });
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      return c.json(
-        {
-          ok: false,
-          message: errData.error?.message || `HTTP ${response.status}`,
-        },
-        200
-      );
-    }
-
-    // Validate response is actually JSON (reject HTML error pages, redirects, etc.)
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      return c.json(
-        { ok: false, message: 'Base URL returned non-JSON response — the URL may be incorrect' },
-        200
-      );
-    }
-
-    // Validate the JSON body doesn't contain an API error even on 2xx
-    const modelData = await response.json();
-    if (modelData?.error) {
-      return c.json(
-        { ok: false, message: modelData.error.message || 'API returned an error response' },
-        200
-      );
+    // Try to list models. A 404 means the endpoint doesn't support /models
+    // (common with Anthropic-format proxies), which is non-fatal — we still
+    // try format detection below. Any other error (401, network failure, etc.)
+    // is a real problem and fails immediately.
+    let models404 = false;
+    try {
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        if (response.status === 404) {
+          models404 = true;
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          return c.json(
+            {
+              ok: false,
+              message: errData.error?.message || `HTTP ${response.status}`,
+            },
+            200
+          );
+        }
+      } else {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          return c.json(
+            { ok: false, message: 'Base URL returned non-JSON response — the URL may be incorrect' },
+            200
+          );
+        }
+        const modelData = await response.json();
+        if (modelData?.error) {
+          return c.json(
+            { ok: false, message: modelData.error.message || 'API returned an error response' },
+            200
+          );
+        }
+      }
+    } catch (err: any) {
+      return c.json({ ok: false, message: err.message }, 200);
     }
 
     // Detect API format by trying both endpoints
@@ -737,25 +747,32 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
       body: JSON.stringify(testBody),
     });
 
-    // Determine format based on which endpoint returns 200 or 4xx (meaning it exists but model might not)
-    // A 401/403 means the endpoint exists but auth failed (still counts as "format detected")
-    // A 404 means the endpoint doesn't exist
-    if (
-      messagesRes.ok ||
-      messagesRes.status === 401 ||
-      messagesRes.status === 403
-    ) {
+    // Any non-404 response means the endpoint exists.
+    // 200 = success, 400 = invalid model, 401/403 = auth error,
+    // 405 = wrong method, 422 = validation error, 5xx = server error.
+    // Only 404 means the endpoint path genuinely doesn't exist.
+    const messagesValid = messagesRes.status !== 404;
+    const chatValid = chatRes.status !== 404;
+
+    if (messagesValid) {
       apiFormat = 'anthropic';
-    } else if (chatRes.ok || chatRes.status === 401 || chatRes.status === 403) {
+    } else if (chatValid) {
       apiFormat = 'openai';
     }
-    // If neither works, default to openai but the actual request will fail anyway
 
-    return c.json({
-      ok: true,
-      message: 'Connected successfully',
-      apiFormat,
-    });
+    if (messagesValid || chatValid) {
+      return c.json({
+        ok: true,
+        message: 'Connected successfully',
+        apiFormat,
+      });
+    }
+
+    if (models404) {
+      return c.json({ ok: false, message: 'HTTP 404' }, 200);
+    }
+
+    return c.json({ ok: false, message: 'Could not connect to the base URL' }, 200);
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 200);
   }
