@@ -1,45 +1,41 @@
-import { obfuscatedBuild } from 'bun-plugin-javascript-obfuscator';
+import JavaScriptObfuscator from 'javascript-obfuscator';
 
-const result = await obfuscatedBuild({
+// Step 1: Bundle with Bun into a single JS file
+const bundle = await Bun.build({
   entrypoints: ['./src/start-server.ts'],
   outdir: './build',
   target: 'bun',
   minify: true,
-  bundleNodeModules: true,
-  obfuscator: {
-    compact: true,
-    controlFlowFlattening: true,
-    controlFlowFlatteningThreshold: 0.75,
-    deadCodeInjection: true,
-    deadCodeInjectionThreshold: 0.4,
-    stringArray: true,
-    stringArrayEncoding: ['base64'],
-    stringArrayThreshold: 0.75,
-    identifierNamesGenerator: 'hexadecimal',
-    renameGlobals: false,
-    selfDefending: true,
-    splitStrings: true,
-    splitStringsChunkLength: 10,
-    transformObjectKeys: true,
-    unicodeEscapeSequence: false,
-  },
-  naming: {
-    entry: 'llm-gateway.js',
-  },
+  naming: '[dir]/llm-gateway.bundle.[ext]',
 });
 
-if (!result.success) {
-  console.error('Build failed');
-  for (const log of result.logs) {
-    console.error(log);
-  }
+if (!bundle.success) {
+  console.error('Bundle failed');
+  for (const log of bundle.logs) console.error(log);
   process.exit(1);
 }
 
-console.log('Build succeeded');
+const bundlePath = bundle.outputs[0].path;
+console.log(`Bundle: ${bundlePath}`);
 
-if (result.outputs.length > 0) {
-  for (const output of result.outputs) {
-    console.log(`- ${output.path}`);
-  }
-}
+// Step 2: Read bundled code and obfuscate
+const code = await Bun.file(bundlePath).text();
+
+const obfuscated = JavaScriptObfuscator.obfuscate(code, {
+  compact: true,
+  stringArray: true,
+  stringArrayEncoding: ['base64'],
+  stringArrayThreshold: 0.5,
+  identifierNamesGenerator: 'hexadecimal',
+  renameGlobals: false,
+  selfDefending: false,
+  controlFlowFlattening: false,
+  deadCodeInjection: false,
+  splitStrings: true,
+  splitStringsChunkLength: 10,
+  transformObjectKeys: false,
+  unicodeEscapeSequence: false,
+});
+
+await Bun.write('./build/llm-gateway.js', obfuscated.getObfuscatedCode());
+console.log('Obfuscation done -> build/llm-gateway.js');
