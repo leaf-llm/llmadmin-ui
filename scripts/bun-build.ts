@@ -23,18 +23,26 @@ const code = await Bun.file(bundlePath).text();
 
 const obfuscated = JavaScriptObfuscator.obfuscate(code, {
   compact: true,
-  stringArray: true,
-  stringArrayEncoding: ['base64'],
-  stringArrayThreshold: 0.5,
   identifierNamesGenerator: 'hexadecimal',
   renameGlobals: false,
   selfDefending: false,
   controlFlowFlattening: false,
   deadCodeInjection: false,
-  splitStrings: true,
-  splitStringsChunkLength: 10,
+  stringArray: false,
+  splitStrings: false,
   transformObjectKeys: false,
   unicodeEscapeSequence: false,
+  // Preserve strings used for CLI arg parsing and URL construction
+  reservedStrings: [
+    '--port=',
+    '--headless',
+    '--ppid=',
+    'http://',
+    'https://',
+    '/v1/',
+    '/admin/',
+    '/public/',
+  ],
 });
 
 await Bun.write('./build/llm-gateway.js', obfuscated.getObfuscatedCode());
