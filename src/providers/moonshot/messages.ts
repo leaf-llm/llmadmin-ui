@@ -26,11 +26,7 @@ export const MoonshotMessagesConfig: ProviderConfig = {
   },
   max_tokens: {
     param: 'max_tokens',
-    default: 100,
-    min: 0,
-  },
-  max_completion_tokens: {
-    param: 'max_tokens',
+    required: true,
     default: 100,
     min: 0,
   },

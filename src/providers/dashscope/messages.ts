@@ -26,6 +26,7 @@ export const DashScopeMessagesConfig: ProviderConfig = {
   },
   max_tokens: {
     param: 'max_tokens',
+    required: true,
     default: 100,
     min: 0,
   },

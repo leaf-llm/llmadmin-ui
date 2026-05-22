@@ -19,6 +19,7 @@ export const DoubaoMessagesConfig: ProviderConfig = {
   },
   max_tokens: {
     param: 'max_tokens',
+    required: true,
     default: 100,
     min: 0,
   },
@@ -61,9 +62,21 @@ interface DoubaoMessagesResponse {
 }
 
 export const DoubaoMessagesResponseTransform = (
-  response: DoubaoMessagesResponse | ErrorResponse,
+  response: DoubaoMessagesResponse | ErrorResponse | Record<string, any>,
   responseStatus: number
 ): MessagesResponse | ErrorResponse => {
+  if (responseStatus !== 200 && 'html-message' in response) {
+    return generateErrorResponse(
+      {
+        message: response['html-message'] || `HTTP ${responseStatus}: API returned an unexpected response. Check the base URL and endpoint.`,
+        type: 'api_error',
+        param: null,
+        code: String(responseStatus),
+      },
+      DOUBO
+    );
+  }
+
   if ('error' in response) {
     return generateErrorResponse(
       {
@@ -90,6 +103,24 @@ export const DoubaoMessagesResponseTransform = (
       usage: {
         input_tokens: response.usage?.prompt_tokens || 0,
         output_tokens: response.usage?.completion_tokens || 0,
+      },
+    };
+  }
+
+  // Handle Anthropic-format response
+  if ('type' in response && (response as any).type === 'message') {
+    const anthropicResponse = response as any;
+    return {
+      id: anthropicResponse.id,
+      type: 'message' as const,
+      role: anthropicResponse.role || 'assistant',
+      content: anthropicResponse.content || [],
+      model: anthropicResponse.model,
+      stop_reason: anthropicResponse.stop_reason || null,
+      stop_sequence: anthropicResponse.stop_sequence || null,
+      usage: {
+        input_tokens: anthropicResponse.usage?.input_tokens || 0,
+        output_tokens: anthropicResponse.usage?.output_tokens || 0,
       },
     };
   }

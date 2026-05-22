@@ -681,32 +681,48 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
       headers: {},
     });
 
-    const response = await fetch(url, { headers });
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      return c.json(
-        {
-          ok: false,
-          message: errData.error?.message || `HTTP ${response.status}`,
-        },
-        200
-      );
+    let modelsOk = false;
+    let modelsAuthError = false;
+    try {
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        if (response.status === 404) {
+          // /models not available (common with Anthropic-format proxies) — continue to format detection
+        } else if (response.status === 401 || response.status === 403) {
+          modelsAuthError = true;
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          return c.json(
+            {
+              ok: false,
+              message: errData.error?.message || `HTTP ${response.status}`,
+            },
+            200
+          );
+        }
+      } else {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          return c.json(
+            { ok: false, message: 'Base URL returned non-JSON response — the URL may be incorrect' },
+            200
+          );
+        }
+        const modelData = await response.json();
+        // Some providers return HTTP 200 with auth errors in the body (e.g. ZhiPu /models)
+        if (modelData?.error || modelData?.code === 401 || modelData?.success === false) {
+          modelsAuthError = true;
+        } else {
+          modelsOk = true;
+        }
+      }
+    } catch (err: any) {
+      return c.json({ ok: false, message: err.message }, 200);
     }
 
-    // Validate response is actually JSON (reject HTML error pages, redirects, etc.)
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
+    if (modelsAuthError) {
       return c.json(
-        { ok: false, message: 'Base URL returned non-JSON response — the URL may be incorrect' },
-        200
-      );
-    }
-
-    // Validate the JSON body doesn't contain an API error even on 2xx
-    const modelData = await response.json();
-    if (modelData?.error) {
-      return c.json(
-        { ok: false, message: modelData.error.message || 'API returned an error response' },
+        { ok: false, message: 'Authentication failed — invalid API key' },
         200
       );
     }
@@ -737,25 +753,74 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
       body: JSON.stringify(testBody),
     });
 
-    // Determine format based on which endpoint returns 200 or 4xx (meaning it exists but model might not)
-    // A 401/403 means the endpoint exists but auth failed (still counts as "format detected")
-    // A 404 means the endpoint doesn't exist
-    if (
-      messagesRes.ok ||
-      messagesRes.status === 401 ||
-      messagesRes.status === 403
-    ) {
+    // 2xx = endpoint works. 401/403 = auth failure.
+    const isAuthError = (status: number) => status === 401 || status === 403;
+
+    // Some APIs return 404 or 400 when the model name is invalid (not because the endpoint is missing).
+    // Check response body to distinguish "model not found" from "endpoint not found".
+    const isModelNotFound = (status: number, data: Record<string, any> | null) => {
+      if (status !== 400 && status !== 404) return false;
+      if (!data) return false;
+      const msg =
+        data.error?.message || data.error?.toString() || data.message || '';
+      return msg.toLowerCase().includes('model') || msg.includes('模型');
+    };
+
+    // Read response bodies for ALL statuses to detect API-level errors
+    const readBody = async (res: Response): Promise<Record<string, any> | null> => {
+      try { return await res.clone().json() as Record<string, any>; }
+      catch { return null; }
+    };
+    const [messagesData, chatData] = await Promise.all([
+      readBody(messagesRes),
+      readBody(chatRes),
+    ]);
+    const hasBodyError = (data: Record<string, any> | null) => {
+      if (!data) return false;
+      return data.error != null || data.code === 401;
+    };
+
+    const messagesOk =
+      (messagesRes.ok && !hasBodyError(messagesData)) ||
+      isModelNotFound(messagesRes.status, messagesData);
+    const chatOk =
+      (chatRes.ok && !hasBodyError(chatData)) ||
+      isModelNotFound(chatRes.status, chatData);
+
+    if (messagesOk) {
       apiFormat = 'anthropic';
-    } else if (chatRes.ok || chatRes.status === 401 || chatRes.status === 403) {
+    } else if (chatOk) {
       apiFormat = 'openai';
     }
-    // If neither works, default to openai but the actual request will fail anyway
 
-    return c.json({
-      ok: true,
-      message: 'Connected successfully',
-      apiFormat,
-    });
+    // If /models confirmed connectivity, trust it regardless of format detection
+    if (modelsOk) {
+      return c.json({
+        ok: true,
+        message: 'Connected successfully',
+        apiFormat,
+      });
+    }
+
+    // Format detection confirms connectivity
+    if (messagesOk || chatOk) {
+      return c.json({
+        ok: true,
+        message: 'Connected successfully',
+        apiFormat,
+      });
+    }
+
+    // One or both endpoints returned auth errors
+    if (isAuthError(messagesRes.status) || isAuthError(chatRes.status)) {
+      return c.json(
+        { ok: false, message: 'Authentication failed — invalid API key' },
+        200
+      );
+    }
+
+    // /models returned 404 and format endpoints also failed — URL is likely wrong
+    return c.json({ ok: false, message: 'Could not connect — check the base URL' }, 200);
   } catch (err: any) {
     return c.json({ ok: false, message: err.message }, 200);
   }

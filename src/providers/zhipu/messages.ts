@@ -25,6 +25,7 @@ export const ZhipuMessagesConfig: ProviderConfig = {
   },
   max_tokens: {
     param: 'max_tokens',
+    required: true,
     default: 100,
     min: 0,
   },
@@ -113,6 +114,24 @@ export const ZhipuMessagesResponseTransform = (
       usage: {
         input_tokens: response.usage?.prompt_tokens || 0,
         output_tokens: response.usage?.completion_tokens || 0,
+      },
+    };
+  }
+
+  // Handle Anthropic-format response (when using ZhiPu via Anthropic endpoint)
+  if ('type' in response && response.type === 'message') {
+    const anthropicResponse = response as any;
+    return {
+      id: anthropicResponse.id,
+      type: 'message' as const,
+      role: anthropicResponse.role || 'assistant',
+      content: anthropicResponse.content || [],
+      model: anthropicResponse.model,
+      stop_reason: anthropicResponse.stop_reason || null,
+      stop_sequence: anthropicResponse.stop_sequence || null,
+      usage: {
+        input_tokens: anthropicResponse.usage?.input_tokens || 0,
+        output_tokens: anthropicResponse.usage?.output_tokens || 0,
       },
     };
   }
