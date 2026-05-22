@@ -211,10 +211,17 @@ export default function UsagePage() {
           </div>
 
           <div className="card">
-	    <div className="card__title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div
+              className="card__title"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
               <span>{t('common.usageByProvider')}</span>
               <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>
-                * 该用量统计仅供参考，详情请查询供应商账单
+                {t('common.usageDisclaimer')}
               </span>
             </div>
             <table className="table">
