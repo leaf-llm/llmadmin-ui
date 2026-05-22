@@ -22,6 +22,7 @@ export const DoubaoChatCompleteConfig: ProviderConfig = {
   },
   max_tokens: {
     param: 'max_tokens',
+    required: true,
     default: 100,
     min: 0,
   },
@@ -71,9 +72,21 @@ interface DoubaoStreamChunk {
 }
 
 export const DoubaoChatCompleteResponseTransform: (
-  response: DoubaoChatCompleteResponse | ErrorResponse,
+  response: DoubaoChatCompleteResponse | ErrorResponse | Record<string, any>,
   responseStatus: number
 ) => ChatCompletionResponse | ErrorResponse = (response, responseStatus) => {
+  if (responseStatus !== 200 && 'html-message' in response) {
+    return generateErrorResponse(
+      {
+        message: response['html-message'] || `HTTP ${responseStatus}: API returned an unexpected response. Check the base URL and endpoint.`,
+        type: 'api_error',
+        param: null,
+        code: String(responseStatus),
+      },
+      DOUBO
+    );
+  }
+
   if ('error' in response) {
     return generateErrorResponse(
       {
@@ -105,6 +118,53 @@ export const DoubaoChatCompleteResponseTransform: (
         prompt_tokens: response.usage?.prompt_tokens,
         completion_tokens: response.usage?.completion_tokens,
         total_tokens: response.usage?.total_tokens,
+      },
+    };
+  }
+
+  // Handle Anthropic-format response
+  if ('type' in response && (response as any).type === 'message') {
+    const anthropicResponse = response as any;
+    const contentParts: string[] = [];
+    if (anthropicResponse.content && Array.isArray(anthropicResponse.content)) {
+      for (const block of anthropicResponse.content) {
+        if (block.type === 'text') contentParts.push(block.text);
+      }
+    }
+    const content = contentParts.join('') || null;
+
+    const finishReasonMap: Record<string, string> = {
+      end_turn: 'stop',
+      max_tokens: 'length',
+      tool_use: 'tool_calls',
+      stop_sequence: 'stop',
+    };
+
+    return {
+      id: anthropicResponse.id,
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: anthropicResponse.model,
+      provider: DOUBO,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: anthropicResponse.role || 'assistant',
+            content,
+          },
+          finish_reason:
+            finishReasonMap[anthropicResponse.stop_reason] ||
+            anthropicResponse.stop_reason ||
+            'stop',
+        },
+      ],
+      usage: {
+        prompt_tokens: anthropicResponse.usage?.input_tokens || 0,
+        completion_tokens: anthropicResponse.usage?.output_tokens || 0,
+        total_tokens:
+          (anthropicResponse.usage?.input_tokens || 0) +
+          (anthropicResponse.usage?.output_tokens || 0),
       },
     };
   }

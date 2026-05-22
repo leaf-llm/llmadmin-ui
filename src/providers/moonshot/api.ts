@@ -2,7 +2,7 @@ import { ProviderAPIConfig } from '../types';
 
 const MoonshotAPIConfig: ProviderAPIConfig = {
   getBaseURL: ({ providerOptions }) =>
-    providerOptions.customHost || 'https://api.moonshot.cn',
+    providerOptions.customHost || 'https://api.moonshot.cn/v1',
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` }; // https://platform.moonshot.cn/console/api-keys
   },

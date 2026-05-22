@@ -7,10 +7,14 @@ const PATH_TO_CATEGORY: Record<string, ModelCategory> = {
   '/v1/chat/completions': 'text',
   '/v1/completions': 'text',
   '/v1/embeddings': 'text',
+  '/v1/messages': 'text',
+  '/v1/messages/count_tokens': 'text',
   '/v1/images/generations': 'image',
   '/v1/images/variations': 'image',
+  '/v1/images/edits': 'image',
   '/v1/audio/transcriptions': 'audio',
   '/v1/audio/speech': 'audio',
+  '/v1/audio/translations': 'audio',
   '/v1/video/generations': 'video',
 };
 
