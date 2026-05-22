@@ -98,7 +98,7 @@
     "taskType": "任务类型",
     "modelRouting": "模型路由",
     "noRoutingConfigured": "暂无路由配置，添加供应商后可设置路由。",
-"noRoutingModels": "暂无模型路由，请先添加路由模型。",
+    "noRoutingModels": "暂无模型路由，请先添加路由模型。",
     "primaryFallbackDesc": "主模型按顺序依次访问，成功则直接返回，全部失败回退到次级模型",
     "loadBalancingDesc": "随机访问一个模型，失败无重试",
     "categoryText": "文本生成",
@@ -110,6 +110,8 @@
     "maxRetriesExceeded": "超过最大重试次数",
     "connecting": "连接中...",
     "connectionFailed": "连接失败",
-    "connectionDisconnected": "连接断开"
+    "connectionDisconnected": "连接断开",
+    "running": "运行中",
+    "usageDisclaimer": "* 该用量统计仅供参考，详情请查询供应商账单"
   }
 }

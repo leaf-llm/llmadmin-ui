@@ -98,7 +98,7 @@
     "taskType": "Task Type",
     "modelRouting": "Model Routing",
     "noRoutingConfigured": "No routing configured, add a provider to set up routing.",
-"noRoutingModels": "No models in routing. Add models to routing first.",
+    "noRoutingModels": "No models in routing. Add models to routing first.",
     "primaryFallbackDesc": "Primary models are accessed in order; returns immediately on success",
     "loadBalancingDesc": "Randomly access one model, no retry on failure",
     "categoryText": "Text Generations",
@@ -110,6 +110,8 @@
     "maxRetriesExceeded": "Max retries exceeded",
     "connecting": "Connecting...",
     "connectionFailed": "Connection Failed",
-    "connectionDisconnected": "Disconnected"
+    "connectionDisconnected": "Disconnected",
+    "running": "Running",
+    "usageDisclaimer": "* This usage statistics is for reference only. For details, please check the provider's bill."
   }
 }
