@@ -297,30 +297,38 @@ async function processLog(c: Context, start: number) {
   const ms = Date.now() - start;
   if (!c.req.url.includes('/v1/')) return;
 
-  const requestOptionsArray = c.get('requestOptions');
-  if (!requestOptionsArray?.length) {
-    return;
-  }
+  const requestOptionsArray = c.get('requestOptions') || [];
+
+  let response: any;
+  let responseStatus = c.res?.status || 0;
 
   try {
-    let response: any;
-    if (requestOptionsArray[0].requestParams.stream) {
+    if (requestOptionsArray.length > 0 && requestOptionsArray[0].requestParams?.stream) {
       // Try to extract usage from the streamed SSE response
       const streamUsage = await tryReadStreamUsage(c);
       response = streamUsage || { message: 'The response was a stream.' };
-    } else {
+    } else if (requestOptionsArray.length > 0 && c.res) {
       response = await c.res.clone().json();
+    } else {
+      // Request was rejected early (e.g., by requestValidator) before requestOptions was set
+      // Try to read the response body anyway
+      try {
+        response = await c.res?.clone()?.json();
+      } catch {
+        response = { message: 'Response not available' };
+      }
     }
 
     const responseString = JSON.stringify(response);
-    if (responseString.length > MAX_RESPONSE_LENGTH) {
+    if (requestOptionsArray.length > 0 && responseString.length > MAX_RESPONSE_LENGTH) {
       requestOptionsArray[0].response =
         responseString.substring(0, MAX_RESPONSE_LENGTH) + '...';
-    } else {
+    } else if (requestOptionsArray.length > 0) {
       requestOptionsArray[0].response = response;
     }
   } catch (error) {
     console.error('Error processing log:', error);
+    response = { message: 'Error reading response' };
   }
 
   await broadcastLog(
@@ -329,13 +337,15 @@ async function processLog(c: Context, start: number) {
       method: c.req.method,
       endpoint: c.req.url.split(':8700')[1],
       targetUrl: requestOptionsArray[0]?.providerOptions?.requestURL || '',
-      status: c.res.status,
+      status: responseStatus,
       duration: ms,
       requestOptions: requestOptionsArray,
     })
   );
 
-  recordMetrics(c.res.status, requestOptionsArray);
+  if (requestOptionsArray.length > 0) {
+    recordMetrics(responseStatus, requestOptionsArray);
+  }
 }
 
 export const logHandler = () => {

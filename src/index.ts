@@ -315,6 +315,11 @@ if (runtime === 'workerd') {
  */
 app.post('/v1/proxy/*', proxyHandler);
 
+// Catch malformed /v1/v1/* paths and return 404
+app.all('/v1/v1/*', (c) =>
+  c.json({ status: 'failure', message: `Invalid path: ${c.req.path}` }, 404)
+);
+
 // Support the /v1 proxy endpoint after all defined endpoints so this does not interfere.
 app.post('/v1/*', requestValidator, proxyHandler);
 
