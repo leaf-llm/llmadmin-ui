@@ -374,15 +374,16 @@
       background-color: white;
       border-radius: 8px;
       box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-      overflow: hidden;
+      overflow-x: auto;
       width: 100%;
       max-width: 800px;
+      min-width: 100%;
     }
 
     .logs-table {
-      width: 100%;
       border-collapse: separate;
       border-spacing: 0;
+      min-width: 1200px;
     }
 
     .logs-table th,
@@ -391,9 +392,13 @@
       text-align: left;
       border-bottom: 1px solid #e5e7eb;
       cursor: default;
+      white-space: nowrap;
     }
 
     .logs-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
       background-color: #f3f4f6;
       font-weight: 600;
       color: #374151;
@@ -2027,6 +2032,9 @@
       }
 
       function showLogDetails(time, method, endpoint, targetUrl, status, duration, requestOptions) {
+          const hasRequestOptions = requestOptions && requestOptions.length > 0;
+          const requestParams = hasRequestOptions ? requestOptions[0].requestParams : null;
+          const response = hasRequestOptions ? requestOptions[0].response : null;
           logDetailsContent.innerHTML = `
               <h3>Request Details</h3>
               <p><strong>Time:</strong> ${time}</p>
@@ -2035,8 +2043,8 @@
               <p><strong>Target URL:</strong> ${targetUrl}</p>
               <p><strong>Status:</strong> ${status}</p>
               <p><strong>Duration:</strong> ${duration}ms</p>
-              <p><strong>Request:</strong> <pre>${JSON.stringify(requestOptions[0].requestParams, null, 2)}</pre></p>
-              <p><strong>Response:</strong> <pre>${JSON.stringify(requestOptions[0].response, null, 2)}</pre></p>
+              <p><strong>Request:</strong> <pre>${requestParams ? JSON.stringify(requestParams, null, 2) : 'N/A (request not available)'}</pre></p>
+              <p><strong>Response:</strong> <pre>${response ? JSON.stringify(response, null, 2) : 'N/A'}</pre></p>
           `;
           logDetailsModal.style.display = 'block';
       }
