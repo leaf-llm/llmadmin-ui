@@ -1,5 +1,5 @@
 import { MOONSHOT } from '../../globals';
-import { Params } from '../../types/requestBody';
+import { Params, Message } from '../../types/requestBody';
 
 import {
   ChatCompletionResponse,
@@ -19,10 +19,11 @@ export const MoonshotChatCompleteConfig: ProviderConfig = {
   },
   messages: {
     param: 'messages',
-    default: '',
+    required: true,
     transform: (params: Params) => {
-      return params.messages?.map((message) => {
-        if (message.role === 'developer') return { ...message, role: 'system' };
+      return params.messages?.map((message: Message) => {
+        if (message.role === 'developer')
+          return { ...message, role: 'system' };
         return message;
       });
     },
@@ -48,6 +49,12 @@ export const MoonshotChatCompleteConfig: ProviderConfig = {
   stream: {
     param: 'stream',
     default: false,
+  },
+  tools: {
+    param: 'tools',
+  },
+  tool_choice: {
+    param: 'tool_choice',
   },
 };
 
@@ -79,7 +86,16 @@ interface MoonshotStreamChunk {
   choices: {
     delta: {
       role?: string | null;
-      content?: string;
+      content?: string | null;
+      tool_calls?: {
+        index: number;
+        id?: string;
+        type?: 'function';
+        function?: {
+          name?: string;
+          arguments?: string;
+        };
+      }[];
     };
     index: number;
     finish_reason: string | null;
@@ -87,7 +103,7 @@ interface MoonshotStreamChunk {
 }
 
 export const MoonshotChatCompleteResponseTransform: (
-  response: MoonshotChatCompleteResponse | MoonshotErrorResponse,
+  response: MoonshotChatCompleteResponse | MoonshotErrorResponse | Record<string, any>,
   responseStatus: number
 ) => ChatCompletionResponse | ErrorResponse = (response, responseStatus) => {
   if ('message' in response && responseStatus !== 200) {
@@ -109,11 +125,14 @@ export const MoonshotChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: MOONSHOT,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((c: any) => ({
         index: c.index,
         message: {
           role: c.message.role,
           content: c.message.content,
+          ...(c.message.tool_calls && {
+            tool_calls: c.message.tool_calls,
+          }),
         },
         finish_reason: c.finish_reason,
       })),

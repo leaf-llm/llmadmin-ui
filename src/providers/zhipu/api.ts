@@ -1,21 +1,23 @@
 import { ProviderAPIConfig } from '../types';
 
 const ZhipuAPIConfig: ProviderAPIConfig = {
-  getBaseURL: ({ providerOptions }) =>
-    providerOptions.customHost || 'https://open.bigmodel.cn/api/paas/v4',
+  getBaseURL: ({ providerOptions, fn }) => {
+    if (fn === 'messages')
+      return (
+        providerOptions.customHostAnthropic ||
+        'https://open.bigmodel.cn/api/anthropic'
+      );
+    return providerOptions.customHost || 'https://open.bigmodel.cn/api/paas/v4';
+  },
   headers: ({ providerOptions }) => {
     return { Authorization: `Bearer ${providerOptions.apiKey}` };
   },
-  getEndpoint: ({ fn, providerOptions }) => {
+  getEndpoint: ({ fn }) => {
     switch (fn) {
       case 'chatComplete':
-        return providerOptions.apiFormat === 'anthropic'
-          ? '/messages'
-          : '/chat/completions';
+        return '/chat/completions';
       case 'messages':
-        return providerOptions.apiFormat === 'anthropic'
-          ? '/messages'
-          : '/chat/completions';
+        return '/messages';
       case 'embed':
         return '/embeddings';
       case 'listModels':

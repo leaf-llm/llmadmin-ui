@@ -1,5 +1,5 @@
 import { ZHIPU } from '../../globals';
-import { Params } from '../../types/requestBody';
+import { Params, Message } from '../../types/requestBody';
 import {
   ChatCompletionResponse,
   ErrorResponse,
@@ -18,10 +18,11 @@ export const ZhipuChatCompleteConfig: ProviderConfig = {
   },
   messages: {
     param: 'messages',
-    default: '',
+    required: true,
     transform: (params: Params) => {
-      return params.messages?.map((message) => {
-        if (message.role === 'developer') return { ...message, role: 'system' };
+      return params.messages?.map((message: Message) => {
+        if (message.role === 'developer')
+          return { ...message, role: 'system' };
         return message;
       });
     },
@@ -50,11 +51,9 @@ export const ZhipuChatCompleteConfig: ProviderConfig = {
   },
   tools: {
     param: 'tools',
-    default: null,
   },
   tool_choice: {
     param: 'tool_choice',
-    default: null,
   },
 };
 
@@ -77,15 +76,6 @@ interface ZhipuChatCompleteResponse extends ChatCompletionResponse {
     completion_tokens: number;
     total_tokens: number;
   };
-  choices: {
-    index: number;
-    message: {
-      role: string;
-      content: string | null;
-      tool_calls?: ZhipuToolCall[];
-    };
-    finish_reason: string | null;
-  }[];
 }
 
 export interface ZhipuErrorResponse {
@@ -140,7 +130,9 @@ export const ZhipuChatCompleteResponseTransform: (
         message: {
           role: c.message.role,
           content: c.message.content,
-          tool_calls: c.message.tool_calls,
+          ...(c.message.tool_calls && {
+            tool_calls: c.message.tool_calls,
+          }),
         },
         finish_reason: c.finish_reason,
       })),
@@ -148,53 +140,6 @@ export const ZhipuChatCompleteResponseTransform: (
         prompt_tokens: response.usage?.prompt_tokens,
         completion_tokens: response.usage?.completion_tokens,
         total_tokens: response.usage?.total_tokens,
-      },
-    };
-  }
-
-  // Handle Anthropic-format response (when ZhiPu uses Anthropic-compatible endpoint)
-  if ('type' in response && (response as any).type === 'message') {
-    const anthropicResponse = response as any;
-    const contentParts: string[] = [];
-    if (anthropicResponse.content && Array.isArray(anthropicResponse.content)) {
-      for (const block of anthropicResponse.content) {
-        if (block.type === 'text') contentParts.push(block.text);
-      }
-    }
-    const content = contentParts.join('') || null;
-
-    const finishReasonMap: Record<string, string> = {
-      end_turn: 'stop',
-      max_tokens: 'length',
-      tool_use: 'tool_calls',
-      stop_sequence: 'stop',
-    };
-
-    return {
-      id: anthropicResponse.id,
-      object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
-      model: anthropicResponse.model,
-      provider: ZHIPU,
-      choices: [
-        {
-          index: 0,
-          message: {
-            role: anthropicResponse.role || 'assistant',
-            content,
-          },
-          finish_reason:
-            finishReasonMap[anthropicResponse.stop_reason] ||
-            anthropicResponse.stop_reason ||
-            'stop',
-        },
-      ],
-      usage: {
-        prompt_tokens: anthropicResponse.usage?.input_tokens || 0,
-        completion_tokens: anthropicResponse.usage?.output_tokens || 0,
-        total_tokens:
-          (anthropicResponse.usage?.input_tokens || 0) +
-          (anthropicResponse.usage?.output_tokens || 0),
       },
     };
   }

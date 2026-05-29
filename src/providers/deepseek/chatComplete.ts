@@ -1,5 +1,5 @@
 import { DEEPSEEK } from '../../globals';
-import { Params } from '../../types/requestBody';
+import { Params, Message } from '../../types/requestBody';
 
 import {
   ChatCompletionResponse,
@@ -21,10 +21,11 @@ export const DeepSeekChatCompleteConfig: ProviderConfig = {
   },
   messages: {
     param: 'messages',
-    default: '',
+    required: true,
     transform: (params: Params) => {
-      return params.messages?.map((message) => {
-        if (message.role === 'developer') return { ...message, role: 'system' };
+      return params.messages?.map((message: Message) => {
+        if (message.role === 'developer')
+          return { ...message, role: 'system' };
         return message;
       });
     },
@@ -85,6 +86,12 @@ export const DeepSeekChatCompleteConfig: ProviderConfig = {
     min: 0,
     max: 20,
   },
+  tools: {
+    param: 'tools',
+  },
+  tool_choice: {
+    param: 'tool_choice',
+  },
 };
 
 interface DeepSeekChatCompleteResponse extends ChatCompletionResponse {
@@ -120,7 +127,16 @@ interface DeepSeekStreamChunk {
   choices: {
     delta: {
       role?: string | null;
-      content?: string;
+      content?: string | null;
+      tool_calls?: {
+        index: number;
+        id?: string;
+        type?: 'function';
+        function?: {
+          name?: string;
+          arguments?: string;
+        };
+      }[];
     };
     index: number;
     finish_reason: string | null;
@@ -128,7 +144,10 @@ interface DeepSeekStreamChunk {
 }
 
 export const DeepSeekChatCompleteResponseTransform: (
-  response: DeepSeekChatCompleteResponse | DeepSeekErrorResponse,
+  response:
+    | DeepSeekChatCompleteResponse
+    | DeepSeekErrorResponse
+    | Record<string, any>,
   responseStatus: number,
   responseHeaders: Headers,
   strictOpenAiCompliance: boolean
@@ -157,11 +176,17 @@ export const DeepSeekChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: DEEPSEEK,
-      choices: response.choices.map((c) => ({
+      choices: response.choices.map((c: any) => ({
         index: c.index,
         message: {
           role: c.message.role,
           content: c.message.content,
+          ...(c.message.reasoning_content && {
+            reasoning_content: c.message.reasoning_content,
+          }),
+          ...(c.message.tool_calls && {
+            tool_calls: c.message.tool_calls,
+          }),
         },
         finish_reason: transformFinishReason(
           c.finish_reason as DEEPSEEK_STOP_REASON,

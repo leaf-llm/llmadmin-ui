@@ -14,14 +14,16 @@
       "name": "Doubao",
       "object": "provider",
       "description": "Doubao is ByteDance's LLM API offering high-quality Chinese language understanding and generation.",
-      "base_url": "https://ark.cn-beijing.volces.com/api/v3"
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "base_url_anthropic": "https://ark.cn-beijing.volces.com/api/compatible/v1"
     },
     {
       "id": "minimax",
       "name": "MiniMax",
       "object": "provider",
       "description": "MiniMax is a Chinese AI company providing advanced LLMs including the MiniMax-M2 series.",
-      "base_url": "https://api.minimaxi.com/anthropic/v1"
+      "base_url": "https://api.minimaxi.com/v1",
+      "base_url_anthropic": "https://api.minimaxi.com/anthropic/v1"
     },
     {
       "id": "ai21",
@@ -91,7 +93,8 @@
       "name": "DeepSeek",
       "object": "provider",
       "description": "DeepSeek develops advanced search technologies powered by large language models. Their solutions aim to improve information retrieval across various domains by enhancing search accuracy and relevance. DeepSeek focuses on integrating AI into existing search infrastructures to provide smarter results.",
-      "base_url": "https://api.deepseek.com"
+      "base_url": "https://api.deepseek.com",
+      "base_url_anthropic": "https://api.deepseek.com/anthropic/v1"
     },
     {
       "id": "fireworks-ai",
@@ -182,7 +185,8 @@
       "name": "Moonshot",
       "object": "provider",
       "description": "Moonshot develops innovative solutions leveraging large language models aimed at enhancing creativity in content generation processes. Their tools are designed to assist creators by providing intelligent suggestions and automating repetitive tasks within creative workflows.",
-      "base_url": "https://api.moonshot.cn/v1"
+      "base_url": "https://api.moonshot.cn/v1",
+      "base_url_anthropic": "https://api.moonshot.cn/anthropic/v1"
     },
     {
       "id": "nomic",
@@ -308,7 +312,8 @@
       "name": "ZhipuAI",
       "object": "provider",
       "description": "ZhipuAI specializes in creating conversational agents powered by advanced natural language processing techniques aimed at enhancing customer engagement experiences across diverse industries focusing primarily upon delivering personalized interactions tailored towards individual preferences expressed during engagements encountered here too!",
-      "base_url": "https://open.bigmodel.cn/api/paas/v4"
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "base_url_anthropic": "https://open.bigmodel.cn/api/anthropic"
     },
     {
       "id": "lambda",
@@ -336,7 +341,8 @@
       "name": "Dashscope",
       "object": "provider",
       "description": "Dashscope provides intelligent analytics solutions designed to help businesses visualize and interpret complex data effectively. Their platform integrates advanced machine learning algorithms to generate real-time insights from diverse datasets, enabling organizations to make informed decisions quickly. Dashscope focuses on enhancing data accessibility and usability, empowering teams to leverage analytics for strategic planning and operational efficiency.",
-      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "base_url_anthropic": "https://dashscope.aliyuncs.com/apps/anthropic/v1"
     }
   ]
 }

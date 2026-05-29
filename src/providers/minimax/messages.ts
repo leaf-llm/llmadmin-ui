@@ -1,13 +1,11 @@
 import { MINIMAX } from '../../globals';
-import { Params, Message, SYSTEM_MESSAGE_ROLES } from '../../types/requestBody';
+import { Params } from '../../types/requestBody';
 import { MessagesResponse } from '../../types/messagesResponse';
 import { ErrorResponse, ProviderConfig } from '../types';
 import {
   generateErrorResponse,
   generateInvalidProviderResponseError,
-  transformToAnthropicStopReason,
 } from '../utils';
-import { ANTHROPIC_STOP_REASON } from '../anthropic/types';
 
 export const MinimaxMessagesConfig: ProviderConfig = {
   model: {
@@ -15,43 +13,10 @@ export const MinimaxMessagesConfig: ProviderConfig = {
     required: true,
     default: 'MiniMax-M2.7',
   },
-  messages: [
-    {
-      param: 'messages',
-      required: true,
-      transform: (params: Params) => {
-        let messages: any[] = [];
-        if (params.messages) {
-          params.messages.forEach((msg: Message) => {
-            if (SYSTEM_MESSAGE_ROLES.includes(msg.role)) return;
-            messages.push({
-              role: msg.role,
-              content: msg.content,
-            });
-          });
-        }
-        return messages;
-      },
-    },
-    {
-      param: 'system',
-      required: false,
-      transform: (params: Params) => {
-        let systemContent = '';
-        if (params.messages) {
-          params.messages.forEach((msg: Message) => {
-            if (SYSTEM_MESSAGE_ROLES.includes(msg.role) && msg.content) {
-              systemContent +=
-                (typeof msg.content === 'string'
-                  ? msg.content
-                  : msg.content[0]?.text || '') + '\n';
-            }
-          });
-        }
-        return systemContent.trim() || undefined;
-      },
-    },
-  ],
+  messages: {
+    param: 'messages',
+    required: true,
+  },
   max_tokens: {
     param: 'max_tokens',
     required: true,
@@ -70,20 +35,13 @@ export const MinimaxMessagesConfig: ProviderConfig = {
     param: 'stream',
     default: false,
   },
+  tools: {
+    param: 'tools',
+  },
+  tool_choice: {
+    param: 'tool_choice',
+  },
 };
-
-interface MinimaxMessagesResponse {
-  id: string;
-  type: string;
-  role: string;
-  content: { type: string; text?: string }[];
-  stop_reason: string;
-  model: string;
-  usage: {
-    input_tokens: number;
-    output_tokens: number;
-  };
-}
 
 interface MinimaxOpenAIResponse {
   id: string;
@@ -97,27 +55,44 @@ interface MinimaxOpenAIResponse {
   };
   choices: {
     index: number;
-    message: { role: string; content: string };
+    message: {
+      role: string;
+      content: string | null;
+      reasoning_content?: string;
+      tool_calls?: {
+        id: string;
+        type: 'function';
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }[];
+    };
     finish_reason: string | null;
   }[];
 }
 
-interface MinimaxErrorResponse {
-  error: {
-    type: string;
-    message: string;
-  };
-}
-
 export const MinimaxMessagesResponseTransform = (
-  response: MinimaxMessagesResponse | MinimaxOpenAIResponse | MinimaxErrorResponse,
+  response: MinimaxOpenAIResponse | ErrorResponse | Record<string, any>,
   responseStatus: number
 ): MessagesResponse | ErrorResponse => {
-  if (responseStatus !== 200 && 'error' in response) {
+  if (responseStatus !== 200 && 'html-message' in response) {
     return generateErrorResponse(
       {
-        message: response.error.message,
-        type: response.error.type,
+        message: response['html-message'] || 'Bad request',
+        type: 'api_error',
+        param: null,
+        code: String(responseStatus),
+      },
+      MINIMAX
+    );
+  }
+
+  if ('error' in response) {
+    return generateErrorResponse(
+      {
+        message: (response as ErrorResponse).error?.message || 'Unknown error',
+        type: 'api_error',
         param: null,
         code: null,
       },
@@ -125,44 +100,58 @@ export const MinimaxMessagesResponseTransform = (
     );
   }
 
-  if ('content' in response && Array.isArray(response.content)) {
-    const textContent = response.content
-      .filter((item) => item.type === 'text')
-      .map((item) => ({ type: 'text' as const, text: item.text || '' }));
-
+  // Anthropic-format response from provider's /messages endpoint
+  if ('type' in response && (response as any).type === 'message') {
+    const anthropicResponse = response as any;
     return {
-      id: response.id,
-      type: 'message',
-      role: 'assistant',
-      content: textContent,
-      model: response.model,
-      stop_reason: transformToAnthropicStopReason(
-        response.stop_reason as ANTHROPIC_STOP_REASON
-      ),
+      id: anthropicResponse.id,
+      type: 'message' as const,
+      role: anthropicResponse.role || 'assistant',
+      content: anthropicResponse.content || [],
+      model: anthropicResponse.model,
+      stop_reason: anthropicResponse.stop_reason || null,
+      stop_sequence: anthropicResponse.stop_sequence || null,
       usage: {
-        input_tokens: response.usage?.input_tokens || 0,
-        output_tokens: response.usage?.output_tokens || 0,
+        input_tokens: anthropicResponse.usage?.input_tokens || 0,
+        output_tokens: anthropicResponse.usage?.output_tokens || 0,
       },
     };
   }
 
+  // OpenAI-format fallback
   if ('choices' in response) {
-    const minimaxResponse = response as MinimaxOpenAIResponse;
-    const message = minimaxResponse.choices[0]?.message;
+    const message = response.choices[0]?.message;
+    const content: any[] = [];
+    if (message?.reasoning_content) {
+      content.push({
+        type: 'thinking' as const,
+        thinking: message.reasoning_content,
+        signature: '',
+      });
+    }
+    if (message?.content) {
+      content.push({ type: 'text' as const, text: message.content });
+    }
+    if (message?.tool_calls) {
+      for (const tc of message.tool_calls) {
+        content.push({
+          type: 'tool_use' as const,
+          id: tc.id,
+          name: tc.function.name,
+          input: JSON.parse(tc.function.arguments || '{}'),
+        });
+      }
+    }
     return {
-      id: minimaxResponse.id,
+      id: response.id,
       type: 'message',
       role: 'assistant',
-      content: message?.content
-        ? [{ type: 'text' as const, text: message.content }]
-        : [],
-      model: minimaxResponse.model,
-      stop_reason: transformToAnthropicStopReason(
-        minimaxResponse.choices[0]?.finish_reason as ANTHROPIC_STOP_REASON
-      ),
+      content,
+      model: response.model,
+      stop_reason: response.choices[0]?.finish_reason as any,
       usage: {
-        input_tokens: minimaxResponse.usage?.prompt_tokens || 0,
-        output_tokens: minimaxResponse.usage?.completion_tokens || 0,
+        input_tokens: response.usage?.prompt_tokens || 0,
+        output_tokens: response.usage?.completion_tokens || 0,
       },
     };
   }

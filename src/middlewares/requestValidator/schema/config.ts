@@ -79,6 +79,7 @@ export const configSchema: any = z
     targets: z.array(z.lazy(() => configSchema)).optional(),
     request_timeout: z.number().optional(),
     custom_host: z.string().optional(),
+    custom_host_anthropic: z.string().optional(),
     forward_headers: z
       .array(z.string())
       .refine(
@@ -168,6 +169,10 @@ export const configSchema: any = z
     (value) => {
       const customHost = value.custom_host;
       if (customHost && !isValidCustomHost(customHost)) {
+        return false;
+      }
+      const customHostAnthropic = (value as any).custom_host_anthropic;
+      if (customHostAnthropic && !isValidCustomHost(customHostAnthropic)) {
         return false;
       }
       return true;

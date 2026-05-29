@@ -39,6 +39,12 @@ export const DoubaoMessagesConfig: ProviderConfig = {
     param: 'stream',
     default: false,
   },
+  tools: {
+    param: 'tools',
+  },
+  tool_choice: {
+    param: 'tool_choice',
+  },
 };
 
 interface DoubaoMessagesResponse {
@@ -56,6 +62,15 @@ interface DoubaoMessagesResponse {
     message: {
       role: string;
       content: string | null;
+      reasoning_content?: string;
+      tool_calls?: {
+        id: string;
+        type: 'function';
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }[];
     };
     finish_reason: string | null;
   }[];
@@ -89,25 +104,7 @@ export const DoubaoMessagesResponseTransform = (
     );
   }
 
-  if ('choices' in response) {
-    const message = response.choices[0]?.message;
-    return {
-      id: response.id,
-      type: 'message',
-      role: 'assistant',
-      content: message?.content
-        ? [{ type: 'text' as const, text: message.content }]
-        : [],
-      model: response.model,
-      stop_reason: response.choices[0]?.finish_reason as any,
-      usage: {
-        input_tokens: response.usage?.prompt_tokens || 0,
-        output_tokens: response.usage?.completion_tokens || 0,
-      },
-    };
-  }
-
-  // Handle Anthropic-format response
+  // Anthropic-format response from provider's /messages endpoint
   if ('type' in response && (response as any).type === 'message') {
     const anthropicResponse = response as any;
     return {
@@ -121,6 +118,44 @@ export const DoubaoMessagesResponseTransform = (
       usage: {
         input_tokens: anthropicResponse.usage?.input_tokens || 0,
         output_tokens: anthropicResponse.usage?.output_tokens || 0,
+      },
+    };
+  }
+
+  // OpenAI-format fallback
+  if ('choices' in response) {
+    const message = response.choices[0]?.message;
+    const content: any[] = [];
+    if (message?.reasoning_content) {
+      content.push({
+        type: 'thinking' as const,
+        thinking: message.reasoning_content,
+        signature: '',
+      });
+    }
+    if (message?.content) {
+      content.push({ type: 'text' as const, text: message.content });
+    }
+    if (message?.tool_calls) {
+      for (const tc of message.tool_calls) {
+        content.push({
+          type: 'tool_use' as const,
+          id: tc.id,
+          name: tc.function.name,
+          input: JSON.parse(tc.function.arguments || '{}'),
+        });
+      }
+    }
+    return {
+      id: response.id,
+      type: 'message',
+      role: 'assistant',
+      content,
+      model: response.model,
+      stop_reason: response.choices[0]?.finish_reason as any,
+      usage: {
+        input_tokens: response.usage?.prompt_tokens || 0,
+        output_tokens: response.usage?.completion_tokens || 0,
       },
     };
   }

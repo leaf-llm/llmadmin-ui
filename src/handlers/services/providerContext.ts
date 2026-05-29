@@ -7,7 +7,7 @@ import {
 } from '../../providers/types';
 import Providers from '../../providers';
 import { RequestContext } from './requestContext';
-import { ANTHROPIC, AZURE_OPEN_AI } from '../../globals';
+import { ANTHROPIC, AZURE_OPEN_AI, HEADER_KEYS } from '../../globals';
 import { GatewayError } from '../../errors/GatewayError';
 
 export class ProviderContext {
@@ -94,7 +94,10 @@ export class ProviderContext {
   }
 
   async getFullURL(context: RequestContext): Promise<string> {
-    const baseURL = context.customHost || (await this.getBaseURL(context));
+    const headerCustomHost =
+      context.requestHeaders[HEADER_KEYS.CUSTOM_HOST];
+    const baseURL =
+      headerCustomHost || (await this.getBaseURL(context));
     let url: string;
     if (context.endpoint === 'proxy') {
       url = this.getProxyPath(context, baseURL);
