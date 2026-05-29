@@ -74,6 +74,8 @@ export interface Options {
   workersAiAccountId?: string;
   /** The parameter to set custom base url */
   customHost?: string;
+  /** The parameter to set custom anthropic base url */
+  customHostAnthropic?: string;
   /** The API format detected from connectivity test: openai (chat/completions) or anthropic (messages) */
   apiFormat?: 'openai' | 'anthropic';
   /** The parameter to set list of headers to be forwarded as-is to the provider */

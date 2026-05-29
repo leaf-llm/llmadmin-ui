@@ -23,6 +23,7 @@ export type ProviderSummary = {
   provider: ProviderId;
   apiKeyMasked?: string;
   baseUrl?: string;
+  baseUrlAnthropic?: string;
   status?: ProviderStatus;
   lastSyncedAt?: string;
   isPrimary?: boolean;
@@ -36,6 +37,7 @@ export type ProviderSummary = {
 export type ProviderUpdateRequest = {
   apiKey?: string;
   baseUrl?: string;
+  baseUrlAnthropic?: string;
   setAsPrimary?: boolean;
   addModels?: string[];
   removeModels?: string[];

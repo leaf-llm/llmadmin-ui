@@ -551,6 +551,16 @@ export async function tryTargetsRecursively(
     currentTarget.customHost = inheritedConfig.customHost;
   }
 
+  if (currentTarget.customHostAnthropic) {
+    currentInheritedConfig.customHostAnthropic =
+      currentTarget.customHostAnthropic;
+  } else if (inheritedConfig.customHostAnthropic) {
+    currentInheritedConfig.customHostAnthropic =
+      inheritedConfig.customHostAnthropic;
+    currentTarget.customHostAnthropic =
+      inheritedConfig.customHostAnthropic;
+  }
+
   if (currentTarget.requestTimeout) {
     currentInheritedConfig.requestTimeout = currentTarget.requestTimeout;
   } else if (inheritedConfig.requestTimeout) {

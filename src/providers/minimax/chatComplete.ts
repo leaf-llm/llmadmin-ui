@@ -1,15 +1,13 @@
 import { MINIMAX } from '../../globals';
-import { Params, Message, SYSTEM_MESSAGE_ROLES } from '../../types/requestBody';
+import { Params } from '../../types/requestBody';
 import {
   ChatCompletionResponse,
   ErrorResponse,
   ProviderConfig,
 } from '../types';
-import { ANTHROPIC_STOP_REASON } from '../anthropic/types';
 import {
   generateErrorResponse,
   generateInvalidProviderResponseError,
-  transformFinishReason,
 } from '../utils';
 
 export const MinimaxChatCompleteConfig: ProviderConfig = {
@@ -18,43 +16,10 @@ export const MinimaxChatCompleteConfig: ProviderConfig = {
     required: true,
     default: 'MiniMax-M2.7',
   },
-  messages: [
-    {
-      param: 'messages',
-      required: true,
-      transform: (params: Params) => {
-        let messages: any[] = [];
-        if (params.messages) {
-          params.messages.forEach((msg: Message) => {
-            if (SYSTEM_MESSAGE_ROLES.includes(msg.role)) return;
-            messages.push({
-              role: msg.role,
-              content: msg.content,
-            });
-          });
-        }
-        return messages;
-      },
-    },
-    {
-      param: 'system',
-      required: false,
-      transform: (params: Params) => {
-        let systemContent = '';
-        if (params.messages) {
-          params.messages.forEach((msg: Message) => {
-            if (SYSTEM_MESSAGE_ROLES.includes(msg.role) && msg.content) {
-              systemContent +=
-                (typeof msg.content === 'string'
-                  ? msg.content
-                  : msg.content[0]?.text || '') + '\n';
-            }
-          });
-        }
-        return systemContent.trim() || undefined;
-      },
-    },
-  ],
+  messages: {
+    param: 'messages',
+    required: true,
+  },
   max_tokens: {
     param: 'max_tokens',
     required: true,
@@ -73,20 +38,13 @@ export const MinimaxChatCompleteConfig: ProviderConfig = {
     param: 'stream',
     default: false,
   },
+  tools: {
+    param: 'tools',
+  },
+  tool_choice: {
+    param: 'tool_choice',
+  },
 };
-
-interface MinimaxChatCompleteResponse {
-  id: string;
-  type: string;
-  role: string;
-  content: { type: string; text?: string }[];
-  stop_reason: string;
-  model: string;
-  usage: {
-    input_tokens: number;
-    output_tokens: number;
-  };
-}
 
 interface MinimaxOpenAIResponse {
   id: string;
@@ -100,7 +58,18 @@ interface MinimaxOpenAIResponse {
   };
   choices: {
     index: number;
-    message: { role: string; content: string };
+    message: {
+      role: string;
+      content: string | null;
+      tool_calls?: {
+        id: string;
+        type: 'function';
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }[];
+    };
     finish_reason: string | null;
   }[];
 }
@@ -113,24 +82,36 @@ interface MinimaxErrorResponse {
 }
 
 interface MinimaxStreamChunk {
-  type: string;
-  index: number;
-  delta: {
-    type?: string;
-    text?: string;
-    stop_reason?: string;
-  };
+  id: string;
+  object: string;
+  created: number;
+  model: string;
   usage?: {
-    output_tokens?: number;
-    input_tokens?: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
   };
+  choices: {
+    delta: {
+      role?: string | null;
+      content?: string | null;
+      tool_calls?: {
+        index: number;
+        id?: string;
+        type?: 'function';
+        function?: {
+          name?: string;
+          arguments?: string;
+        };
+      }[];
+    };
+    index: number;
+    finish_reason: string | null;
+  }[];
 }
 
 export const MinimaxChatCompleteResponseTransform: (
-  response:
-    | MinimaxChatCompleteResponse
-    | MinimaxOpenAIResponse
-    | MinimaxErrorResponse,
+  response: MinimaxOpenAIResponse | MinimaxErrorResponse | Record<string, any>,
   responseStatus: number
 ) => ChatCompletionResponse | ErrorResponse = (response, responseStatus) => {
   if (responseStatus !== 200 && 'error' in response) {
@@ -145,66 +126,31 @@ export const MinimaxChatCompleteResponseTransform: (
     );
   }
 
-  if ('content' in response && Array.isArray(response.content)) {
-    let content = '';
-    response.content.forEach((item) => {
-      if (item.type === 'text' && item.text) {
-        content += item.text;
-      }
-    });
-
+  if ('choices' in response) {
+    const message = response.choices[0]?.message;
     return {
       id: response.id,
-      object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
+      object: response.object,
+      created: response.created,
       model: response.model,
       provider: MINIMAX,
       choices: [
         {
           message: {
-            role: 'assistant',
-            content,
+            role: (message?.role || 'assistant') as any,
+            content: message?.content || undefined,
+            ...(message?.tool_calls && {
+              tool_calls: message.tool_calls,
+            }),
           },
           index: 0,
-          finish_reason: transformFinishReason(
-            response.stop_reason as ANTHROPIC_STOP_REASON,
-            false
-          ),
+          finish_reason: response.choices[0]?.finish_reason || 'stop',
         },
       ],
       usage: {
-        prompt_tokens: response.usage?.input_tokens || 0,
-        completion_tokens: response.usage?.output_tokens || 0,
-        total_tokens:
-          (response.usage?.input_tokens || 0) +
-          (response.usage?.output_tokens || 0),
-      },
-    };
-  }
-
-  if ('choices' in response) {
-    const minimaxResponse = response as MinimaxOpenAIResponse;
-    const message = minimaxResponse.choices[0]?.message;
-    return {
-      id: minimaxResponse.id,
-      object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
-      model: minimaxResponse.model,
-      provider: MINIMAX,
-      choices: [
-        {
-          message: {
-            role: message?.role || 'assistant',
-            content: message?.content || '',
-          },
-          index: 0,
-          finish_reason: minimaxResponse.choices[0]?.finish_reason || 'stop',
-        },
-      ],
-      usage: {
-        prompt_tokens: minimaxResponse.usage?.prompt_tokens || 0,
-        completion_tokens: minimaxResponse.usage?.completion_tokens || 0,
-        total_tokens: minimaxResponse.usage?.total_tokens || 0,
+        prompt_tokens: response.usage?.prompt_tokens || 0,
+        completion_tokens: response.usage?.completion_tokens || 0,
+        total_tokens: response.usage?.total_tokens || 0,
       },
     };
   }
@@ -217,99 +163,27 @@ export const MinimaxChatCompleteStreamChunkTransform: (
   fallbackId: string
 ) => string = (responseChunk, fallbackId) => {
   let chunk = responseChunk.trim();
-
-  if (
-    chunk.startsWith('event: ping') ||
-    chunk.startsWith('event: content_block_stop')
-  ) {
-    return '';
-  }
-
-  if (chunk.startsWith('event: message_stop')) {
-    return 'data: [DONE]\n\n';
-  }
-
-  chunk = chunk.replace(/^event: content_block_delta[\r\n]*/, '');
-  chunk = chunk.replace(/^event: content_block_start[\r\n]*/, '');
-  chunk = chunk.replace(/^event: message_delta[\r\n]*/, '');
-  chunk = chunk.replace(/^event: message_start[\r\n]*/, '');
-  chunk = chunk.replace(/^event: error[\r\n]*/, '');
   chunk = chunk.replace(/^data: /, '');
   chunk = chunk.trim();
-
+  if (chunk === '[DONE]') {
+    return `data: ${chunk}\n\n`;
+  }
   const parsedChunk: MinimaxStreamChunk = JSON.parse(chunk);
-
-  if (parsedChunk.type === 'error') {
-    return (
-      `data: ${JSON.stringify({
-        id: fallbackId,
-        object: 'chat.completion.chunk',
-        created: Math.floor(Date.now() / 1000),
-        model: '',
-        provider: MINIMAX,
-        choices: [
-          {
-            finish_reason: 'error',
-            delta: {
-              content: '',
-            },
-          },
-        ],
-      })}` +
-      '\n\n' +
-      'data: [DONE]\n\n'
-    );
-  }
-
-  if (parsedChunk.type === 'message_delta' && parsedChunk.usage) {
-    return (
-      `data: ${JSON.stringify({
-        id: fallbackId,
-        object: 'chat.completion.chunk',
-        created: Math.floor(Date.now() / 1000),
-        model: '',
-        provider: MINIMAX,
-        choices: [
-          {
-            index: 0,
-            delta: {},
-            finish_reason: transformFinishReason(
-              parsedChunk.delta?.stop_reason as
-                | ANTHROPIC_STOP_REASON
-                | undefined,
-              false
-            ),
-          },
-        ],
-        usage: {
-          prompt_tokens: parsedChunk.usage?.input_tokens || 0,
-          completion_tokens: parsedChunk.usage?.output_tokens || 0,
-          total_tokens:
-            (parsedChunk.usage?.input_tokens || 0) +
-            (parsedChunk.usage?.output_tokens || 0),
-        },
-      })}` + '\n\n'
-    );
-  }
-
-  const content = parsedChunk.delta?.text;
-
   return (
     `data: ${JSON.stringify({
-      id: fallbackId,
-      object: 'chat.completion.chunk',
-      created: Math.floor(Date.now() / 1000),
-      model: '',
+      id: parsedChunk.id || fallbackId,
+      object: parsedChunk.object,
+      created: parsedChunk.created,
+      model: parsedChunk.model,
       provider: MINIMAX,
       choices: [
         {
-          delta: {
-            content,
-          },
-          index: 0,
-          finish_reason: null,
+          index: parsedChunk.choices[0].index,
+          delta: parsedChunk.choices[0].delta,
+          finish_reason: parsedChunk.choices[0].finish_reason,
         },
       ],
+      ...(parsedChunk.usage && { usage: parsedChunk.usage }),
     })}` + '\n\n'
   );
 };

@@ -1,11 +1,10 @@
 import { MOONSHOT } from '../../globals';
-import { Params } from '../../types/requestBody';
+import { Params, Message } from '../../types/requestBody';
 import { MessagesResponse } from '../../types/messagesResponse';
 import { ErrorResponse, ProviderConfig } from '../types';
 import {
   generateErrorResponse,
   generateInvalidProviderResponseError,
-  transformToAnthropicStopReason,
 } from '../utils';
 
 export const MoonshotMessagesConfig: ProviderConfig = {
@@ -18,8 +17,9 @@ export const MoonshotMessagesConfig: ProviderConfig = {
     param: 'messages',
     required: true,
     transform: (params: Params) => {
-      return params.messages?.map((message) => {
-        if (message.role === 'developer') return { ...message, role: 'system' };
+      return params.messages?.map((message: Message) => {
+        if (message.role === 'developer')
+          return { ...message, role: 'system' };
         return message;
       });
     },
@@ -46,6 +46,12 @@ export const MoonshotMessagesConfig: ProviderConfig = {
     param: 'stream',
     default: false,
   },
+  tools: {
+    param: 'tools',
+  },
+  tool_choice: {
+    param: 'tool_choice',
+  },
 };
 
 interface MoonshotMessagesResponse {
@@ -63,6 +69,14 @@ interface MoonshotMessagesResponse {
     message: {
       role: string;
       content: string | null;
+      tool_calls?: {
+        id: string;
+        type: 'function';
+        function: {
+          name: string;
+          arguments: string;
+        };
+      }[];
     };
     finish_reason: string | null;
   }[];
@@ -77,7 +91,7 @@ export interface MoonshotErrorResponse {
 }
 
 export const MoonshotMessagesResponseTransform = (
-  response: MoonshotMessagesResponse | MoonshotErrorResponse,
+  response: MoonshotMessagesResponse | MoonshotErrorResponse | Record<string, any>,
   responseStatus: number
 ): MessagesResponse | ErrorResponse => {
   if ('message' in response && responseStatus !== 200) {
@@ -92,19 +106,48 @@ export const MoonshotMessagesResponseTransform = (
     );
   }
 
+  // Anthropic-format response from provider's /messages endpoint
+  if ('type' in response && (response as any).type === 'message') {
+    const anthropicResponse = response as any;
+    return {
+      id: anthropicResponse.id,
+      type: 'message' as const,
+      role: anthropicResponse.role || 'assistant',
+      content: anthropicResponse.content || [],
+      model: anthropicResponse.model,
+      stop_reason: anthropicResponse.stop_reason || null,
+      stop_sequence: anthropicResponse.stop_sequence || null,
+      usage: {
+        input_tokens: anthropicResponse.usage?.input_tokens || 0,
+        output_tokens: anthropicResponse.usage?.output_tokens || 0,
+      },
+    };
+  }
+
+  // OpenAI-format fallback
   if ('choices' in response) {
     const message = response.choices[0]?.message;
+    const content: any[] = [];
+    if (message?.content) {
+      content.push({ type: 'text' as const, text: message.content });
+    }
+    if (message?.tool_calls) {
+      for (const tc of message.tool_calls) {
+        content.push({
+          type: 'tool_use' as const,
+          id: tc.id,
+          name: tc.function.name,
+          input: JSON.parse(tc.function.arguments || '{}'),
+        });
+      }
+    }
     return {
       id: response.id,
       type: 'message',
       role: 'assistant',
-      content: message?.content
-        ? [{ type: 'text' as const, text: message.content }]
-        : [],
+      content,
       model: response.model,
-      stop_reason: transformToAnthropicStopReason(
-        (response.choices[0]?.finish_reason ?? undefined) as any
-      ),
+      stop_reason: response.choices[0]?.finish_reason as any,
       usage: {
         input_tokens: response.usage?.prompt_tokens || 0,
         output_tokens: response.usage?.completion_tokens || 0,

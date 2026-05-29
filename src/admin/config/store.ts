@@ -11,7 +11,10 @@ import {
   ProviderUpdateRequest,
   RoutingEntry,
 } from '../types';
-import { getDefaultBaseUrls } from '../../data/getDefaultBaseUrls';
+import {
+  getDefaultBaseUrls,
+  getDefaultAnthropicBaseUrls,
+} from '../../data/getDefaultBaseUrls';
 
 export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'openai',
@@ -29,6 +32,7 @@ type ProviderConfig = {
   id: string;
   apiKey?: string;
   baseUrl?: string;
+  baseUrlAnthropic?: string;
   lastSyncedAt?: string;
   remark?: string;
   apiFormat?: 'openai' | 'anthropic';
@@ -319,6 +323,9 @@ export async function syncUserConfigFromRouting(
     if (p.baseUrl?.trim()) {
       target.custom_host = p.baseUrl.trim();
     }
+    if (p.baseUrlAnthropic?.trim()) {
+      target.custom_host_anthropic = p.baseUrlAnthropic.trim();
+    }
     if (p.apiFormat) {
       target.api_format = p.apiFormat;
     }
@@ -440,6 +447,7 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
         provider,
         status: 'disconnected',
         baseUrl: getDefaultBaseUrls()[provider],
+        baseUrlAnthropic: getDefaultAnthropicBaseUrls()[provider],
         configCount: 0,
         configId: provider,
         apiFormat: undefined,
@@ -451,6 +459,8 @@ export async function listProviderSummaries(category: ModelCategory): Promise<{
           provider,
           apiKeyMasked: cfg.apiKey ? maskApiKey(cfg.apiKey) : undefined,
           baseUrl: cfg.baseUrl ?? getDefaultBaseUrls()[provider],
+          baseUrlAnthropic:
+            cfg.baseUrlAnthropic ?? getDefaultAnthropicBaseUrls()[provider],
           status,
           lastSyncedAt: cfg.lastSyncedAt,
           isPrimary,
@@ -498,6 +508,12 @@ export async function upsertProvider(
       ? getDefaultBaseUrls()[provider]
       : update.baseUrl.trim() || getDefaultBaseUrls()[provider];
 
+  const baseUrlAnthropic =
+    update.baseUrlAnthropic === undefined
+      ? getDefaultAnthropicBaseUrls()[provider]
+      : update.baseUrlAnthropic.trim() ||
+        getDefaultAnthropicBaseUrls()[provider];
+
   let savedConfig: ProviderConfig | undefined;
 
   // If configId is provided and is a real ID (not ending with -new), update existing config
@@ -514,6 +530,10 @@ export async function upsertProvider(
       ...configs[idx],
       apiKey: apiKey !== undefined ? apiKey : configs[idx].apiKey,
       baseUrl: baseUrl !== undefined ? baseUrl : configs[idx].baseUrl,
+      baseUrlAnthropic:
+        baseUrlAnthropic !== undefined
+          ? baseUrlAnthropic
+          : configs[idx].baseUrlAnthropic,
       lastSyncedAt: new Date().toISOString(),
       remark: update.remark?.trim() || configs[idx].remark,
       apiFormat: update.apiFormat ?? configs[idx].apiFormat,
@@ -528,6 +548,7 @@ export async function upsertProvider(
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       apiKey,
       baseUrl,
+      baseUrlAnthropic,
       lastSyncedAt: new Date().toISOString(),
       remark,
       apiFormat: update.apiFormat,
