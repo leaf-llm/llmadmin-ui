@@ -1,19 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  getProviders,
   ProviderSummary,
   ProviderUpdateRequest,
-  updateProvider,
-  syncConfig,
-  getRouting,
-  addRoutingModel,
-  removeRoutingModel,
-  getProviderModels,
+  upsertProvider,
+  listRouting,
+  addToRouting,
+  removeFromRouting,
   updateRoutingPrimary,
   moveRoutingEntry,
   RoutingEntry,
-} from '../api/adminClient';
+  listProviderSummaries,
+  getProviderModels,
+} from '../lib/configStore';
+import { testProviderConnectivity } from '../api/adminClient';
 import CategoryTabs from '../components/CategoryTabs';
 import TopNotification from '../components/TopNotification';
 import { ModelCategory } from '../types/models';
@@ -87,8 +87,8 @@ export default function ProvidersPage({
       setError(null);
       try {
         const [providersRes, routingRes] = await Promise.all([
-          getProviders(activeCategory),
-          getRouting(activeCategory),
+          listProviderSummaries(activeCategory),
+          listRouting(activeCategory),
         ]);
         if (cancelled) return;
         setProviders(providersRes.providers);
@@ -152,11 +152,11 @@ export default function ProvidersPage({
     setModelDialogProvider(provider);
     setModelDialogConfigId(configId);
     setSelectedModels([]);
-    setProviderModels([]); // clear previous cache before fetch
+    setProviderModels([]);
     setShowModelDialog(true);
     try {
-      const result = await getProviderModels(provider, configId);
-      const rawModels = result.data || (result as any).models || [];
+      const result = await getProviderModels(provider as any, configId);
+      const rawModels = result.data || [];
       const modelIds = rawModels
         .map((m: any) => {
           const id = m.id || m.name || '';
@@ -186,23 +186,20 @@ export default function ProvidersPage({
     setAddingModels(true);
     try {
       for (const model of selectedModels) {
-        await addRoutingModel(
+        await addToRouting(
           activeCategory,
-          modelDialogProvider,
+          modelDialogProvider as any,
           model,
           modelDialogConfigId
         );
       }
-      await syncConfig(activeCategory);
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
-    // Always refresh state from backend, even on partial failure,
-    // so the "no routing configured" notice disappears immediately.
     try {
       const [routingRes, providersRes] = await Promise.all([
-        getRouting(activeCategory),
-        getProviders(activeCategory),
+        listRouting(activeCategory),
+        listProviderSummaries(activeCategory),
       ]);
       setRouting(routingRes.routing);
       setProviders(providersRes.providers);
@@ -219,16 +216,11 @@ export default function ProvidersPage({
     configId: string
   ) => {
     try {
-      await removeRoutingModel(activeCategory, provider, model, configId);
-      const routingRes = await getRouting(activeCategory);
+      await removeFromRouting(activeCategory, provider as any, model, configId);
+      const routingRes = await listRouting(activeCategory);
       setRouting(routingRes.routing);
-      const providersRes = await getProviders(activeCategory);
+      const providersRes = await listProviderSummaries(activeCategory);
       setProviders(providersRes.providers);
-      try {
-        await syncConfig(activeCategory);
-      } catch {
-        // routing may be empty now, which causes generateConfigFromProviders to throw
-      }
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
@@ -243,18 +235,13 @@ export default function ProvidersPage({
     try {
       await updateRoutingPrimary(
         activeCategory,
-        provider,
+        provider as any,
         model,
         configId,
         !currentIsPrimary
       );
-      const routingRes = await getRouting(activeCategory);
+      const routingRes = await listRouting(activeCategory);
       setRouting(routingRes.routing);
-      try {
-        await syncConfig(activeCategory);
-      } catch {
-        // routing may be empty now, which causes generateConfigFromProviders to throw
-      }
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
@@ -302,8 +289,8 @@ export default function ProvidersPage({
             baseUrl: draft?.baseUrl || undefined,
             remark: draft?.remark || undefined,
           };
-          await updateProvider(activeCategory, p.provider, req);
-          const refreshed = await getProviders(activeCategory);
+          await upsertProvider(activeCategory, p.provider as any, req);
+          const refreshed = await listProviderSummaries(activeCategory);
           setProviders(refreshed.providers);
           const nextDrafts: Record<string, Draft> = {};
           for (const pp of refreshed.providers) {
@@ -758,17 +745,8 @@ export default function ProvidersPage({
             </div>
             <div className="dialog-body">
               {(() => {
-                // Use API-returned models, filter by name pattern for category
-                const modelIds =
-                  providerModels.length > 0 ? providerModels : [];
-                const filtered = modelIds
-                  .map((id) => ({
-                    model: id,
-                    category: /(?:^|[-_])image(?:[-_]|$)|img|seedream/i.test(id)
-                      ? 'image'
-                      : 'text',
-                  }))
-                  .filter((m) => m.category === activeCategory);
+                // Use provider-specific models
+                const modelIds = providerModels.length > 0 ? providerModels : [];
                 const routedModels = new Set(
                   routing
                     .filter(
@@ -778,7 +756,7 @@ export default function ProvidersPage({
                     )
                     .map((r) => r.model)
                 );
-                if (filtered.length === 0) {
+                if (modelIds.length === 0) {
                   return (
                     <div className="muted">
                       {t('common.noModelsAvailable', {
@@ -788,16 +766,16 @@ export default function ProvidersPage({
                     </div>
                   );
                 }
-                return filtered.map((m) => (
-                  <label key={m.model} className="model-checkbox">
+                return modelIds.map((model) => (
+                  <label key={model} className="model-checkbox">
                     <input
                       type="checkbox"
-                      checked={selectedModels.includes(m.model)}
-                      onChange={() => toggleModelSelection(m.model)}
-                      disabled={routedModels.has(m.model)}
+                      checked={selectedModels.includes(model)}
+                      onChange={() => toggleModelSelection(model)}
+                      disabled={routedModels.has(model)}
                     />
-                    <span className="model-name">{m.model}</span>
-                    {routedModels.has(m.model) && (
+                    <span className="model-name">{model}</span>
+                    {routedModels.has(model) && (
                       <span className="muted">
                         {' '}
                         {t('common.alreadyInRouting')}

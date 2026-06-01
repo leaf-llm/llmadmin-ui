@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { exportConfig, exportConfigToFile, importConfig } from '../api/adminClient';
+import { loadUiConfig, saveUiConfig } from '../lib/configStore';
 import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
@@ -42,8 +42,8 @@ export default function SettingsPage() {
     setConfigLoading(true);
     setConfigError(null);
     try {
-      const fullConfig = await exportConfig();
-      setConfig(fullConfig);
+      const fullConfig = await loadUiConfig();
+      setConfig(fullConfig as any);
       setRawConfig(JSON.stringify(fullConfig, null, 2));
     } catch (e: any) {
       setConfigError(e?.message ?? String(e));
@@ -142,7 +142,6 @@ export default function SettingsPage() {
     setExportSuccess(null);
     try {
       if (isDesktopMode()) {
-        // Try native save dialog; if it returns nothing (WKWebView issue), fall back to ~/Downloads
         const Neutralino = (window as any).Neutralino;
         let filePath = '';
         try {
@@ -152,15 +151,22 @@ export default function SettingsPage() {
         } catch {
           // dialog not available or failed
         }
-        const res = await exportConfigToFile(filePath || undefined);
-        if (!res.ok) {
-          throw new Error(res.message || 'Export failed');
+        const fullConfig = await loadUiConfig();
+        const jsonStr = JSON.stringify(fullConfig, null, 2);
+        if (filePath) {
+          await Neutralino.filesystem.writeFile(filePath, jsonStr);
+          setExportSuccess(filePath);
+        } else {
+          // Fallback to ~/Downloads
+          const home = process.env.HOME || '';
+          const downloadsPath = `${home}/Downloads/conf.ui.json`;
+          await Neutralino.filesystem.writeFile(downloadsPath, jsonStr);
+          setExportSuccess(downloadsPath);
         }
-        setExportSuccess(res.path || '~/Downloads/conf.ui.json');
         return;
       }
 
-      const fullConfig = await exportConfig();
+      const fullConfig = await loadUiConfig();
       const jsonStr = JSON.stringify(fullConfig, null, 2);
       const blob = new Blob([jsonStr], {
         type: 'application/json',
@@ -207,13 +213,9 @@ export default function SettingsPage() {
         return;
       }
 
-      const res = await importConfig(parsed);
-      if (res.ok) {
-        setImportSuccess(true);
-        await loadConfig();
-      } else {
-        setImportError(res.message || 'Import failed');
-      }
+      await saveUiConfig(parsed as any);
+      setImportSuccess(true);
+      await loadConfig();
     } catch (err: any) {
       if (err instanceof SyntaxError) {
         setImportError('Invalid JSON file');
@@ -240,13 +242,14 @@ export default function SettingsPage() {
         return;
       }
 
-      const res = await importConfig(parsed);
-      if (res.ok) {
-        setImportSuccess(true);
-        await loadConfig();
-      } else {
-        setImportError(res.message || 'Import failed');
+      if (!isDesktopMode()) {
+        setImportError('Config import is only available in desktop mode');
+        return;
       }
+
+      await saveUiConfig(parsed as any);
+      setImportSuccess(true);
+      await loadConfig();
     } catch (err: any) {
       if (err instanceof SyntaxError) {
         setImportError('Invalid JSON file');

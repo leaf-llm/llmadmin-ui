@@ -1,20 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  getProviders,
   ProviderSummary,
   ProviderUpdateRequest,
-  updateProvider,
+  upsertProvider,
   deleteProviderConfig,
-  syncConfig,
-  getRouting,
-  addRoutingModel,
-  removeRoutingModel,
+  listRouting,
+  addToRouting,
+  removeFromRouting,
   updateRoutingPrimary,
   RoutingEntry,
   SUPPORTED_PROVIDERS,
-  testProviderConnectivity,
-} from '../api/adminClient';
+  listProviderSummaries,
+} from '../lib/configStore';
+import { testProviderConnectivity } from '../api/adminClient';
 import { ModelCategory } from '../types/models';
 import {
   getModelsByProvider,
@@ -92,8 +91,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       setError(null);
       try {
         const [providersRes, routingRes] = await Promise.all([
-          getProviders(activeCategory),
-          getRouting(activeCategory),
+          listProviderSummaries(activeCategory),
+          listRouting(activeCategory),
         ]);
         if (cancelled) return;
         setProviders(providersRes.providers);
@@ -156,7 +155,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     setAddingModels(true);
     try {
       for (const model of selectedModels) {
-        await addRoutingModel(
+        await addToRouting(
           activeCategory,
           modelDialogProvider,
           model,
@@ -169,8 +168,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     // Always refresh state from backend, even on partial failure
     try {
       const [routingRes, providersRes] = await Promise.all([
-        getRouting(activeCategory),
-        getProviders(activeCategory),
+        listRouting(activeCategory),
+        listProviderSummaries(activeCategory),
       ]);
       setRouting(routingRes.routing);
       setProviders(providersRes.providers);
@@ -187,12 +186,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     configId: string
   ) => {
     try {
-      await removeRoutingModel(activeCategory, provider, model, configId);
-      const routingRes = await getRouting(activeCategory);
+      await removeFromRouting(activeCategory, provider, model, configId);
+      const routingRes = await listRouting(activeCategory);
       setRouting(routingRes.routing);
-      const providersRes = await getProviders(activeCategory);
-      setProviders(providersRes.providers);
-      await syncConfig(activeCategory);
+      const providersRes = await listProviderSummaries(activeCategory);
+      setProviders(providersRes.providers); 
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
@@ -212,9 +210,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         configId,
         !currentIsPrimary
       );
-      const routingRes = await getRouting(activeCategory);
-      setRouting(routingRes.routing);
-      await syncConfig(activeCategory);
+      const routingRes = await listRouting(activeCategory);
+      setRouting(routingRes.routing); 
     } catch (e: any) {
       setError(e?.message ?? String(e));
     }
@@ -309,8 +306,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               configId: p.configId,
               apiFormat: draft?.apiFormat,
             };
-            await updateProvider(activeCategory, p.provider, req);
-            const refreshed = await getProviders(activeCategory);
+            await upsertProvider(activeCategory, p.provider, req);
+            const refreshed = await listProviderSummaries(activeCategory);
             setProviders(refreshed.providers);
             const nextDrafts: Record<string, Draft> = {};
             for (const pp of refreshed.providers) {
@@ -582,8 +579,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               setShowDeleteDialog(false);
               setDeleteTarget(null);
               const [providersRes, routingRes] = await Promise.all([
-                getProviders(activeCategory),
-                getRouting(activeCategory),
+                listProviderSummaries(activeCategory),
+                listRouting(activeCategory),
               ]);
               setProviders(providersRes.providers);
               setRouting(routingRes.routing);
