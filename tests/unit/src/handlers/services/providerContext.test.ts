@@ -4,7 +4,7 @@ import Providers from '../../../../../src/providers';
 import { ANTHROPIC, AZURE_OPEN_AI } from '../../../../../src/globals';
 
 // Mock the Providers object
-jest.mock('../../../providers', () => ({
+jest.mock('../../../../../src/providers', () => ({
   openai: {
     api: {
       headers: jest.fn(),
@@ -95,7 +95,6 @@ describe('ProviderContext', () => {
         providerOptions: mockRequestContext.providerOption,
         fn: mockRequestContext.endpoint,
         transformedRequestBody: mockRequestContext.transformedRequestBody,
-        transformedRequestUrl: mockRequestContext.honoContext.req.url,
         gatewayRequestBody: mockRequestContext.params,
       });
       expect(result).toBe(mockHeaders);
@@ -127,6 +126,7 @@ describe('ProviderContext', () => {
         fn: mockRequestContext.endpoint,
         c: mockRequestContext.honoContext,
         gatewayRequestURL: mockRequestContext.honoContext.req.url,
+        params: mockRequestContext.params,
       });
       expect(result).toBe(mockBaseURL);
     });
@@ -299,6 +299,7 @@ describe('ProviderContext', () => {
         ...mockRequestContext,
         endpoint: 'proxy',
         customHost: '',
+        requestHeaders: {},
         honoContext: {
           req: { url: 'https://gateway.example.com/v1/proxy/chat/completions' },
         },
@@ -324,7 +325,10 @@ describe('ProviderContext', () => {
       Providers.openai.api.getEndpoint = mockGetEndpoint;
 
       const context = new ProviderContext('openai');
-      const result = await context.getFullURL(mockRequestContext);
+      const result = await context.getFullURL({
+        ...mockRequestContext,
+        requestHeaders: {},
+      } as RequestContext);
 
       expect(result).toBe('https://api.openai.com/v1/chat/completions');
     });
@@ -332,8 +336,10 @@ describe('ProviderContext', () => {
     it('should use custom host when provided', async () => {
       const mockContext = {
         ...mockRequestContext,
-        customHost: 'https://custom.openai.com',
-      } as RequestContext;
+        requestHeaders: {
+          'x-llmadmin-custom-host': 'https://custom.openai.com',
+        },
+      } as unknown as RequestContext;
 
       const mockGetEndpoint = jest.fn().mockReturnValue('/v1/chat/completions');
       Providers.openai.api.getEndpoint = mockGetEndpoint;

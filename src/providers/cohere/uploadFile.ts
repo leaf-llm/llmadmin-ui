@@ -38,7 +38,7 @@ export const CohereUploadFileResponseTransform: (
   responseStatus: number
 ) => UploadFileResponse | ErrorResponse = (response, responseStatus) => {
   if (responseStatus !== 200 && 'message' in response) {
-    return CohereErrorResponseTransform(response);
+    return CohereErrorResponseTransform(response as CohereErrorResponse);
   } else if ('id' in response) {
     return {
       id: response.id,

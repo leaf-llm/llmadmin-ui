@@ -2,7 +2,7 @@ import { Portkey } from 'portkey-ai';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const creds = JSON.parse(readFileSync(join(__dirname, '.creds.json'), 'utf8'));
+const creds = JSON.parse(readFileSync(join(__dirname, '.creds.example.json'), 'utf8'));
 
 export class RequestBuilder {
   private requestBody: Record<string, any> | FormData = {};

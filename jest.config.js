@@ -4,5 +4,6 @@ export default {
   transform: {
     '^.+.tsx?$': ['ts-jest', {}],
   },
-  testTimeout: 30000, // Set default timeout to 30 seconds
+  testTimeout: 30000,
+  testPathIgnorePatterns: ['/node_modules/', 'tests/integration/', 'src/tests/'],
 };

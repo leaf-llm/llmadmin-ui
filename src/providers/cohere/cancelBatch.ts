@@ -10,7 +10,7 @@ export const CohereCancelBatchResponseTransform = (
   gatewayRequestUrl: string
 ): CancelBatchResponse | ErrorResponse => {
   if (responseStatus !== 200 && 'message' in response) {
-    return CohereErrorResponseTransform(response);
+    return CohereErrorResponseTransform(response as CohereErrorResponse);
   }
   return {
     status: 'success',

@@ -36,7 +36,7 @@ export const CohereCreateBatchResponseTransform: (
   responseStatus: number
 ) => CreateBatchResponse | ErrorResponse = (response, responseStatus) => {
   if (responseStatus !== 200 && 'message' in response) {
-    return CohereErrorResponseTransform(response);
+    return CohereErrorResponseTransform(response as CohereErrorResponse);
   }
 
   if ('job_id' in response) {
