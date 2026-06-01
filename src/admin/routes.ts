@@ -168,14 +168,16 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
     return c.json({ ok: false, message: 'Unknown provider' }, 404);
   }
 
-  const { apiKey, baseUrl, configId } = body as {
+  const { apiKey, baseUrl, baseUrlAnthropic, configId } = body as {
     apiKey?: string;
     baseUrl?: string;
+    baseUrlAnthropic?: string;
     configId?: string;
   };
 
   let resolvedApiKey = apiKey?.trim();
   let resolvedBaseUrl = baseUrl?.trim();
+  let resolvedBaseUrlAnthropic = baseUrlAnthropic?.trim();
 
   if (!resolvedApiKey && configId) {
     const uiConfig = await loadUiConfig();
@@ -184,6 +186,8 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
       if (matched) {
         resolvedApiKey = matched.apiKey?.trim();
         if (!resolvedBaseUrl) resolvedBaseUrl = matched.baseUrl?.trim();
+        if (!resolvedBaseUrlAnthropic)
+          resolvedBaseUrlAnthropic = matched.baseUrlAnthropic?.trim();
         break;
       }
     }
@@ -192,182 +196,85 @@ adminApp.post('/providers/:provider/test-connectivity', async (c) => {
   if (!resolvedApiKey) {
     return c.json({ ok: false, message: 'API key is required' }, 400);
   }
-  if (!resolvedBaseUrl) {
-    return c.json({ ok: false, message: 'Base URL is required' }, 400);
-  }
 
-  try {
-    const parsedUrl = new URL(resolvedBaseUrl);
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      return c.json(
-        { ok: false, message: 'Base URL must start with http:// or https://' },
-        400
-      );
+  const testConnectivity = async (
+    resolvedBaseUrl: string | undefined,
+    label: string
+  ): Promise<{ ok: boolean; message: string }> => {
+    if (!resolvedBaseUrl) {
+      return { ok: false, message: `${label} URL is required` };
     }
-  } catch {
-    return c.json(
-      { ok: false, message: 'Base URL is not a valid URL' },
-      400
-    );
-  }
 
-  const providerOptions = {
-    apiKey: resolvedApiKey,
-    customHost: resolvedBaseUrl,
+    try {
+      const parsedUrl = new URL(resolvedBaseUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return {
+          ok: false,
+          message: `${label} URL must start with http:// or https://`,
+        };
+      }
+    } catch {
+      return { ok: false, message: `${label} URL is not a valid URL` };
+    }
+
+    const providerOptions = {
+      apiKey: resolvedApiKey,
+      customHost: resolvedBaseUrl,
+    };
+
+    try {
+      const endpoint = providerConfig.api.getEndpoint({
+        c: c,
+        providerOptions,
+        fn: 'listModels',
+        gatewayRequestBodyJSON: {},
+        gatewayRequestBody: {},
+        gatewayRequestURL: resolvedBaseUrl + '/models',
+      });
+
+      const url = resolvedBaseUrl + endpoint;
+      const headers = await providerConfig.api.headers({
+        c: c,
+        providerOptions,
+        fn: 'listModels',
+        transformedRequestBody: {},
+        transformedRequestUrl: url,
+        gatewayRequestBody: {},
+        headers: {},
+      });
+
+      const response = await fetch(url, { headers });
+
+      if (response.ok) {
+        return { ok: true, message: 'Connected successfully' };
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        return { ok: false, message: 'Authentication failed — invalid API key' };
+      }
+
+      const errData = await response.json().catch(() => ({}));
+      return {
+        ok: false,
+        message: errData.error?.message || `HTTP ${response.status}`,
+      };
+    } catch (err: any) {
+      return { ok: false, message: err.message };
+    }
   };
 
-  try {
-    const endpoint = providerConfig.api.getEndpoint({
-      c: c,
-      providerOptions,
-      fn: 'listModels',
-      gatewayRequestBodyJSON: {},
-      gatewayRequestBody: {},
-      gatewayRequestURL: resolvedBaseUrl + '/models',
-    });
+  const [openaiResult, anthropicResult] = await Promise.all([
+    testConnectivity(resolvedBaseUrl, 'OpenAI'),
+    testConnectivity(resolvedBaseUrlAnthropic, 'Anthropic'),
+  ]);
 
-    const url = resolvedBaseUrl + endpoint;
+  const ok = openaiResult.ok || anthropicResult.ok;
 
-    const headers = await providerConfig.api.headers({
-      c: c,
-      providerOptions,
-      fn: 'listModels',
-      transformedRequestBody: {},
-      transformedRequestUrl: url,
-      gatewayRequestBody: {},
-      headers: {},
-    });
-
-    let modelsOk = false;
-    let modelsAuthError = false;
-    try {
-      const response = await fetch(url, { headers });
-      if (!response.ok) {
-        if (response.status === 404) {
-        } else if (response.status === 401 || response.status === 403) {
-          modelsAuthError = true;
-        } else {
-          const errData = await response.json().catch(() => ({}));
-          return c.json(
-            {
-              ok: false,
-              message: errData.error?.message || `HTTP ${response.status}`,
-            },
-            200
-          );
-        }
-      } else {
-        const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-          return c.json(
-            { ok: false, message: 'Base URL returned non-JSON response — the URL may be incorrect' },
-            200
-          );
-        }
-        const modelData = await response.json();
-        if (modelData?.error || modelData?.code === 401 || modelData?.success === false) {
-          modelsAuthError = true;
-        } else {
-          modelsOk = true;
-        }
-      }
-    } catch (err: any) {
-      return c.json({ ok: false, message: err.message }, 200);
-    }
-
-    if (modelsAuthError) {
-      return c.json(
-        { ok: false, message: 'Authentication failed — invalid API key' },
-        200
-      );
-    }
-
-    let apiFormat: 'openai' | 'anthropic' = 'openai';
-    const testBody = {
-      model: 'test-model',
-      messages: [{ role: 'user', content: 'test' }],
-      max_tokens: 1,
-    };
-    const testHeaders = {
-      ...headers,
-      'Content-Type': 'application/json',
-    };
-
-    const messagesRes = await fetch(resolvedBaseUrl + '/messages', {
-      method: 'POST',
-      headers: testHeaders,
-      body: JSON.stringify(testBody),
-    });
-
-    const chatRes = await fetch(resolvedBaseUrl + '/chat/completions', {
-      method: 'POST',
-      headers: testHeaders,
-      body: JSON.stringify(testBody),
-    });
-
-    const isAuthError = (status: number) => status === 401 || status === 403;
-
-    const isModelNotFound = (status: number, data: Record<string, any> | null) => {
-      if (status !== 400 && status !== 404) return false;
-      if (!data) return false;
-      const msg =
-        data.error?.message || data.error?.toString() || data.message || '';
-      return msg.toLowerCase().includes('model') || msg.includes('模型');
-    };
-
-    const readBody = async (res: Response): Promise<Record<string, any> | null> => {
-      try { return await res.clone().json() as Record<string, any>; }
-      catch { return null; }
-    };
-    const [messagesData, chatData] = await Promise.all([
-      readBody(messagesRes),
-      readBody(chatRes),
-    ]);
-    const hasBodyError = (data: Record<string, any> | null) => {
-      if (!data) return false;
-      return data.error != null || data.code === 401;
-    };
-
-    const messagesOk =
-      (messagesRes.ok && !hasBodyError(messagesData)) ||
-      isModelNotFound(messagesRes.status, messagesData);
-    const chatOk =
-      (chatRes.ok && !hasBodyError(chatData)) ||
-      isModelNotFound(chatRes.status, chatData);
-
-    if (messagesOk) {
-      apiFormat = 'anthropic';
-    } else if (chatOk) {
-      apiFormat = 'openai';
-    }
-
-    if (modelsOk) {
-      return c.json({
-        ok: true,
-        message: 'Connected successfully',
-        apiFormat,
-      });
-    }
-
-    if (messagesOk || chatOk) {
-      return c.json({
-        ok: true,
-        message: 'Connected successfully',
-        apiFormat,
-      });
-    }
-
-    if (isAuthError(messagesRes.status) || isAuthError(chatRes.status)) {
-      return c.json(
-        { ok: false, message: 'Authentication failed — invalid API key' },
-        200
-      );
-    }
-
-    return c.json({ ok: false, message: 'Could not connect — check the base URL' }, 200);
-  } catch (err: any) {
-    return c.json({ ok: false, message: err.message }, 200);
-  }
+  return c.json({
+    ok,
+    openai: resolvedBaseUrl ? openaiResult : undefined,
+    anthropic: resolvedBaseUrlAnthropic ? anthropicResult : undefined,
+  });
 });
 
 export { adminApp };

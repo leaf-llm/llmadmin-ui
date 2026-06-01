@@ -27,6 +27,8 @@ type Draft = ProviderUpdateRequest & {
   remark?: string;
   testStatus?: 'untested' | 'testing' | 'passed' | 'failed';
   testMessage?: string;
+  testStatusAnthropic?: 'untested' | 'testing' | 'passed' | 'failed';
+  testMessageAnthropic?: string;
 };
 
 interface AllProvidersPageProps {
@@ -103,9 +105,12 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           nextDrafts[key] = {
             apiKey: undefined,
             baseUrl: p.baseUrl ?? '',
+            baseUrlAnthropic: p.baseUrlAnthropic ?? '',
             apiKeyMasked: p.apiKeyMasked,
             remark: p.remark,
             apiFormat: p.apiFormat,
+            testStatus: 'untested',
+            testStatusAnthropic: 'untested',
           };
         }
         setDrafts(nextDrafts);
@@ -237,13 +242,20 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     setTestingProvider(key);
     setDrafts((prev) => ({
       ...prev,
-      [key]: { ...prev[key], testStatus: 'testing' },
+      [key]: {
+        ...prev[key],
+        testStatus: 'testing',
+        testStatusAnthropic: 'testing',
+        testMessage: undefined,
+        testMessageAnthropic: undefined,
+      },
     }));
 
     try {
       const res = await testProviderConnectivity(p.provider, {
         ...(draft.apiKey ? { apiKey: draft.apiKey } : {}),
         baseUrl: draft.baseUrl ?? p.baseUrl,
+        baseUrlAnthropic: draft.baseUrlAnthropic ?? p.baseUrlAnthropic,
         configId: isNew ? undefined : p.configId,
       });
       setDrafts((prev) => ({
@@ -252,7 +264,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           ...prev[key],
           testStatus: res.ok ? 'passed' : 'failed',
           testMessage: res.message,
-          apiFormat: res.apiFormat,
+          testStatusAnthropic: res.ok ? 'passed' : 'failed',
+          testMessageAnthropic: res.message,
         },
       }));
       if (!res.ok) {
@@ -268,6 +281,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           ...prev[key],
           testStatus: 'failed',
           testMessage: e?.message ?? t('common.connectionFailed'),
+          testStatusAnthropic: 'failed',
+          testMessageAnthropic: e?.message ?? t('common.connectionFailed'),
         },
       }));
     } finally {
@@ -279,9 +294,13 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     const key = p.configId ?? p.provider;
     const draft = drafts[key];
     const hasCredentialsChanged =
-      draft?.apiKey !== undefined || draft?.baseUrl !== (p.baseUrl ?? '');
+      draft?.apiKey !== undefined ||
+      draft?.baseUrl !== (p.baseUrl ?? '') ||
+      draft?.baseUrlAnthropic !== (p.baseUrlAnthropic ?? '');
     const canSave =
-      (!isNew && !hasCredentialsChanged) || draft?.testStatus === 'passed';
+      (!isNew && !hasCredentialsChanged) ||
+      draft?.testStatus === 'passed' ||
+      draft?.testStatusAnthropic === 'passed';
     const buttonText = isNew ? t('common.addProvider') : t('common.save');
     return (
       <button
@@ -302,6 +321,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             const req: ProviderUpdateRequest = {
               apiKey: draft?.apiKey ? draft.apiKey : undefined,
               baseUrl: draft?.baseUrl || undefined,
+              baseUrlAnthropic: draft?.baseUrlAnthropic || undefined,
               remark: draft?.remark || undefined,
               configId: p.configId,
               apiFormat: draft?.apiFormat,
@@ -315,9 +335,12 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
               nextDrafts[ppKey] = {
                 apiKey: undefined,
                 baseUrl: pp.baseUrl ?? '',
+                baseUrlAnthropic: pp.baseUrlAnthropic ?? '',
                 apiKeyMasked: pp.apiKeyMasked,
                 remark: pp.remark,
                 apiFormat: pp.apiFormat,
+                testStatus: 'untested',
+                testStatusAnthropic: 'untested',
               };
             }
             setDrafts(nextDrafts);
@@ -382,25 +405,94 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
         </div>
         <div className="field">
           <div className="label">{t('common.baseUrlLabel')}</div>
-          <input
-            value={d.baseUrl ?? p.baseUrl ?? ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              setDrafts((prev) => ({
-                ...prev,
-                [key]: {
-                  ...(prev[key] ?? {}),
-                  apiKey: (prev[key] ?? {}).apiKey,
-                  apiKeyMasked: (prev[key] ?? {}).apiKeyMasked,
-                  remark: (prev[key] ?? {}).remark,
-                  baseUrl: val,
-                  testStatus: 'untested',
-                  testMessage: undefined,
-                },
-              }));
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              value={d.baseUrl ?? p.baseUrl ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDrafts((prev) => ({
+                  ...prev,
+                  [key]: {
+                    ...(prev[key] ?? {}),
+                    apiKey: (prev[key] ?? {}).apiKey,
+                    apiKeyMasked: p.apiKeyMasked,
+                    remark: (prev[key] ?? {}).remark,
+                    baseUrl: val,
+                    baseUrlAnthropic: (prev[key] ?? {}).baseUrlAnthropic,
+                    testStatus: 'untested',
+                    testStatusAnthropic: (prev[key] ?? {}).testStatusAnthropic,
+                    testMessage: undefined,
+                    testMessageAnthropic: (prev[key] ?? {}).testMessageAnthropic,
+                  },
+                }));
+              }}
+              className="with-status-icon"
+            />
+            {d.testStatus && d.testStatus !== 'untested' && (
+              <span
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: d.testStatus === 'passed' ? '#22c55e' : d.testStatus === 'testing' ? '#f59e0b' : '#ef4444',
+                  fontWeight: 'bold',
+                  pointerEvents: 'none',
+                }}
+              >
+                {d.testStatus === 'testing' ? (
+                  <span className="loading-dots"><span /><span /><span /></span>
+                ) : d.testStatus === 'passed' ? '✓' : '✗'}
+              </span>
+            )}
+          </div>
         </div>
+        {(p.baseUrlAnthropic || d.baseUrlAnthropic) && (
+          <div className="field">
+            <div className="label">{t('common.baseUrlLabel')} (Anthropic)</div>
+            <div style={{ position: 'relative' }}>
+              <input
+                value={d.baseUrlAnthropic ?? p.baseUrlAnthropic ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDrafts((prev) => ({
+                    ...prev,
+                    [key]: {
+                      ...(prev[key] ?? {}),
+                      apiKey: (prev[key] ?? {}).apiKey,
+                      apiKeyMasked: p.apiKeyMasked,
+                      remark: (prev[key] ?? {}).remark,
+                      baseUrl: (prev[key] ?? {}).baseUrl,
+                      baseUrlAnthropic: val,
+                      testStatus: 'untested',
+                      testStatusAnthropic: 'untested',
+                      testMessage: undefined,
+                      testMessageAnthropic: undefined,
+                    },
+                  }));
+                }}
+                className="with-status-icon"
+              />
+              {d.testStatusAnthropic && d.testStatusAnthropic !== 'untested' && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: d.testStatusAnthropic === 'passed' ? '#22c55e' : d.testStatusAnthropic === 'testing' ? '#f59e0b' : '#ef4444',
+                    fontWeight: 'bold',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {d.testStatusAnthropic === 'testing' ? (
+                    <span className="loading-dots"><span /><span /><span /></span>
+                  ) : d.testStatusAnthropic === 'passed' ? '✓' : '✗'}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
         <div className="field">
           <div className="label">{t('common.remarkLabel')}</div>
           <input
@@ -544,6 +636,7 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
       provider,
       status: hasApiKey ? ('connected' as const) : ('disconnected' as const),
       baseUrl: firstConfig?.baseUrl ?? '',
+      baseUrlAnthropic: firstConfig?.baseUrlAnthropic ?? '',
       configCount: existingConfigs.filter((c) => c.status === 'connected')
         .length,
       configId: provider + '-new',
