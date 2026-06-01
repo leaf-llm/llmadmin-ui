@@ -27,6 +27,7 @@ export type ProviderSummary = {
   apiKeyMasked?: string;
   apiKeyUrl?: string;
   baseUrl?: string;
+  baseUrlAnthropic?: string;
   status?: 'connected' | 'disconnected' | 'unknown';
   lastSyncedAt?: string;
   isPrimary?: boolean;
@@ -40,6 +41,7 @@ export type ProviderSummary = {
 export type ProviderUpdateRequest = {
   apiKey?: string;
   baseUrl?: string;
+  baseUrlAnthropic?: string;
   setAsPrimary?: boolean;
   remark?: string;
   configId?: string;
@@ -391,12 +393,13 @@ export async function deleteProviderConfig(
 export type TestConnectivityResponse = {
   ok: boolean;
   message?: string;
-  apiFormat?: 'openai' | 'anthropic';
+  openai?: { ok: boolean; message?: string };
+  anthropic?: { ok: boolean; message?: string };
 };
 
 export async function testProviderConnectivity(
   provider: ProviderId,
-  params: { apiKey?: string; baseUrl?: string; configId?: string }
+  params: { apiKey?: string; baseUrl?: string; baseUrlAnthropic?: string; configId?: string }
 ): Promise<TestConnectivityResponse> {
   return adminFetch<TestConnectivityResponse>(
     `/admin/providers/${encodeURIComponent(provider)}/test-connectivity`,

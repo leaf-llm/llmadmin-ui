@@ -313,15 +313,12 @@ const DEFAULT_BASE_URLS: Record<ProviderId, string> = {
 };
 
 const DEFAULT_ANTHROPIC_BASE_URLS: Record<ProviderId, string> = {
-  openai: 'https://api.openai.com/v1',
-  anthropic: 'https://api.anthropic.com',
-  google: 'https://generativelanguage.googleapis.com/v1',
-  zhipu: 'https://open.bigmodel.cn/api/paas/v4',
-  dashscope: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  moonshot: 'https://api.moonshot.cn/v1',
-  minimax: 'https://api.minimax.chat/v1',
-  doubao: 'https://ark.cn-beijing.volces.com/api/v3',
-  deepseek: 'https://api.deepseek.com/v1',
+  zhipu: 'https://open.bigmodel.cn/api/anthropic',
+  dashscope: 'https://dashscope.aliyuncs.com/apps/anthropic/v1',
+  moonshot: 'https://api.moonshot.cn/anthropic/v1',
+  minimax: 'https://api.minimaxi.com/anthropic/v1',
+  doubao: 'https://ark.cn-beijing.volces.com/api/compatible/v1',
+  deepseek: 'https://api.deepseek.com/anthropic/v1',
 };
 
 export async function listProviderSummaries(category: ModelCategory): Promise<{
