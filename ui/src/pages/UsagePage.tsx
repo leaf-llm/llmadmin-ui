@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  getProviders,
   ProviderId,
   getMetrics,
   getUsage,
   MetricsResponse,
   UsageResponse,
 } from '../api/adminClient';
+import { SUPPORTED_PROVIDERS } from '../lib/configStore';
 import DatePicker from '../components/DatePicker';
 import Select from '../components/Select';
 
@@ -20,9 +20,6 @@ type Tab = 'metrics' | 'billing';
 
 export default function UsagePage() {
   const { t } = useTranslation();
-  const [providers, setProviders] = useState<ProviderId[]>([]);
-  const [loadingProviders, setLoadingProviders] = useState(true);
-
   const [from, setFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 7);
@@ -31,34 +28,14 @@ export default function UsagePage() {
   const [to, setTo] = useState(() => toISODate(new Date()));
   const [provider, setProvider] = useState<ProviderId | 'all'>('all');
 
+  const providers = SUPPORTED_PROVIDERS;
+
   const [tab, setTab] = useState<Tab>('metrics');
 
   const [loading, setLoading] = useState(false);
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoadingProviders(true);
-      setError(null);
-      try {
-        const res = await getProviders();
-        if (cancelled) return;
-        setProviders(res.providers.map((p) => p.provider));
-      } catch (e: any) {
-        if (cancelled) return;
-        setError(e?.message ?? String(e));
-      } finally {
-        if (!cancelled) setLoadingProviders(false);
-      }
-    }
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function loadData() {
     if (!from || !to) return;
@@ -138,9 +115,7 @@ export default function UsagePage() {
             placeholder={t('common.all')}
             options={[
               { value: 'all', label: t('common.all') },
-              ...(loadingProviders
-                ? []
-                : providers.map((p) => ({ value: p, label: p }))),
+              ...providers.map((p) => ({ value: p, label: p })),
             ]}
           />
           {/* Billing tab hidden until provider billing adapters are fully implemented */}
