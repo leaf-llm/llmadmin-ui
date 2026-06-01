@@ -56,11 +56,11 @@ function getNeutralino(): any {
 
 // Cached config path
 let cachedConfigPath: string | null = null;
+let cachedHomeDir: string | null = null;
 
-// Get config path - must be called after Neutralino is initialized
-async function getConfigPathAsync(): Promise<string> {
-  if (cachedConfigPath) {
-    return cachedConfigPath;
+export async function getNeutralinoHomeDir(): Promise<string> {
+  if (cachedHomeDir) {
+    return cachedHomeDir;
   }
 
   const Neutralino = getNeutralino();
@@ -70,8 +70,8 @@ async function getConfigPathAsync(): Promise<string> {
     if (Neutralino?.os?.getEnv) {
       const home = await Neutralino.os.getEnv('HOME');
       if (home && typeof home === 'string' && home.startsWith('/home/')) {
-        cachedConfigPath = `${home}/.llm-admin/conf.ui.json`;
-        return cachedConfigPath;
+        cachedHomeDir = home;
+        return cachedHomeDir;
       }
     }
   } catch {}
@@ -81,14 +81,23 @@ async function getConfigPathAsync(): Promise<string> {
     if (Neutralino?.os?.homeDir) {
       const home = await Neutralino.os.homeDir();
       if (home && typeof home === 'string' && home.startsWith('/home/')) {
-        cachedConfigPath = `${home}/.llm-admin/conf.ui.json`;
-        return cachedConfigPath;
+        cachedHomeDir = home;
+        return cachedHomeDir;
       }
     }
   } catch {}
 
-  // Fallback
-  cachedConfigPath = `/home/user/.llm-admin/conf.ui.json`;
+  cachedHomeDir = '/home/user';
+  return cachedHomeDir;
+}
+
+// Get config path - must be called after Neutralino is initialized
+async function getConfigPathAsync(): Promise<string> {
+  if (cachedConfigPath) {
+    return cachedConfigPath;
+  }
+  const home = await getNeutralinoHomeDir();
+  cachedConfigPath = `${home}/.llm-admin/conf.ui.json`;
   return cachedConfigPath;
 }
 
@@ -109,6 +118,17 @@ function createEmptyCategoryConfig(): CategoryConfig {
   return {
     routing: [],
     userConfig: null,
+  };
+}
+
+export function createEmptyUiConfig(): UiConfigFile {
+  return {
+    providers: {},
+    text: createEmptyCategoryConfig(),
+    image: createEmptyCategoryConfig(),
+    video: createEmptyCategoryConfig(),
+    audio: createEmptyCategoryConfig(),
+    mcp: createEmptyCategoryConfig(),
   };
 }
 

@@ -239,6 +239,12 @@ button.primary {
   color: #1d4ed8;
 }
 
+button.danger {
+  border-color: rgba(185, 28, 28, 0.35);
+  background: rgba(185, 28, 28, 0.08);
+  color: #b91c1c;
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;

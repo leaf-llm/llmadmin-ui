@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { loadUiConfig, saveUiConfig } from '../lib/configStore';
+import { loadUiConfig, saveUiConfig, createEmptyUiConfig, getNeutralinoHomeDir } from '../lib/configStore';
 import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
+  const [showClearDialog, setShowClearDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -143,26 +144,24 @@ export default function SettingsPage() {
     try {
       if (isDesktopMode()) {
         const Neutralino = (window as any).Neutralino;
-        let filePath = '';
+        let filePath: string | null = null;
         try {
-          filePath = await Neutralino.os.showSaveDialog('Export Config', {
+          const result = await Neutralino.os.showSaveDialog('Export Config', {
             defaultPath: 'conf.ui.json',
           });
+          filePath = result || null;
         } catch {
-          // dialog not available or failed
+          // dialog API not available; treat as user-cancelled (silent abort)
+          filePath = null;
+        }
+        if (!filePath) {
+          // user cancelled (or dialog unavailable) - do nothing
+          return;
         }
         const fullConfig = await loadUiConfig();
         const jsonStr = JSON.stringify(fullConfig, null, 2);
-        if (filePath) {
-          await Neutralino.filesystem.writeFile(filePath, jsonStr);
-          setExportSuccess(filePath);
-        } else {
-          // Fallback to ~/Downloads
-          const home = process.env.HOME || '';
-          const downloadsPath = `${home}/Downloads/conf.ui.json`;
-          await Neutralino.filesystem.writeFile(downloadsPath, jsonStr);
-          setExportSuccess(downloadsPath);
-        }
+        await Neutralino.filesystem.writeFile(filePath, jsonStr);
+        setExportSuccess(filePath);
         return;
       }
 
@@ -263,6 +262,51 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleClear() {
+    setConfigError(null);
+    try {
+      await saveUiConfig(createEmptyUiConfig());
+      setShowClearDialog(false);
+      await loadConfig();
+    } catch (e: any) {
+      setConfigError(e?.message ?? String(e));
+      setShowClearDialog(false);
+    }
+  }
+
+  function ClearConfirmDialog({
+    isOpen,
+    onConfirm,
+    onCancel,
+  }: {
+    isOpen: boolean;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) {
+    if (!isOpen) return null;
+    return (
+      <div className="dialog-overlay" onClick={onCancel}>
+        <div className="dialog" onClick={(e) => e.stopPropagation()}>
+          <div className="dialog-header">
+            <h3>{t('common.clearConfig')}</h3>
+            <button className="dialog-close" onClick={onCancel}>
+              ×
+            </button>
+          </div>
+          <div className="dialog-body">
+            <p>{t('common.clearConfigConfirm')}</p>
+          </div>
+          <div className="dialog-footer">
+            <button onClick={onCancel}>{t('common.cancel')}</button>
+            <button className="danger" onClick={onConfirm}>
+              {t('common.clear')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="card">
@@ -286,17 +330,26 @@ export default function SettingsPage() {
           <button
             className="secondary"
             disabled={configLoading}
-            onClick={handleExport}
-          >
-            {t('common.export')}
-          </button>
-          <button
-            className="secondary"
-            disabled={configLoading}
             onClick={handleImportClick}
           >
             {t('common.import')}
           </button>
+          <button
+            className="secondary"
+            disabled={configLoading}
+            onClick={handleExport}
+          >
+            {t('common.export')}
+          </button>
+          {isDesktopMode() && (
+            <button
+              className="danger"
+              disabled={configLoading}
+              onClick={() => setShowClearDialog(true)}
+            >
+              {t('common.clear')}
+            </button>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -344,6 +397,12 @@ export default function SettingsPage() {
           />
         </div>
       )}
+
+      <ClearConfirmDialog
+        isOpen={showClearDialog}
+        onConfirm={handleClear}
+        onCancel={() => setShowClearDialog(false)}
+      />
     </div>
   );
 }
