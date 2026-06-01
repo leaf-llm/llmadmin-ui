@@ -121,7 +121,7 @@ export const DoubaoChatCompleteResponseTransform: (
       created: response.created,
       model: response.model,
       provider: DOUBO,
-      choices: response.choices.map((c: any) => ({
+      choices: response.choices.map((c: ChatCompletionResponse['choices'][0]) => ({
         index: c.index,
         message: {
           role: c.message.role,
@@ -136,6 +136,53 @@ export const DoubaoChatCompleteResponseTransform: (
         prompt_tokens: response.usage?.prompt_tokens,
         completion_tokens: response.usage?.completion_tokens,
         total_tokens: response.usage?.total_tokens,
+      },
+    };
+  }
+
+  // Handle Anthropic-format response
+  if ('type' in response && (response as any).type === 'message') {
+    const anthropicResponse = response as any;
+    const contentParts: string[] = [];
+    if (anthropicResponse.content && Array.isArray(anthropicResponse.content)) {
+      for (const block of anthropicResponse.content) {
+        if (block.type === 'text') contentParts.push(block.text);
+      }
+    }
+    const content = contentParts.join('') || null;
+
+    const finishReasonMap: Record<string, string> = {
+      end_turn: 'stop',
+      max_tokens: 'length',
+      tool_use: 'tool_calls',
+      stop_sequence: 'stop',
+    };
+
+    return {
+      id: anthropicResponse.id,
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: anthropicResponse.model,
+      provider: DOUBO,
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: anthropicResponse.role || 'assistant',
+            content,
+          },
+          finish_reason:
+            finishReasonMap[anthropicResponse.stop_reason] ||
+            anthropicResponse.stop_reason ||
+            'stop',
+        },
+      ],
+      usage: {
+        prompt_tokens: anthropicResponse.usage?.input_tokens || 0,
+        completion_tokens: anthropicResponse.usage?.output_tokens || 0,
+        total_tokens:
+          (anthropicResponse.usage?.input_tokens || 0) +
+          (anthropicResponse.usage?.output_tokens || 0),
       },
     };
   }

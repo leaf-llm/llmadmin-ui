@@ -85,7 +85,7 @@ export const retryRequest = async (
 
   try {
     await retry(
-      async (bail: any, attempt: number, rateLimiter: any) => {
+      async (bail: any, attempt: number) => {
         try {
           let response: Response;
           if (timeout) {
@@ -132,14 +132,9 @@ export const retryRequest = async (
                   retryAfter > remainingRetryTimeout
                 ) {
                   retrySkipped = true;
-                  rateLimiter._timeouts = [];
                   throw errorObj;
                 }
                 remainingRetryTimeout -= retryAfter;
-                // will reset the current backoff timeout(s) to `0`.
-                rateLimiter._timeouts = Array.from({
-                  length: retryCount - attempt + 1,
-                }).map(() => 0);
 
                 throw await new Promise((resolve) => {
                   setTimeout(() => {

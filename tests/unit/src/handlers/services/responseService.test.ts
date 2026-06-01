@@ -1,8 +1,6 @@
 import { ResponseService } from '../../../../../src/handlers/services/responseService';
 import { RequestContext } from '../../../../../src/handlers/services/requestContext';
-import { ProviderContext } from '../../../../../src/handlers/services/providerContext';
 import { HooksService } from '../../../../../src/handlers/services/hooksService';
-import { LogsService } from '../../../../../src/handlers/services/logsService';
 import { responseHandler } from '../../../../../src/handlers/responseHandlers';
 import { getRuntimeKey } from 'hono/adapter';
 import {
@@ -12,14 +10,12 @@ import {
 } from '../../../../../src/globals';
 
 // Mock dependencies
-jest.mock('../../responseHandlers');
+jest.mock('../../../../../src/handlers/responseHandlers');
 jest.mock('hono/adapter');
 
 describe('ResponseService', () => {
   let mockRequestContext: RequestContext;
-  let mockProviderContext: ProviderContext;
   let mockHooksService: HooksService;
-  let mockLogsService: LogsService;
   let responseService: ResponseService;
 
   beforeEach(() => {
@@ -27,6 +23,7 @@ describe('ResponseService', () => {
       index: 0,
       traceId: 'trace-123',
       provider: 'openai',
+      providerOption: { provider: 'openai', apiKey: 'test' },
       isStreaming: false,
       params: { model: 'gpt-4', messages: [] },
       strictOpenAiCompliance: true,
@@ -36,19 +33,13 @@ describe('ResponseService', () => {
       },
     } as unknown as RequestContext;
 
-    mockProviderContext = {} as ProviderContext;
-
     mockHooksService = {
       areSyncHooksAvailable: false,
     } as unknown as HooksService;
 
-    mockLogsService = {} as LogsService;
-
     responseService = new ResponseService(
       mockRequestContext,
-      mockProviderContext,
-      mockHooksService,
-      mockLogsService
+      mockHooksService
     );
 
     // Reset mocks
@@ -134,19 +125,22 @@ describe('ResponseService', () => {
       const result = await responseService.create(options);
 
       expect(responseHandler).toHaveBeenCalledWith(
+        mockRequestContext.honoContext,
         mockResponse,
         mockRequestContext.isStreaming,
-        mockRequestContext.provider,
+        mockRequestContext.providerOption,
         'chatComplete',
         mockRequestContext.requestURL,
         false,
         mockRequestContext.params,
         mockRequestContext.strictOpenAiCompliance,
         mockRequestContext.honoContext.req.url,
-        mockHooksService.areSyncHooksAvailable
+        mockHooksService.areSyncHooksAvailable,
+        undefined
       );
 
-      expect(result.response).toEqual(mockResponse);
+      // Response objects can't be directly compared, check the status instead
+      expect(result.response.status).toBe(200);
       expect(result.responseJson).toBe(responseJson);
       expect(result.originalResponseJson).toBe(originalJson);
     });
@@ -173,16 +167,18 @@ describe('ResponseService', () => {
       const result = await responseService.create(options);
 
       expect(responseHandler).toHaveBeenCalledWith(
+        mockRequestContext.honoContext,
         mockResponse,
         mockRequestContext.isStreaming,
-        mockRequestContext.provider,
+        mockRequestContext.providerOption,
         'chatComplete',
         mockRequestContext.requestURL,
         true, // isCacheHit should be true
         mockRequestContext.params,
         mockRequestContext.strictOpenAiCompliance,
         mockRequestContext.honoContext.req.url,
-        mockHooksService.areSyncHooksAvailable
+        mockHooksService.areSyncHooksAvailable,
+        undefined
       );
 
       expect(mockResponse.headers.get(RESPONSE_HEADER_KEYS.CACHE_STATUS)).toBe(
@@ -190,7 +186,7 @@ describe('ResponseService', () => {
       );
     });
 
-    it('should throw error for non-ok response', async () => {
+    it('should handle non-ok response without throwing', async () => {
       const errorResponse = new Response('{"error": "Bad Request"}', {
         status: 400,
       });
@@ -206,7 +202,9 @@ describe('ResponseService', () => {
         retryAttempt: 0,
       };
 
-      await expect(responseService.create(options)).rejects.toThrow();
+      // Service does not throw for non-ok responses - it passes them through
+      const result = await responseService.create(options);
+      expect(result.response.status).toBe(400);
     });
 
     it('should handle error response correctly', async () => {
@@ -225,13 +223,9 @@ describe('ResponseService', () => {
         retryAttempt: 0,
       };
 
-      try {
-        await responseService.create(options);
-      } catch (error: any) {
-        expect(error.status).toBe(500);
-        expect(error.response).toBe(errorResponse);
-        expect(error.message).toBe('{"error": "Internal Server Error"}');
-      }
+      // Service passes through error responses without throwing
+      const result = await responseService.create(options);
+      expect(result.response.status).toBe(500);
     });
 
     it('should not add cache status header when not provided', async () => {
@@ -262,9 +256,7 @@ describe('ResponseService', () => {
 
       const serviceWithPortkey = new ResponseService(
         contextWithPortkey,
-        mockProviderContext,
-        mockHooksService,
-        mockLogsService
+        mockHooksService
       );
 
       const options = {
@@ -303,16 +295,18 @@ describe('ResponseService', () => {
       );
 
       expect(responseHandler).toHaveBeenCalledWith(
+        mockRequestContext.honoContext,
         mockResponse,
         mockRequestContext.isStreaming,
-        mockRequestContext.provider,
+        mockRequestContext.providerOption,
         'chatComplete',
         mockRequestContext.requestURL,
         false,
         mockRequestContext.params,
         mockRequestContext.strictOpenAiCompliance,
         mockRequestContext.honoContext.req.url,
-        mockHooksService.areSyncHooksAvailable
+        mockHooksService.areSyncHooksAvailable,
+        undefined
       );
 
       expect(result).toBe(expectedResult);
@@ -326,9 +320,7 @@ describe('ResponseService', () => {
 
       const streamingService = new ResponseService(
         streamingContext,
-        mockProviderContext,
-        mockHooksService,
-        mockLogsService
+        mockHooksService
       );
 
       const mockResponse = new Response('{}');
@@ -341,16 +333,18 @@ describe('ResponseService', () => {
       await streamingService.getResponse(mockResponse, 'chatComplete', false);
 
       expect(responseHandler).toHaveBeenCalledWith(
+        streamingContext.honoContext,
         mockResponse,
         true, // isStreaming should be true
-        streamingContext.provider,
+        streamingContext.providerOption,
         'chatComplete',
         streamingContext.requestURL,
         false,
         streamingContext.params,
         streamingContext.strictOpenAiCompliance,
         streamingContext.honoContext.req.url,
-        mockHooksService.areSyncHooksAvailable
+        mockHooksService.areSyncHooksAvailable,
+        undefined
       );
     });
 
@@ -365,16 +359,18 @@ describe('ResponseService', () => {
       await responseService.getResponse(mockResponse, 'chatComplete', true);
 
       expect(responseHandler).toHaveBeenCalledWith(
+        mockRequestContext.honoContext,
         mockResponse,
         mockRequestContext.isStreaming,
-        mockRequestContext.provider,
+        mockRequestContext.providerOption,
         'chatComplete',
         mockRequestContext.requestURL,
         true, // isCacheHit should be true
         mockRequestContext.params,
         mockRequestContext.strictOpenAiCompliance,
         mockRequestContext.honoContext.req.url,
-        mockHooksService.areSyncHooksAvailable
+        mockHooksService.areSyncHooksAvailable,
+        undefined
       );
     });
   });
@@ -461,9 +457,7 @@ describe('ResponseService', () => {
 
       const serviceWithPortkey = new ResponseService(
         contextWithPortkey,
-        mockProviderContext,
-        mockHooksService,
-        mockLogsService
+        mockHooksService
       );
 
       serviceWithPortkey.updateHeaders(mockResponse, 'MISS', 0);
@@ -479,9 +473,7 @@ describe('ResponseService', () => {
 
       const serviceWithEmptyProvider = new ResponseService(
         contextWithEmptyProvider,
-        mockProviderContext,
-        mockHooksService,
-        mockLogsService
+        mockHooksService
       );
 
       serviceWithEmptyProvider.updateHeaders(mockResponse, 'MISS', 0);

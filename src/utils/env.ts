@@ -4,9 +4,19 @@ import { env, getRuntimeKey } from 'hono/adapter';
 const isNodeInstance = getRuntimeKey() == 'node';
 let path: any;
 let fs: any;
-if (isNodeInstance) {
-  path = await import('path');
-  fs = await import('fs');
+
+function getPath() {
+  if (!path) {
+    path = require('path');
+  }
+  return path;
+}
+
+function getFs() {
+  if (!fs) {
+    fs = require('fs');
+  }
+  return fs;
 }
 
 export function getValueOrFileContents(value?: string, ignore?: boolean) {
@@ -20,12 +30,12 @@ export function getValueOrFileContents(value?: string, ignore?: boolean) {
       value.startsWith('../')
     ) {
       // Resolve the path (handle relative paths)
-      const resolvedPath = path.resolve(value);
+      const resolvedPath = getPath().resolve(value);
 
       // Check if file exists
-      if (fs.existsSync(resolvedPath)) {
+      if (getFs().existsSync(resolvedPath)) {
         // File exists, read and return its contents
-        return fs.readFileSync(resolvedPath, 'utf8').trim();
+        return getFs().readFileSync(resolvedPath, 'utf8').trim();
       }
     }
 

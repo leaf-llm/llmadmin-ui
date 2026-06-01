@@ -1,5 +1,5 @@
 import { MINIMAX } from '../../globals';
-import { Params } from '../../types/requestBody';
+import { OpenAIMessageRole, Params } from '../../types/requestBody';
 import {
   ChatCompletionResponse,
   ErrorResponse,
@@ -137,7 +137,7 @@ export const MinimaxChatCompleteResponseTransform: (
       choices: [
         {
           message: {
-            role: (message?.role || 'assistant') as any,
+            role: (message?.role || 'assistant') as OpenAIMessageRole,
             content: message?.content || undefined,
             ...(message?.tool_calls && {
               tool_calls: message.tool_calls,

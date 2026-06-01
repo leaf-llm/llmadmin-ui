@@ -7,7 +7,7 @@ import { HooksManager } from '../../../../../src/middlewares/hooks';
 import { HookType } from '../../../../../src/middlewares/hooks/types';
 
 // Mock the transformToProviderRequest function
-jest.mock('../../../services/transformToProviderRequest', () => ({
+jest.mock('../../../../../src/services/transformToProviderRequest', () => ({
   transformToProviderRequest: jest.fn().mockReturnValue({ transformed: true }),
 }));
 
@@ -522,7 +522,7 @@ describe('RequestContext', () => {
     it('should return empty string when no provider', () => {
       const context = new RequestContext(
         mockContext,
-        { provider: 'openai' },
+        { provider: '' },
         'chatComplete' as endpointStrings,
         {},
         {},
@@ -723,7 +723,7 @@ describe('RequestContext', () => {
     it('should transform request body for POST method', () => {
       const {
         transformToProviderRequest,
-      } = require('../../../services/transformToProviderRequest');
+      } = require('../../../../../src/services/transformToProviderRequest');
 
       requestContext.transformToProviderRequestAndSave();
 
@@ -743,7 +743,8 @@ describe('RequestContext', () => {
     it('should not transform for non-POST methods', () => {
       const {
         transformToProviderRequest,
-      } = require('../../../services/transformToProviderRequest');
+      } = require('../../../../../src/services/transformToProviderRequest');
+      jest.clearAllMocks();
       const context = new RequestContext(
         mockContext,
         mockProviderOption,

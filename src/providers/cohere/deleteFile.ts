@@ -16,7 +16,7 @@ export const CohereDeleteFileResponseTransform: (
   gatewayRequestUrl
 ) => {
   if (responseStatus !== 200 && 'message' in response) {
-    return CohereErrorResponseTransform(response);
+    return CohereErrorResponseTransform(response as CohereErrorResponse);
   }
   const id = gatewayRequestUrl.split('/').pop() || '';
   return {

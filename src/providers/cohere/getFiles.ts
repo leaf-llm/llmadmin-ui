@@ -38,7 +38,7 @@ export const CohereGetFileResponseTransform = (
   responseStatus: number
 ): GetFileResponse | ErrorResponse => {
   if (responseStatus !== 200 && 'message' in response) {
-    return CohereErrorResponseTransform(response);
+    return CohereErrorResponseTransform(response as CohereErrorResponse);
   }
 
   if ('dataset' in response) {
@@ -53,7 +53,7 @@ export const CohereGetFilesResponseTransform = (
   responseStatus: number
 ): GetFilesResponse | ErrorResponse => {
   if (responseStatus !== 200 && 'message' in response) {
-    return CohereErrorResponseTransform(response);
+    return CohereErrorResponseTransform(response as CohereErrorResponse);
   }
 
   if ('datasets' in response) {
