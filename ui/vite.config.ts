@@ -35,6 +35,10 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:8700',
           changeOrigin: true,
         },
+        '/log': {
+          target: 'http://localhost:8700',
+          changeOrigin: true,
+        },
       },
     },
   };

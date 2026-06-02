@@ -72,6 +72,65 @@ body {
   background: rgba(15, 23, 42, 0.04);
   border-radius: 4px;
   user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gateway-url__label {
+  color: rgba(17, 24, 39, 0.45);
+  font-weight: 500;
+}
+
+.status-indicator-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.status-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #ffffff;
+  color: rgba(17, 24, 39, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 180px;
+  font-size: 12px;
+  line-height: 1.6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.status-tooltip__title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  opacity: 0.85;
+  color: rgba(17, 24, 39, 0.65);
+}
+
+.status-tooltip__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot--success {
+  background: #10b981;
+}
+
+.dot--failure {
+  background: #ef4444;
 }
 
 .status-indicator {
