@@ -8,6 +8,14 @@ const MAX_METRICS_AGE_DAYS = 90;
 // Map to store all connected log clients
 const logClients: Map<string | number, any> = new Map();
 
+type LogClientMode = 'log' | 'counts';
+type LogClient = {
+  sendLog: (message: any) => Promise<unknown> | unknown;
+  mode?: LogClientMode;
+};
+
+const isLogClient = (c: any): c is LogClient => c && typeof c.sendLog === 'function';
+
 // In-memory metrics store: date string (YYYY-MM-DD) -> provider -> metrics
 export type ProviderMetrics = {
   total: number;
@@ -212,7 +220,23 @@ async function tryReadStreamUsage(c: any): Promise<Record<string, any> | null> {
   }
 }
 
-function recordMetrics(status: number, requestOptionsArray: any[]) {
+export function getCurrentTotals() {
+  return {
+    success: runtimeSuccess,
+    failure: runtimeFailure,
+    total: runtimeSuccess + runtimeFailure,
+  };
+}
+
+let runtimeSuccess = 0;
+let runtimeFailure = 0;
+
+export function _resetRuntimeCountsForTest() {
+  runtimeSuccess = 0;
+  runtimeFailure = 0;
+}
+
+export function recordMetrics(status: number, requestOptionsArray: any[]) {
   const dateKey = getDateKey();
   const provider = getProvider(requestOptionsArray[0] || {});
 
@@ -237,8 +261,10 @@ function recordMetrics(status: number, requestOptionsArray: any[]) {
   metrics.total++;
   if (status >= 200 && status < 300) {
     metrics.success++;
+    runtimeSuccess++;
   } else {
     metrics.failure++;
+    runtimeFailure++;
   }
 
   // Extract tokens from response if available
@@ -253,7 +279,7 @@ function recordMetrics(status: number, requestOptionsArray: any[]) {
   scheduleSave();
 }
 
-export const addLogClient = (clientId: any, client: any) => {
+export const addLogClient = (clientId: any, client: LogClient) => {
   logClients.set(clientId, client);
 };
 
@@ -261,18 +287,15 @@ export const removeLogClient = (clientId: any) => {
   logClients.delete(clientId);
 };
 
-const broadcastLog = async (log: any) => {
-  const message = {
-    data: log,
-    event: 'log',
-    id: String(logId++),
-  };
-
+const sendToClients = async (
+  message: any,
+  predicate: (client: LogClient) => boolean,
+) => {
   const deadClients: any = [];
 
-  // Run all sends in parallel
   await Promise.all(
     Array.from(logClients.entries()).map(async ([id, client]) => {
+      if (!isLogClient(client) || !predicate(client)) return;
       try {
         await Promise.race([
           client.sendLog(message),
@@ -287,10 +310,31 @@ const broadcastLog = async (log: any) => {
     })
   );
 
-  // Remove dead clients after iteration
   deadClients.forEach((id: any) => {
     removeLogClient(id);
   });
+};
+
+const QUIET_LOG = process.argv.includes('--quiet-log');
+
+const broadcastLog = async (log: any) => {
+  if (QUIET_LOG) return;
+  const message = {
+    data: log,
+    event: 'log',
+    id: String(logId++),
+  };
+  await sendToClients(message, (c) => c.mode === undefined || c.mode === 'log');
+};
+
+export const broadcastCounts = async () => {
+  const totals = getCurrentTotals();
+  const message = {
+    data: JSON.stringify(totals),
+    event: 'counts',
+    id: String(logId++),
+  };
+  await sendToClients(message, (c) => c.mode === 'counts');
 };
 
 async function processLog(c: Context, start: number) {
@@ -346,6 +390,9 @@ async function processLog(c: Context, start: number) {
   if (requestOptionsArray.length > 0) {
     recordMetrics(responseStatus, requestOptionsArray);
   }
+
+  // Push a fresh aggregate snapshot to any counts-mode SSE client.
+  await broadcastCounts();
 }
 
 export const logHandler = () => {

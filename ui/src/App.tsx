@@ -5,6 +5,7 @@ import AllProvidersPage from './pages/AllProvidersPage';
 import UsagePage from './pages/UsagePage';
 import SettingsPage from './pages/SettingsPage';
 import { useBackendHealth, BackendStatus } from './hooks/useBackendHealth';
+import { useRuntimeCounts } from './hooks/useRuntimeCounts';
 import { getApiBaseUrl } from './api/config';
 import logoUrl from './assets/logo.png';
 
@@ -23,6 +24,8 @@ function Header({
 }) {
   const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const [statsHover, setStatsHover] = useState(false);
+  const counts = useRuntimeCounts();
 
   const toggleLanguage = () => {
     const newLang = i18n.language.startsWith('zh') ? 'en' : 'zh';
@@ -96,7 +99,11 @@ function Header({
             className="gateway-url"
             onClick={handleCopyUrl}
             style={{ cursor: 'pointer' }}
+            title={t('common.clickToCopy')}
           >
+            <span className="gateway-url__label">
+              {t('common.gatewayAddressLabel')}
+            </span>
             <span>
               {copied
                 ? t('common.copied')
@@ -104,14 +111,35 @@ function Header({
             </span>
           </div>
           <div
-            className="status-indicator"
-            onClick={backendStatus === 'error' ? onRetry : undefined}
-            style={
-              backendStatus === 'error' ? { cursor: 'pointer' } : undefined
-            }
+            className="status-indicator-wrap"
+            onMouseEnter={() => setStatsHover(true)}
+            onMouseLeave={() => setStatsHover(false)}
           >
-            <span className={statusDotClass}></span>
-            <span>{statusText}</span>
+            <div
+              className="status-indicator"
+              onClick={backendStatus === 'error' ? onRetry : undefined}
+              style={
+                backendStatus === 'error' ? { cursor: 'pointer' } : undefined
+              }
+            >
+              <span className={statusDotClass}></span>
+              <span>{statusText}</span>
+            </div>
+            {statsHover && backendStatus === 'connected' && (
+              <div className="status-tooltip" role="tooltip">
+                <div className="status-tooltip__title">
+                  {t('common.runtimeStatsTitle')}
+                </div>
+                <div className="status-tooltip__row">
+                  <span className="dot dot--success" />
+                  {t('common.runtimeSuccess')}: {counts.success.toLocaleString()}
+                </div>
+                <div className="status-tooltip__row">
+                  <span className="dot dot--failure" />
+                  {t('common.runtimeFailure')}: {counts.failure.toLocaleString()}
+                </div>
+              </div>
+            )}
           </div>
           <button
             className="lang-toggle"

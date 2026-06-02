@@ -16,6 +16,7 @@ import { requestValidator } from './middlewares/requestValidator';
 import { hooks } from './middlewares/hooks';
 import { memoryCache } from './middlewares/cache';
 import { configInjector } from './middlewares/configInjector';
+import { stripCompressionForStreamingResponse } from './middlewares/streamingCompression';
 
 // Handlers
 import { proxyHandler } from './handlers/proxyHandler';
@@ -54,12 +55,18 @@ if (runtime === 'node' && process.env.REDIS_CONNECTION_STRING) {
  * Compression is automatically handled for lagon and workerd runtimes
  * This check if its not any of the 2 and then applies the compress middleware to avoid double compression.
  */
-app.use('*', (c, next) => {
+app.use('*', async (c, next) => {
   const runtimesThatDontNeedCompression = ['lagon', 'workerd', 'node'];
   if (runtimesThatDontNeedCompression.includes(runtime)) {
     return next();
   }
-  return compress()(c, next);
+  await compress()(c, next);
+  // The compress middleware's content-type regex already excludes
+  // `text/event-stream`, but upstream providers sometimes set
+  // `Content-Encoding: br` on a streaming body that is in fact plain
+  // text — the client then fails with `BrotliDecompressionError`.
+  // Strip the header post-hoc for any streaming response.
+  stripCompressionForStreamingResponse(c.res);
 });
 
 if (runtime === 'node') {
@@ -94,8 +101,13 @@ app.get('/', (c) => c.text('AI Gateway says hey!'));
 // Use prettyJSON middleware for all routes
 app.use('*', prettyJSON());
 
-// Use logger middleware for all routes
-if (getRuntimeKey() === 'node') {
+// Use logger middleware for all routes.
+// logHandler covers `processLog` → `recordMetrics` + `broadcastLog` and
+// is what feeds the /log/stream SSE used by the legacy /public/ log
+// viewer and the in-process metrics store. Register it for both node
+// and bun so dev:desktop (which runs on bun via `npm run bun:dev`) shows
+// log entries the same way dev:node does.
+if (['node', 'bun'].includes(getRuntimeKey())) {
   app.use(logHandler());
 }
 

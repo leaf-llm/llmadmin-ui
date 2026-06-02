@@ -8,7 +8,7 @@ import { Context } from 'hono';
 import { createNodeWebSocket } from '@hono/node-ws';
 import { realTimeHandlerNode } from './handlers/realtimeHandlerNode';
 import { requestValidator } from './middlewares/requestValidator';
-import { addLogClient, removeLogClient } from './middlewares/log/index';
+import { addLogClient, removeLogClient, getCurrentTotals } from './middlewares/log/index';
 
 // Extract the port number from the command line arguments
 const defaultPort = 8700;
@@ -158,6 +158,17 @@ async function sendWithTimeout(fn: () => Promise<void>, timeoutMs = 200) {
 
 app.get('/log/stream', (c: Context) => {
   const clientId = Date.now().toString();
+  const mode = c.req.query('type') === 'counts' ? 'counts' : 'log';
+
+  const origin = c.req.header('origin');
+  if (
+    origin &&
+    (origin.startsWith('http://localhost') ||
+      origin.startsWith('http://127.0.0.1'))
+  ) {
+    c.header('Access-Control-Allow-Origin', origin);
+    c.header('Access-Control-Allow-Credentials', 'true');
+  }
 
   // Set headers to prevent caching
   c.header('Cache-Control', 'no-cache');
@@ -165,6 +176,7 @@ app.get('/log/stream', (c: Context) => {
 
   return streamSSE(c, async (stream) => {
     const client = {
+      mode,
       sendLog: (message: any) =>
         sendWithTimeout(() => stream.writeSSE(message)),
     };
@@ -182,6 +194,19 @@ app.get('/log/stream', (c: Context) => {
       await sendWithTimeout(() =>
         stream.writeSSE({ event: 'connected', data: clientId })
       );
+
+      // For counts-mode clients, push an initial snapshot so the UI
+      // can display numbers immediately, without waiting for the next
+      // /v1/* request to fire broadcastCounts().
+      if (mode === 'counts') {
+        const totals = getCurrentTotals();
+        await sendWithTimeout(() =>
+          stream.writeSSE({
+            event: 'counts',
+            data: JSON.stringify(totals),
+          })
+        );
+      }
 
       // Use an interval instead of a while loop
       const heartbeatInterval = setInterval(async () => {

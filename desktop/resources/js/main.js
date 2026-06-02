@@ -152,7 +152,7 @@ async function startBackend() {
   );
 
   const ppidFlag = isWindows ? '' : ` --ppid=${window.NL_PID}`;
-  const cmd = `"${absPath}" --port=8700 --headless${ppidFlag}`;
+  const cmd = `"${absPath}" --port=8700 --headless --quiet-log${ppidFlag}`;
   Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
 
   const result = await Neutralino.os.spawnProcess(cmd);
