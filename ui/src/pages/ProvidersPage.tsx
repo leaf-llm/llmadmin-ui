@@ -23,6 +23,7 @@ import {
   PROVIDER_API_KEY_URLS,
 } from '../config/modelCategories';
 import { openExternalUrl } from '../api/config';
+import { useFlipReorder } from '../hooks/useFlipReorder';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
@@ -79,6 +80,11 @@ export default function ProvidersPage({
     message: string;
     type: 'error' | 'notice';
   } | null>(null);
+
+  const {
+    containerRef: routingListRef,
+    capturePositions: captureRoutingPositions,
+  } = useFlipReorder(routing);
 
   useEffect(() => {
     let cancelled = false;
@@ -249,6 +255,7 @@ export default function ProvidersPage({
 
   const handleMove = async (entry: RoutingEntry, direction: 'up' | 'down') => {
     try {
+      captureRoutingPositions();
       const res = await moveRoutingEntry(
         activeCategory,
         entry.provider,
@@ -453,7 +460,7 @@ export default function ProvidersPage({
                       </div>
                     )
                   ) : (
-                    <div className="routing-groups">
+                    <div className="routing-groups" ref={routingListRef}>
                       {(() => {
                         const primaryEntries = routing.filter(
                           (e) => e.isPrimary
@@ -483,6 +490,7 @@ export default function ProvidersPage({
                                     return (
                                       <div
                                         key={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                        data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
                                         className="routing-item is-primary"
                                       >
                                         <div className="routing-info">
@@ -585,6 +593,7 @@ export default function ProvidersPage({
                                     return (
                                       <div
                                         key={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                        data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
                                         className="routing-item"
                                       >
                                         <div className="routing-info">
