@@ -453,6 +453,8 @@ export interface Params {
   examples?: Examples[];
   top_k?: number;
   tools?: Tool[];
+  system?: string | Array<{ type: 'text'; text: string; cache_control?: any }>;
+  stream_options?: { include_usage?: boolean };
   tool_choice?: ToolChoice;
   reasoning_effort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | string;
   response_format?: {
