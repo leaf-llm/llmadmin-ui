@@ -1,7 +1,9 @@
 import { ProviderAPIConfig } from '../types';
 
 const OpenAIAPIConfig: ProviderAPIConfig = {
-  getBaseURL: () => 'https://api.openai.com/v1',
+  getBaseURL: ({ providerOptions }) => {
+    return providerOptions?.customHost || 'https://api.openai.com/v1';
+  },
   headers: ({ providerOptions, fn }) => {
     const headersObj: Record<string, string> = {
       Authorization: `Bearer ${providerOptions.apiKey}`,
@@ -34,6 +36,8 @@ const OpenAIAPIConfig: ProviderAPIConfig = {
       case 'complete':
         return '/completions';
       case 'chatComplete':
+        return '/chat/completions';
+      case 'messages':
         return '/chat/completions';
       case 'embed':
         return '/embeddings';

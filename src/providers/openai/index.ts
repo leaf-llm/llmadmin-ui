@@ -10,6 +10,11 @@ import {
   OpenAIChatCompleteResponseTransform,
 } from './chatComplete';
 import {
+  OpenAIMessagesConfig,
+  OpenAIMessagesResponseTransform,
+  OpenAIMessagesStreamChunkTransform,
+} from './messages';
+import {
   OpenAIImageGenerateConfig,
   OpenAIImageGenerateResponseTransform,
 } from './imageGenerate';
@@ -52,6 +57,7 @@ const OpenAIConfig: ProviderConfigs = {
   embed: OpenAIEmbedConfig,
   api: OpenAIAPIConfig,
   chatComplete: OpenAIChatCompleteConfig,
+  messages: OpenAIMessagesConfig,
   imageGenerate: OpenAIImageGenerateConfig,
   imageEdit: {},
   createSpeech: OpenAICreateSpeechConfig,
@@ -77,6 +83,8 @@ const OpenAIConfig: ProviderConfigs = {
     // 'stream-complete': OpenAICompleteResponseTransform,
     chatComplete: OpenAIChatCompleteResponseTransform,
     // 'stream-chatComplete': OpenAIChatCompleteResponseTransform,
+    messages: OpenAIMessagesResponseTransform,
+    'stream-messages': OpenAIMessagesStreamChunkTransform,
     imageGenerate: OpenAIImageGenerateResponseTransform,
     createSpeech: OpenAICreateSpeechResponseTransform,
     createTranscription: OpenAICreateTranscriptionResponseTransform,
