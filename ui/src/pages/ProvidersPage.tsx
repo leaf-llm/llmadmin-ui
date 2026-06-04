@@ -24,28 +24,12 @@ import {
 } from '../config/modelCategories';
 import { openExternalUrl } from '../api/config';
 import { useFlipReorder } from '../hooks/useFlipReorder';
+import { getProviderDisplayName } from '../lib/providerDisplay';
 
 type Draft = ProviderUpdateRequest & { apiKeyMasked?: string; remark?: string };
 
 interface ProvidersPageProps {
   onNavigateAllProviders: () => void;
-}
-
-function getProviderDisplayName(
-  provider: string,
-  t: (key: string) => string
-): string {
-  const providerMap: Record<string, string> = {
-    zhipu: t('common.providerZhipu'),
-    dashscope: t('common.providerDashscope'),
-    doubao: t('common.providerDoubao'),
-    minimax: 'MiniMax',
-    moonshot: 'Moonshot AI',
-  };
-  return (
-    providerMap[provider] ||
-    provider.charAt(0).toUpperCase() + provider.slice(1)
-  );
 }
 
 export default function ProvidersPage({
