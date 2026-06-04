@@ -23,6 +23,7 @@ export type ProviderMetrics = {
   failure: number;
   inputTokens: number;
   outputTokens: number;
+  cacheInputTokens: number;
 };
 export type DailyMetrics = Map<string, ProviderMetrics>; // provider -> metrics
 export const metricsStore: Map<string, DailyMetrics> = new Map();
@@ -85,6 +86,7 @@ function deserializeStore(data: MetricsStoreSerialized) {
         failure: metrics.failure ?? 0,
         inputTokens: metrics.inputTokens ?? 0,
         outputTokens: metrics.outputTokens ?? 0,
+        cacheInputTokens: metrics.cacheInputTokens ?? 0,
       });
     }
     if (dailyProviders.size > 0) {
@@ -135,30 +137,39 @@ function getProvider(metrics: any): string {
   return metrics?.providerOptions?.provider || 'unknown';
 }
 
-function extractTokens(
+export function extractTokens(
   response: any,
   provider: string
-): { inputTokens: number; outputTokens: number } {
+): { inputTokens: number; outputTokens: number; cacheInputTokens: number } {
   let inputTokens = 0;
   let outputTokens = 0;
+  let cacheInputTokens = 0;
 
   // Try OpenAI format first (prompt_tokens, completion_tokens)
   if (response?.usage?.prompt_tokens !== undefined) {
     inputTokens = response.usage.prompt_tokens || 0;
     outputTokens = response.usage.completion_tokens || 0;
+    // OpenAI: { prompt_tokens_details: { cached_tokens: N } }
+    cacheInputTokens = response.usage.prompt_tokens_details?.cached_tokens || 0;
   }
   // Anthropic format (input_tokens, output_tokens)
   else if (response?.usage?.input_tokens !== undefined) {
     inputTokens = response.usage.input_tokens || 0;
     outputTokens = response.usage.output_tokens || 0;
+    // Anthropic reports cache hits/writes in dedicated fields
+    cacheInputTokens =
+      response.usage.cache_read_input_tokens ||
+      response.usage.cache_creation_input_tokens ||
+      0;
   }
   // Google format (promptTokenCount, candidatesTokenCount)
   else if (response?.usageMetadata?.promptTokenCount !== undefined) {
     inputTokens = response.usageMetadata.promptTokenCount || 0;
     outputTokens = response.usageMetadata.candidatesTokenCount || 0;
+    cacheInputTokens = response.usageMetadata.cachedContentTokenCount || 0;
   }
 
-  return { inputTokens, outputTokens };
+  return { inputTokens, outputTokens, cacheInputTokens };
 }
 
 function extractUsageFromSSE(text: string): Record<string, any> | null {
@@ -254,6 +265,7 @@ export function recordMetrics(status: number, requestOptionsArray: any[]) {
       failure: 0,
       inputTokens: 0,
       outputTokens: 0,
+      cacheInputTokens: 0,
     };
     dailyProviders.set(provider, metrics);
   }
@@ -273,6 +285,7 @@ export function recordMetrics(status: number, requestOptionsArray: any[]) {
     const tokens = extractTokens(response, provider);
     metrics.inputTokens += tokens.inputTokens;
     metrics.outputTokens += tokens.outputTokens;
+    metrics.cacheInputTokens += tokens.cacheInputTokens;
   }
 
   // Persist to disk (debounced)
