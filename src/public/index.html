@@ -856,6 +856,61 @@
       border-bottom-color: #3b82f6;
       font-weight: bold;
     }
+
+    /* Log details modal — raw sections */
+    .modal-content h3 {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
+    .modal-content h3:first-of-type {
+      border-top: 0;
+      padding-top: 0;
+    }
+    .modal-content .muted {
+      color: #6b7280;
+      font-size: 12px;
+      margin: 4px 0 6px;
+    }
+    .modal-content .auth-masked {
+      cursor: pointer;
+      user-select: all;
+      padding: 0 2px;
+      border-radius: 2px;
+      background: #f3f4f6;
+    }
+    .modal-content .auth-masked[data-state="shown"] {
+      background: #fff3cd;
+    }
+    .modal-content details > summary {
+      cursor: pointer;
+      color: #555;
+      margin: 4px 0;
+    }
+    .modal-content pre {
+      max-height: 320px;
+      overflow: auto;
+    }
+    .modal-content .btn-copy-curl {
+      display: block;
+      width: 100%;
+      margin: 0 0 16px;
+      padding: 0.55rem 0.7rem;
+      background-color: #10b981;
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    .modal-content .btn-copy-curl:hover {
+      background-color: #059669;
+    }
+    .modal-content .btn-copy-curl.copied {
+      background-color: #6b7280;
+    }
   </style>
 
   <!-- Google Tag Manager -->
@@ -1987,12 +2042,12 @@
           const tr = document.createElement('tr');
           tr.classList.add('new-row');
           tr.innerHTML = `
-              <td class="log-time">${time}</td>
-              <td class="log-method"><span class="log-method-value">${method}</span></td>
-              <td class="log-endpoint">${endpoint}</td>
-              <td class="log-target-url">${targetUrl}</td>
-              <td class="log-status"><span class="${status>=200 && status<300 ? 'success' : 'error'}">${status}</span></td>
-              <td class="log-duration">${duration}ms</td>
+              <td class="log-time">${escapeHtml(time)}</td>
+              <td class="log-method"><span class="log-method-value">${escapeHtml(method)}</span></td>
+              <td class="log-endpoint">${escapeHtml(endpoint)}</td>
+              <td class="log-target-url">${escapeHtml(targetUrl)}</td>
+              <td class="log-status"><span class="${status>=200 && status<300 ? 'success' : 'error'}">${escapeHtml(String(status))}</span></td>
+              <td class="log-duration">${escapeHtml(String(duration))}ms</td>
               <td><button class="btn-view-details">View Details</button></td>
           `;
 
@@ -2031,20 +2086,148 @@
           }, 500);
       }
 
+      const SENSITIVE_KEYS = new Set(['authorization', 'x-api-key', 'api-key', 'x-auth-token']);
+
+      function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function maskAuthValue(value) {
+        if (typeof value !== 'string' || value.length === 0) return { masked: '', raw: value == null ? '' : value };
+        if (value.length <= 4) return { masked: '****', raw: value };
+        const m = value.match(/^(\S+\s+)?(.*)$/);
+        const prefix = m && m[1] ? m[1] : '';
+        return { masked: prefix + '****' + value.slice(-4), raw: value };
+      }
+
+      function isSensitiveHeader(key) {
+        return SENSITIVE_KEYS.has(String(key).toLowerCase());
+      }
+
+      function renderHeaderValueHtml(key, value) {
+        if (isSensitiveHeader(key) && typeof value === 'string' && value) {
+          const { masked, raw } = maskAuthValue(value);
+          const maskedEsc = escapeHtml(masked);
+          const rawEsc = escapeHtml(raw);
+          return `<span class="auth-masked" data-raw="${rawEsc}" data-masked="${maskedEsc}" data-state="hidden">${maskedEsc}</span>`;
+        }
+        if (value == null) return '';
+        const s = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        return escapeHtml(s);
+      }
+
+      function headerValueForCurl(key, value) {
+        if (isSensitiveHeader(key) && typeof value === 'string' && value) {
+          return maskAuthValue(value).masked;
+        }
+        if (value == null) return '';
+        return typeof value === 'object' ? JSON.stringify(value) : String(value);
+      }
+
+      function shellQuote(str) {
+        return `'${String(str).replace(/'/g, `'\\''`)}'`;
+      }
+
+      function buildCurlCommand(method, endpoint, headers, bodyStr) {
+        const url = `${window.location.origin}${endpoint}`;
+        const lines = [`curl -X ${(method || 'POST').toUpperCase()} ${shellQuote(url)}`];
+        if (headers && typeof headers === 'object') {
+          for (const [k, v] of Object.entries(headers)) {
+            if (v == null) continue;
+            lines.push(`  -H ${shellQuote(`${k}: ${headerValueForCurl(k, v)}`)}`);
+          }
+        }
+        if (bodyStr != null) {
+          lines.push(`  --data-raw ${shellQuote(bodyStr)}`);
+        }
+        return lines.join(' \\\n');
+      }
+
       function showLogDetails(time, method, endpoint, targetUrl, status, duration, requestOptions) {
-          const hasRequestOptions = requestOptions && requestOptions.length > 0;
-          const requestParams = hasRequestOptions ? requestOptions[0].requestParams : null;
-          const response = hasRequestOptions ? requestOptions[0].response : null;
+          const reqOpt = (requestOptions && requestOptions[0]) || null;
+          const requestParams   = reqOpt?.requestParams             ?? null;
+          const response        = reqOpt?.response                  ?? null;
+          const rawReq          = reqOpt?.finalUntransformedRequest?.body ?? null;
+          const rawRes          = reqOpt?.originalResponse?.body;
+          const upstreamHeaders = reqOpt?.transformedRequest?.headers ?? null;
+          const providerOpts    = reqOpt?.providerOptions           ?? null;
+
+          // Stringify once and share between the Raw Request <pre> and the cURL body.
+          const rawReqStr = rawReq != null
+            ? (typeof rawReq === 'string' ? rawReq : JSON.stringify(rawReq, null, 2))
+            : null;
+
+          const headersBlock = upstreamHeaders && typeof upstreamHeaders === 'object'
+            ? `<pre>${Object.entries(upstreamHeaders)
+                .map(([k, v]) => `${escapeHtml(k)}: ${renderHeaderValueHtml(k, v)}`)
+                .join('\n')}</pre>`
+            : `<pre>N/A (upstream headers not available)</pre>`;
+
+          const metaRows = [
+            ['Request URL',   providerOpts?.requestURL],
+            ['Rubeus URL',    providerOpts?.rubeusURL],
+            ['Cache status',  reqOpt?.cacheStatus],
+            ['Cache key',     reqOpt?.cacheKey],
+            ['Cache mode',    reqOpt?.cacheMode],
+            ['Cache max age', reqOpt?.cacheMaxAge],
+            ['Provider idx',  reqOpt?.lastUsedOptionIndex],
+            ['Hook span',     reqOpt?.hookSpanId],
+            ['Execution ms',  reqOpt?.executionTime],
+            ['Created at',    reqOpt?.createdAt],
+            ['Pricing',       providerOpts?.modelPricingConfig],
+          ].filter(([, v]) => v !== undefined && v !== null && v !== '');
+
+          const metaBlock = metaRows.length
+            ? metaRows.map(([k, v]) => {
+                const display = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                return `<p><strong>${escapeHtml(k)}:</strong> <code>${escapeHtml(display)}</code></p>`;
+              }).join('')
+            : '<p><em>No metadata captured.</em></p>';
+
+          const curlCommand = buildCurlCommand(method, endpoint, upstreamHeaders, rawReqStr);
+
           logDetailsContent.innerHTML = `
+              <h3>Replay</h3>
+              <p class="muted">Reproduce the request through the gateway. Auth headers stay masked; click "reveal" in Upstream Headers first, then re-copy if you need a live token.</p>
+              <button class="btn-copy-curl" data-curl="${escapeHtml(curlCommand)}">Copy as cURL</button>
+
               <h3>Request Details</h3>
-              <p><strong>Time:</strong> ${time}</p>
-              <p><strong>Method:</strong> ${method}</p>
-              <p><strong>Endpoint:</strong> ${endpoint}</p>
-              <p><strong>Target URL:</strong> ${targetUrl}</p>
-              <p><strong>Status:</strong> ${status}</p>
-              <p><strong>Duration:</strong> ${duration}ms</p>
-              <p><strong>Request:</strong> <pre>${requestParams ? JSON.stringify(requestParams, null, 2) : 'N/A (request not available)'}</pre></p>
-              <p><strong>Response:</strong> <pre>${response ? JSON.stringify(response, null, 2) : 'N/A'}</pre></p>
+              <p><strong>Time:</strong> ${escapeHtml(time)}</p>
+              <p><strong>Method:</strong> ${escapeHtml(method)}</p>
+              <p><strong>Endpoint:</strong> ${escapeHtml(endpoint)}</p>
+              <p><strong>Target URL:</strong> ${escapeHtml(targetUrl)}</p>
+              <p><strong>Status:</strong> ${escapeHtml(String(status))}</p>
+              <p><strong>Duration:</strong> ${escapeHtml(String(duration))}ms</p>
+              <p><strong>Request:</strong> <pre>${requestParams ? escapeHtml(JSON.stringify(requestParams, null, 2)) : 'N/A (request not available)'}</pre></p>
+              <p><strong>Response:</strong> <pre>${response ? escapeHtml(JSON.stringify(response, null, 2)) : 'N/A'}</pre></p>
+
+              <h3>Raw Request</h3>
+              <p class="muted">Caller-supplied body before provider transform (<code>finalUntransformedRequest.body</code>).</p>
+              ${rawReqStr != null
+                ? `<pre>${escapeHtml(rawReqStr)}</pre>`
+                : `<pre>N/A (raw request not available)</pre>`}
+
+              <h3>Raw Response</h3>
+              <p class="muted">Upstream response before gateway transform (<code>originalResponse.body</code>). Falls back to the Response field above if the raw body was not captured (common for untransformed non-stream responses).</p>
+              ${rawRes != null
+                ? `<pre>${escapeHtml(JSON.stringify(rawRes, null, 2))}</pre>`
+                : `<pre>N/A (raw response not captured — see "Response" above for the post-transform body)</pre>`}
+
+              <h3>Upstream Headers</h3>
+              <p class="muted">Headers actually sent to the provider. Sensitive keys (authorization, x-api-key, api-key, x-auth-token) are masked; click to reveal.</p>
+              ${headersBlock}
+
+              <h3>Metadata</h3>
+              <details${metaRows.length ? ' open' : ''}>
+                <summary>Provider, cache &amp; timing</summary>
+                ${metaBlock}
+              </details>
           `;
           logDetailsModal.style.display = 'block';
       }
@@ -2073,6 +2256,50 @@
           if (event.target === logDetailsModal) {
               logDetailsModal.style.display = 'none';
           }
+      });
+
+      // Registered once on #logDetailsContent; innerHTML reassignment only
+      // replaces children, so the handler survives modal re-renders.
+      logDetailsContent.addEventListener('click', (e) => {
+        const t = e.target;
+        if (!t || !t.classList) return;
+
+        if (t.classList.contains('auth-masked')) {
+          const showing = t.dataset.state === 'shown';
+          t.textContent = showing ? t.dataset.masked : t.dataset.raw;
+          t.dataset.state = showing ? 'hidden' : 'shown';
+          return;
+        }
+
+        if (t.classList.contains('btn-copy-curl')) {
+          const curlCmd = t.dataset.curl || '';
+          const orig = t.textContent;
+          const finish = (ok) => {
+            t.textContent = ok ? 'Copied!' : 'Copy failed';
+            t.classList.add('copied');
+            setTimeout(() => {
+              t.textContent = orig;
+              t.classList.remove('copied');
+            }, 1200);
+          };
+          const fallback = () => {
+            const ta = document.createElement('textarea');
+            ta.value = curlCmd;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+            document.body.removeChild(ta);
+            finish(ok);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(curlCmd).then(() => finish(true)).catch(fallback);
+          } else {
+            fallback();
+          }
+        }
       });
 
       // Update event listeners for page unload
