@@ -21,6 +21,7 @@ import {
 } from '../config/modelCategories';
 import { openExternalUrl } from '../api/config';
 import TopNotification from '../components/TopNotification';
+import { getProviderDisplayName } from '../lib/providerDisplay';
 
 type Draft = ProviderUpdateRequest & {
   apiKeyMasked?: string;
@@ -33,24 +34,6 @@ type Draft = ProviderUpdateRequest & {
 
 interface AllProvidersPageProps {
   onBack: () => void;
-}
-
-function getProviderDisplayName(
-  provider: string,
-  t: (key: string) => string
-): string {
-  const providerMap: Record<string, string> = {
-    zhipu: t('common.providerZhipu'),
-    dashscope: t('common.providerDashscope'),
-    doubao: t('common.providerDoubao'),
-    minimax: 'MiniMax',
-    moonshot: 'Moonshot AI',
-    'google-openai': 'Google',
-  };
-  return (
-    providerMap[provider] ||
-    provider.charAt(0).toUpperCase() + provider.slice(1)
-  );
 }
 
 export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {

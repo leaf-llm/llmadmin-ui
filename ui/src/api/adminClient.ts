@@ -80,6 +80,7 @@ export type MetricsResponse = {
     failureCount: number;
     inputTokens: number;
     outputTokens: number;
+    cacheInputTokens: number;
   };
   daily: Array<{
     date: string;
@@ -89,6 +90,7 @@ export type MetricsResponse = {
     failureCount: number;
     inputTokens: number;
     outputTokens: number;
+    cacheInputTokens: number;
   }>;
 };
 

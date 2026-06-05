@@ -63,6 +63,7 @@
     "requests": "Requests",
     "inputTokens": "Input tokens",
     "outputTokens": "Output tokens",
+    "cacheInputTokens": "Cache Input Tokens",
     "tokens": "Tokens",
     "costUsd": "Cost (USD)",
     "noProvidersConfigured": "No providers configured yet. Add providers in the backend config first.",

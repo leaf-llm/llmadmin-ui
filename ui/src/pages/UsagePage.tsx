@@ -8,6 +8,7 @@ import {
   UsageResponse,
 } from '../api/adminClient';
 import { SUPPORTED_PROVIDERS } from '../lib/configStore';
+import { getProviderDisplayName } from '../lib/providerDisplay';
 import DatePicker from '../components/DatePicker';
 import Select from '../components/Select';
 
@@ -115,7 +116,10 @@ export default function UsagePage() {
             placeholder={t('common.all')}
             options={[
               { value: 'all', label: t('common.all') },
-              ...providers.map((p) => ({ value: p, label: p })),
+              ...providers.map((p) => ({
+                value: p,
+                label: getProviderDisplayName(p, t),
+              })),
             ]}
           />
           {/* Billing tab hidden until provider billing adapters are fully implemented */}
@@ -178,6 +182,12 @@ export default function UsagePage() {
               </div>
             </div>
             <div className="card" style={{ flex: 1 }}>
+              <div className="card__title">{t('common.cacheInputTokens')}</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>
+                {totals?.cacheInputTokens?.toLocaleString() ?? 0}
+              </div>
+            </div>
+            <div className="card" style={{ flex: 1 }}>
               <div className="card__title">{t('common.outputTokens')}</div>
               <div style={{ fontSize: 22, fontWeight: 800 }}>
                 {totals?.outputTokens?.toLocaleString() ?? 0}
@@ -208,13 +218,14 @@ export default function UsagePage() {
                   <th>{t('common.successCount')}</th>
                   <th>{t('common.failureCount')}</th>
                   <th>{t('common.inputTokens')}</th>
+                  <th>{t('common.cacheInputTokens')}</th>
                   <th>{t('common.outputTokens')}</th>
                 </tr>
               </thead>
               <tbody>
                 {metrics.daily.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="muted">
+                    <td colSpan={8} className="muted">
                       {t('common.noData')}
                     </td>
                   </tr>
@@ -235,6 +246,7 @@ export default function UsagePage() {
                           {row.failureCount}
                         </td>
                         <td>{row.inputTokens?.toLocaleString() ?? 0}</td>
+                        <td>{row.cacheInputTokens?.toLocaleString() ?? 0}</td>
                         <td>{row.outputTokens?.toLocaleString() ?? 0}</td>
                       </tr>
                     );

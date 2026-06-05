@@ -109,6 +109,7 @@ adminApp.get('/metrics', (c) => {
     failureCount: number;
     inputTokens: number;
     outputTokens: number;
+    cacheInputTokens: number;
   };
   const daily: DailyProviderRow[] = [];
 
@@ -117,6 +118,7 @@ adminApp.get('/metrics', (c) => {
   let failureCount = 0;
   let inputTokens = 0;
   let outputTokens = 0;
+  let cacheInputTokens = 0;
 
   metricsStore.forEach((dailyProviders, dateKey) => {
     const d = new Date(dateKey);
@@ -127,6 +129,7 @@ adminApp.get('/metrics', (c) => {
         failureCount += metrics.failure;
         inputTokens += metrics.inputTokens;
         outputTokens += metrics.outputTokens;
+        cacheInputTokens += metrics.cacheInputTokens;
         daily.push({
           date: dateKey,
           provider,
@@ -135,6 +138,7 @@ adminApp.get('/metrics', (c) => {
           failureCount: metrics.failure,
           inputTokens: metrics.inputTokens,
           outputTokens: metrics.outputTokens,
+          cacheInputTokens: metrics.cacheInputTokens,
         });
       });
     }
@@ -154,6 +158,7 @@ adminApp.get('/metrics', (c) => {
       failureCount,
       inputTokens,
       outputTokens,
+      cacheInputTokens,
     },
     daily,
   });
