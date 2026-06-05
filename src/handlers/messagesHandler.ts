@@ -18,6 +18,24 @@ export async function messagesHandler(c: Context): Promise<Response> {
   try {
     let request = await c.req.json();
     let requestHeaders = Object.fromEntries(c.req.raw.headers);
+
+    // The Anthropic Messages API requires a non-empty `messages` array
+    // (each turn has at least one user message). Reject malformed requests
+    // here with a clear 400 instead of forwarding them to the upstream
+    // provider and letting it complain with an opaque "contents is not
+    // specified" / "messages: []" error. Anthropic SDK clients always
+    // send `messages`, so this check mostly catches hand-rolled or
+    // half-constructed requests.
+    if (
+      !request ||
+      !Array.isArray(request.messages) ||
+      request.messages.length === 0
+    ) {
+      throw new RouterError(
+        '`messages` is required and must be a non-empty array of conversation turns.'
+      );
+    }
+
     const camelCaseConfig = constructConfigFromRequestHeaders(requestHeaders);
     const tryTargetsResponse = await tryTargetsRecursively(
       c,

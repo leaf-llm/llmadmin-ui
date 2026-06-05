@@ -8,6 +8,7 @@ import CohereConfig from './cohere';
 import DeepInfraConfig from './deepinfra';
 import NCompassConfig from './ncompass';
 import GoogleConfig from './google';
+import GoogleOpenAIConfig from './google-openai';
 import VertexConfig from './google-vertex-ai';
 import MistralAIConfig from './mistral-ai';
 import NomicConfig from './nomic';
@@ -94,6 +95,7 @@ const Providers: { [key: string]: ProviderConfigs } = {
   palm: PalmAIConfig,
   'together-ai': TogetherAIConfig,
   google: GoogleConfig,
+  'google-openai': GoogleOpenAIConfig,
   'vertex-ai': VertexConfig,
   'perplexity-ai': PerplexityAIConfig,
   'mistral-ai': MistralAIConfig,

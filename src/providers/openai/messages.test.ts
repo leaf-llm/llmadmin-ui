@@ -415,7 +415,7 @@ describe('OpenAIMessagesResponseTransform', () => {
       200
     );
     expect((result as any).content).toEqual([
-      { type: 'thinking', thinking: 'thinking...', signature: '' },
+      { type: 'thinking', thinking: 'thinking...', signature: 'openai-no-signature' },
       { type: 'text', text: 'final answer' },
     ]);
   });
@@ -638,14 +638,42 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
       request
     );
 
+    // Deferred-stop: finish_reason chunk closes the text block and
+    // emits message_delta with stop_reason, but does NOT emit
+    // message_stop yet (waiting for the trailing usage chunk).
     const events = parseEvents(final!);
     expect(events.map((e) => e.event)).toEqual([
       'content_block_stop',
       'message_delta',
-      'message_stop',
     ]);
     expect(events[0].data.index).toBe(0);
     expect(events[1].data.delta.stop_reason).toBe('end_turn');
+
+    // Usage chunk finalizes the message with message_stop.
+    const usage = OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify({
+          id: 'chatcmpl-stream',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: 'gpt-4o',
+          choices: [],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        }),
+      'fb',
+      state,
+      false,
+      request
+    );
+    const usageEvents = parseEvents(usage!);
+    expect(usageEvents.map((e) => e.event)).toEqual([
+      'message_delta',
+      'message_stop',
+    ]);
+    expect(usageEvents[0].data.usage).toMatchObject({
+      input_tokens: 1,
+      output_tokens: 1,
+    });
   });
 
   it('emits tool_use start, then input_json_delta per chunk, then stop', () => {
@@ -734,13 +762,41 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
       false,
       request
     );
+    // Deferred-stop: finish_reason chunk emits only message_delta (no
+    // message_stop). The usage chunk (which OpenAI always sends with
+    // stream_options.include_usage=true) follows.
     const finalEvents = parseEvents(final!);
     expect(finalEvents.map((e) => e.event)).toEqual([
       'content_block_stop',
       'message_delta',
-      'message_stop',
     ]);
     expect(finalEvents[1].data.delta.stop_reason).toBe('tool_use');
+
+    // Usage chunk finalizes the message.
+    const usage = OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify({
+          id: 'chatcmpl-stream',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: 'gpt-4o',
+          choices: [],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        }),
+      'fb',
+      state,
+      false,
+      request
+    );
+    const usageEvents = parseEvents(usage!);
+    expect(usageEvents.map((e) => e.event)).toEqual([
+      'message_delta',
+      'message_stop',
+    ]);
+    expect(usageEvents[0].data.usage).toMatchObject({
+      input_tokens: 1,
+      output_tokens: 1,
+    });
   });
 
   it('emits two parallel tool_use blocks when two tool_calls share a chunk', () => {
@@ -819,13 +875,16 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
     );
     const events = parseEvents(r2!);
     expect(events.map((e) => e.event)).toEqual([
+      'content_block_delta',
       'content_block_stop',
       'content_block_start',
       'content_block_delta',
     ]);
-    expect(events[0].data.index).toBe(0);
-    expect(events[1].data.index).toBe(1);
-    expect(events[1].data.content_block.type).toBe('text');
+    expect(events[0].data.delta.type).toBe('signature_delta');
+    expect(events[0].data.delta.signature).toBe('openai-no-signature');
+    expect(events[1].data.index).toBe(0);
+    expect(events[2].data.index).toBe(1);
+    expect(events[2].data.content_block.type).toBe('text');
   });
 
   it('maps finish_reason "length" to stop_reason "max_tokens"', () => {
@@ -908,7 +967,7 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
     });
   });
 
-  it('ignores [DONE] after message_stop has been emitted', () => {
+  it('captures usage sent in a separate chunk after the stop chunk', () => {
     const state = makeState();
     const request = { model: 'gpt-4o' } as any;
     OpenAIMessagesStreamChunkTransform(
@@ -919,6 +978,137 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
       false,
       request
     );
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' + JSON.stringify(streamChunk({ content: 'done' })),
+      'fb',
+      state,
+      false,
+      request
+    );
+    // First terminating chunk: stop reason only, no usage.
+    const stop = OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify(
+          streamChunk(
+            {},
+            { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }
+          )
+        ),
+      'fb',
+      state,
+      false,
+      request
+    );
+    // Second terminating chunk: usage only, no choices.
+    const usage = OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify({
+          id: 'chatcmpl-stream',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: 'gpt-4o',
+          choices: [],
+          usage: {
+            prompt_tokens: 100,
+            completion_tokens: 42,
+            total_tokens: 142,
+          },
+        }),
+      'fb',
+      state,
+      false,
+      request
+    );
+
+    // With deferred-stop semantics, the finish_reason chunk closes the
+    // open text block and emits message_delta with stop_reason, but
+    // does NOT emit message_stop yet (waiting for the trailing usage
+    // chunk).
+    const stopEvents = parseEvents(stop!).map((e) => e.event);
+    expect(stopEvents).toEqual(['content_block_stop', 'message_delta']);
+    const stopDelta = parseEvents(stop!).find((e) => e.event === 'message_delta');
+    expect(stopDelta!.data.delta.stop_reason).toBe('end_turn');
+    // usage is still 0 on this delta — the real usage arrives next.
+    expect(stopDelta!.data.usage).toMatchObject({
+      input_tokens: 0,
+      output_tokens: 0,
+    });
+
+    // Usage chunk re-emits message_delta with the actual usage AND then
+    // emits message_stop. The Anthropic SDK snapshots the message on
+    // message_stop, so this is the LAST message_delta it will see.
+    const usageEvents = parseEvents(usage!);
+    const usageDelta = usageEvents.find((e) => e.event === 'message_delta');
+    expect(usageDelta).toBeDefined();
+    expect(usageDelta!.data.usage).toMatchObject({
+      input_tokens: 100,
+      output_tokens: 42,
+    });
+    // stop_reason is omitted on the update delta (it was already set on the
+    // previous message_delta).
+    expect(usageDelta!.data.delta.stop_reason).toBeNull();
+    // message_stop is now emitted — it must come AFTER the final
+    // message_delta in event order.
+    const eventOrder = usageEvents.map((e) => e.event);
+    const deltaIdx = eventOrder.indexOf('message_delta');
+    const stopIdx = eventOrder.indexOf('message_stop');
+    expect(stopIdx).toBeGreaterThan(deltaIdx);
+  });
+
+  it('emits signature_delta for a thinking block that closes at stream end', () => {
+    const state = makeState();
+    const request = { model: 'gpt-4o' } as any;
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify(streamChunk({ role: 'assistant', content: '' })),
+      'fb',
+      state,
+      false,
+      request
+    );
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' + JSON.stringify(streamChunk({ reasoning_content: 'hmm' })),
+      'fb',
+      state,
+      false,
+      request
+    );
+    // Stream ends with a stop chunk and no following text content.
+    const final = OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify(
+          streamChunk(
+            {},
+            { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }
+          )
+        ),
+      'fb',
+      state,
+      false,
+      request
+    );
+
+    const events = parseEvents(final!);
+    const signatureDelta = events.find(
+      (e) => e.event === 'content_block_delta' && e.data.delta?.type === 'signature_delta'
+    );
+    expect(signatureDelta).toBeDefined();
+    expect(signatureDelta!.data.delta.signature).toBe('openai-no-signature');
+  });
+
+  it('force-finalizes via [DONE] when usage chunk never arrives', () => {
+    const state = makeState();
+    const request = { model: 'gpt-4o' } as any;
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify(streamChunk({ role: 'assistant', content: '' })),
+      'fb',
+      state,
+      false,
+      request
+    );
+    // Stop chunk arrives with no usage. With deferred-stop semantics
+    // this emits ONLY message_delta — no message_stop yet.
     OpenAIMessagesStreamChunkTransform(
       'data: ' +
         JSON.stringify(
@@ -932,6 +1122,71 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
       false,
       request
     );
+    // [DONE] arrives, no usage chunk ever came. The transform must
+    // force-finalize so the SDK receives message_stop.
+    const r = OpenAIMessagesStreamChunkTransform(
+      'data: [DONE]',
+      'fb',
+      state,
+      false,
+      request
+    );
+    expect(r).toBeDefined();
+    const events = parseEvents(r!);
+    const eventNames = events.map((e) => e.event);
+    expect(eventNames).toContain('message_delta');
+    expect(eventNames).toContain('message_stop');
+    // message_stop MUST come last.
+    expect(eventNames[eventNames.length - 1]).toBe('message_stop');
+  });
+
+  it('ignores [DONE] after message_stop has been emitted', () => {
+    const state = makeState();
+    const request = { model: 'gpt-4o' } as any;
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify(streamChunk({ role: 'assistant', content: '' })),
+      'fb',
+      state,
+      false,
+      request
+    );
+    // Stop chunk + usage chunk in the same logical stream (deferred stop
+    // emits both message_stop and the final message_delta here).
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify(
+          streamChunk(
+            {},
+            { choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }
+          )
+        ),
+      'fb',
+      state,
+      false,
+      request
+    );
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify({
+          id: 'chatcmpl-stream',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: 'gpt-4o',
+          choices: [],
+          usage: {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2,
+          },
+        }),
+      'fb',
+      state,
+      false,
+      request
+    );
+    // Now message_stop has been emitted. A subsequent [DONE] must be a
+    // no-op.
     const r = OpenAIMessagesStreamChunkTransform(
       'data: [DONE]',
       'fb',

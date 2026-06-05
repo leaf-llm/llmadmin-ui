@@ -5,7 +5,7 @@ export type ProviderId = string;
 export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'openai',
   'anthropic',
-  'google',
+  'google-openai',
   'zhipu',
   'dashscope',
   'moonshot',
@@ -323,7 +323,7 @@ export type ProviderSummary = {
 const DEFAULT_BASE_URLS: Record<ProviderId, string> = {
   openai: 'https://api.openai.com/v1',
   anthropic: 'https://api.anthropic.com',
-  google: 'https://generativelanguage.googleapis.com/v1',
+  'google-openai': 'https://generativelanguage.googleapis.com/v1beta/openai',
   zhipu: 'https://open.bigmodel.cn/api/paas/v4',
   dashscope: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   moonshot: 'https://api.moonshot.cn/v1',
@@ -736,11 +736,14 @@ export async function getProviderModels(
 
   const baseUrl = matchedConfig.baseUrl || DEFAULT_BASE_URLS[provider];
 
-  // Try to fetch models from the provider
+  // Try to fetch models from the provider.
+  // NOTE: do NOT set `Content-Type: application/json` on this GET — it would
+  // force a CORS preflight (OPTIONS) that some providers (notably Google's
+  // /v1beta/openai) do not respond to, even though they accept the actual
+  // request. A GET with no body only needs Authorization.
   const url = `${baseUrl}/models`;
   const headers: Record<string, string> = {
-    'Authorization': `Bearer ${matchedConfig.apiKey}`,
-    'Content-Type': 'application/json',
+    Authorization: `Bearer ${matchedConfig.apiKey}`,
   };
 
   try {

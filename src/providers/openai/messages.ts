@@ -138,6 +138,7 @@ export interface OpenAIMessagesStreamState {
   inputTokens?: number;
   outputTokens?: number;
   pendingStopReason?: string;
+  thinkingSignatureEmitted?: boolean;
 }
 
 // =============================================================================
@@ -451,16 +452,16 @@ export const OpenAIMessagesConfig: ProviderConfig = {
     default: [],
     transform: (params: Params) => transformAnthropicMessagesToOpenAI(params),
   },
-  system: {
-    param: 'messages',
-    required: false,
-    transform: (params: Params) => {
-      // The `messages` transform already handles top-level system. To avoid
-      // emitting a separate second `messages` key (which would overwrite), we
-      // return undefined and rely on `messages` having already spliced system in.
-      return undefined;
-    },
-  },
+  // The top-level Anthropic `system` field is intentionally NOT mapped
+  // here. `transformAnthropicMessagesToOpenAI` already reads
+  // `params.system` and splices it into the head of the messages array
+  // as a system-role turn, so a config entry for `system` is redundant.
+  // It used to live here with `param: 'messages'` and a transform that
+  // returned `undefined` — but that entry was processed AFTER `messages`
+  // and would overwrite the real `messages` array with `undefined`,
+  // causing the upstream request to be sent with no `messages` key.
+  // (Google's OpenAI-compat surface rejects that with
+  // `GenerateContentRequest.contents: contents is not specified`.)
   max_tokens: {
     param: 'max_tokens',
     required: true,
@@ -595,14 +596,15 @@ export const OpenAIMessagesResponseTransform = (
     const message = choice.message ?? ({} as any);
     const content: ContentBlock[] = [];
 
-    // reasoning_content (o-series) -> thinking block. Note: signature is
-    // intentionally left empty - OpenAI does not emit a signature, so
-    // round-tripping to Anthropic-format downstream is lossy.
+    // reasoning_content (o-series) -> thinking block. OpenAI does not
+    // emit a real signature; use a non-empty sentinel so Anthropic-format
+    // downstream consumers (Claude Code, Anthropic SDK) do not drop the
+    // block from the final content array.
     if (message.reasoning_content && message.reasoning_content.length > 0) {
       const thinking: ThinkingBlock = {
         type: 'thinking',
         thinking: message.reasoning_content,
-        signature: '',
+        signature: 'openai-no-signature',
       };
       content.push(thinking);
     }
@@ -652,12 +654,29 @@ const emitEvent = (event: string, data: any): string => {
 
 const closeBlock = (state: OpenAIMessagesStreamState): string => {
   if (!state.currentBlock) return '';
-  const event = emitEvent('content_block_stop', {
+  let out = '';
+  // For thinking blocks, emit a signature_delta before the stop event.
+  // OpenAI (and Gemini's OpenAI-compat surface) do not produce a real
+  // signature, but the Anthropic-format SDK drops signature-less thinking
+  // blocks from the final accumulated content. Emit a non-empty sentinel
+  // so the SDK keeps the block.
+  if (
+    state.currentBlock.type === 'thinking' &&
+    !state.thinkingSignatureEmitted
+  ) {
+    out += emitEvent('content_block_delta', {
+      type: 'content_block_delta',
+      index: state.currentBlock.index,
+      delta: { type: 'signature_delta', signature: 'openai-no-signature' },
+    });
+    state.thinkingSignatureEmitted = true;
+  }
+  out += emitEvent('content_block_stop', {
     type: 'content_block_stop',
     index: state.currentBlock.index,
   });
   state.currentBlock = null;
-  return event;
+  return out;
 };
 
 const openBlock = (
@@ -725,33 +744,110 @@ const ensureMessageStart = (
 
 const emitMessageStopEvents = (
   state: OpenAIMessagesStreamState,
-  chunk: OpenAIStreamChunk
+  chunk: OpenAIStreamChunk,
+  forceFinalize = false
 ): string => {
+  // OpenAI (and Gemini's OpenAI-compat surface) typically send
+  // `finish_reason` and `usage` in SEPARATE chunks — the usage chunk
+  // arrives after the stop-reason chunk. The Anthropic SDK snapshots
+  // the message on `message_stop` and IGNORES any subsequent
+  // `message_delta` events (see Anthropic SDK's MessageStream.mjs,
+  // case 'message_stop' -> maybeParseMessage(currentMessageSnapshot)).
+  // So the LAST `message_delta` we emit MUST carry the real usage.
+  //
+  // That means we defer `message_stop` until the usage chunk (or
+  // `[DONE]`) arrives. Flow:
+  //   - no finish_reason seen yet -> nothing to do, capture usage
+  //   - finish_reason chunk (no usage) -> emit message_delta with
+  //     stop_reason and current (likely zero) usage. Do NOT emit
+  //     message_stop.
+  //   - usage chunk (after stop reason) -> emit message_delta with
+  //     updated usage (stop_reason null) AND message_stop.
+  //   - [DONE] with no usage chunk yet -> force-finalize and emit
+  //     message_stop with whatever usage we have.
+
+  // Pass 1: usage capture. Always update state if a usage field is present.
+  if (chunk.usage) {
+    if (chunk.usage.prompt_tokens != null)
+      state.inputTokens = chunk.usage.prompt_tokens;
+    if (chunk.usage.completion_tokens != null)
+      state.outputTokens = chunk.usage.completion_tokens;
+  }
+
+  const hasFinishReason =
+    chunk.choices?.[0]?.finish_reason != null &&
+    chunk.choices?.[0]?.finish_reason !== '';
+
+  // Capture the stop reason the first time we see it.
+  if (hasFinishReason && !state.pendingStopReason) {
+    state.pendingStopReason = chunk.choices[0].finish_reason ?? undefined;
+  }
+
+  // If we already finalized, ignore further chunks. (They shouldn't
+  // arrive — the SSE stream is done — but guard anyway.)
   if (state.messageStopEmitted) return '';
-  state.messageStopEmitted = true;
+
+  // Need a stop reason to even consider finalizing. Without one, just
+  // capture usage and wait.
+  if (!state.pendingStopReason) {
+    if (forceFinalize) {
+      // Force-finalize without a stop reason: synthesize a default
+      // "end_turn" so the SDK receives message_stop.
+      state.pendingStopReason = 'stop';
+    } else {
+      return '';
+    }
+  }
+
+  // Defer message_stop if we have a stop reason but no usage yet, AND
+  // the caller isn't forcing. We still want to close any open content
+  // block and emit a message_delta so the SDK has *something* to track.
+  const hasUsage = state.inputTokens != null || state.outputTokens != null;
+  if (!hasUsage && !forceFinalize) {
+    let out = '';
+    // Close any open content block first.
+    out += closeBlock(state);
+    // Emit a message_delta with the stop_reason and current (zero)
+    // usage so the SDK's snapshot is updated. The FINAL message_delta
+    // with the real usage will come on the usage chunk.
+    const deltaEvt = JSON.parse(ANTHROPIC_MESSAGE_DELTA_EVENT);
+    deltaEvt.delta.stop_reason = transformOpenAIFinishReasonToAnthropic(
+      state.pendingStopReason
+    );
+    if (state.inputTokens != null)
+      deltaEvt.usage.input_tokens = state.inputTokens;
+    if (state.outputTokens != null)
+      deltaEvt.usage.output_tokens = state.outputTokens;
+    out += emitEvent('message_delta', deltaEvt);
+    return out;
+  }
+
   let out = '';
   // Close any open content block first.
   out += closeBlock(state);
-  // Capture stop reason and (if present) usage from the final chunk.
-  if (chunk.choices?.[0]?.finish_reason) {
-    state.pendingStopReason = chunk.choices[0].finish_reason;
-  }
-  if (chunk.usage) {
-    state.inputTokens = chunk.usage.prompt_tokens;
-    state.outputTokens = chunk.usage.completion_tokens;
-  }
-  // Emit message_delta.
+
+  // Emit message_delta with the REAL usage (this is the last message_delta
+  // the SDK will see before message_stop snapshots the message).
   const deltaEvt = JSON.parse(ANTHROPIC_MESSAGE_DELTA_EVENT);
-  deltaEvt.delta.stop_reason = transformOpenAIFinishReasonToAnthropic(
-    state.pendingStopReason
-  );
+  // On force-finalize-without-usage, keep the stop_reason. On the
+  // normal usage-chunk path, this is an update so stop_reason is null.
+  if (hasUsage && !forceFinalize) {
+    deltaEvt.delta.stop_reason = null;
+  } else {
+    deltaEvt.delta.stop_reason = transformOpenAIFinishReasonToAnthropic(
+      state.pendingStopReason
+    );
+  }
   if (state.inputTokens != null)
     deltaEvt.usage.input_tokens = state.inputTokens;
   if (state.outputTokens != null)
     deltaEvt.usage.output_tokens = state.outputTokens;
   out += emitEvent('message_delta', deltaEvt);
-  // Emit message_stop.
+
+  // Emit message_stop last. The SDK snapshots the message here, so this
+  // MUST be the final event in the stream.
   out += `event: message_stop\ndata: ${JSON.stringify(ANTHROPIC_MESSAGE_STOP_EVENT)}\n\n`;
+  state.messageStopEmitted = true;
   return out;
 };
 
@@ -782,7 +878,7 @@ export const OpenAIMessagesStreamChunkTransform = (
         object: 'chat.completion.chunk',
         created: Math.floor(Date.now() / 1000),
         model: (gatewayRequest?.model as string) || '',
-        choices: [],
+        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
         usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
       };
       let out = ensureMessageStart(
@@ -791,8 +887,27 @@ export const OpenAIMessagesStreamChunkTransform = (
         fallbackId,
         gatewayRequest
       );
-      out += emitMessageStopEvents(streamState, emptyChunk);
+      // Force-finalize so we emit message_stop with stop_reason even
+      // though the usage is all zeros.
+      out += emitMessageStopEvents(streamState, emptyChunk, true);
       return out;
+    }
+    // Otherwise: if we saw a finish_reason but never got the usage chunk
+    // (e.g., upstream omitted usage or the connection was cut before it
+    // landed), force-finalize so the SDK receives message_stop and
+    // doesn't hang waiting for the stream to end.
+    if (
+      !streamState.messageStopEmitted &&
+      (streamState.pendingStopReason || streamState.currentBlock)
+    ) {
+      const emptyUsage: OpenAIStreamChunk = {
+        id: fallbackId,
+        object: 'chat.completion.chunk',
+        created: Math.floor(Date.now() / 1000),
+        model: (gatewayRequest?.model as string) || '',
+        choices: [],
+      };
+      return emitMessageStopEvents(streamState, emptyUsage, true) || undefined;
     }
     return undefined;
   }
@@ -833,6 +948,7 @@ export const OpenAIMessagesStreamChunkTransform = (
         thinking: '',
         signature: '',
       });
+      streamState.thinkingSignatureEmitted = false;
     }
     out += emitEvent('content_block_delta', {
       type: 'content_block_delta',
