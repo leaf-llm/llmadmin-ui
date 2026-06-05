@@ -121,7 +121,7 @@ export function getModelsByCategory(category: ModelCategory): string[] {
 const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
   openai: ['gpt-', 'dall-e', 'tts', 'whisper'],
   anthropic: ['claude-'],
-  google: ['gemini', 'imagen', 'veo', 'chirp'],
+  'google-openai': ['gemini', 'imagen', 'veo', 'chirp'],
   zhipu: ['glm-'],
   dashscope: ['qwen-', 'wanx-'],
   moonshot: ['moonshot-'],
@@ -133,7 +133,7 @@ const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
 export const PROVIDER_API_KEY_URLS: Record<string, string> = {
   openai: 'https://platform.openai.com/api-keys',
   anthropic: 'https://console.anthropic.com/settings/keys',
-  google: 'https://aistudio.google.com/app/apikey',
+  'google-openai': 'https://aistudio.google.com/app/apikey',
   zhipu: 'https://open.bigmodel.cn/apikey/platform',
   dashscope: 'https://bailian.console.aliyun.com/cn-beijing?tab=model#/api-key',
   moonshot: 'https://platform.moonshot.cn/console/api-keys',

@@ -45,6 +45,7 @@ function getProviderDisplayName(
     doubao: t('common.providerDoubao'),
     minimax: 'MiniMax',
     moonshot: 'Moonshot AI',
+    'google-openai': 'Google',
   };
   return (
     providerMap[provider] ||

@@ -6,7 +6,7 @@ export type ProviderId = string;
 export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'openai',
   'anthropic',
-  'google',
+  'google-openai',
   'zhipu',
   'dashscope',
   'moonshot',

@@ -124,7 +124,15 @@ export class ResponseService {
     }
 
     // Remove headers directly
-    if (getRuntimeKey() == 'node') {
+    // The upstream `fetch` in both undici (Node) and Bun's native fetch
+    // auto-decompresses gzip/deflate/br response bodies but preserves the
+    // `content-encoding` header on the returned Response. We then copy those
+    // headers onto the outbound response via `new Response(body, upstream)`.
+    // If we leave `content-encoding` in place, the client sees a
+    // decompressed body labelled as compressed and throws
+    // `Decompression error: ZlibError` on read. workerd / lagon do not
+    // auto-decompress, so we must keep `content-encoding` there for them.
+    if (['node', 'bun'].includes(getRuntimeKey())) {
       response.headers.delete('content-encoding');
       response.headers.delete('transfer-encoding');
     }

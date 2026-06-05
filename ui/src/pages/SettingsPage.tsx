@@ -14,7 +14,7 @@ const VALID_CONFIG_KEYS = [
 const VALID_PROVIDERS = [
   'openai',
   'anthropic',
-  'google',
+  'google-openai',
   'zhipu',
   'dashscope',
   'moonshot',
