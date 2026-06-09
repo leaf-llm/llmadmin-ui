@@ -80,7 +80,10 @@ export default function ProvidersPage({
     RoutingEntry[] | null
   >(null);
 
-  const displayRouting = optimisticRouting ?? routing;
+  const displayRouting = useMemo(
+    () => optimisticRouting ?? routing,
+    [optimisticRouting, routing]
+  );
 
   const {
     containerRef: routingListRef,
@@ -359,10 +362,16 @@ export default function ProvidersPage({
         const res = await saveRoutingOrder(activeCategory, finalOrder);
         nextRouting = res.routing;
       }
+      // Sync the FLIP cache to the current DOM positions BEFORE the
+      // setState commit. Without this, the next useLayoutEffect pass
+      // would compare the new DOM positions against stale positions
+      // captured during the drag, snap every item back to those stale
+      // positions, and then transition them forward again — a visible
+      // "return to original order" on drop.
+      captureRoutingPositions();
       // Commit the new canonical order FIRST, then clear the optimistic
       // preview. Because nextRouting has the same shape as finalOrder,
-      // the DOM never visibly jumps back to the old positions: the
-      // order stays as-is when optimistic is cleared.
+      // the DOM never visibly jumps back to the old positions.
       setRouting(nextRouting);
       setOptimisticRouting(null);
       setDragTargetKey(null);
@@ -378,6 +387,11 @@ export default function ProvidersPage({
   };
 
   const handleDragEnd = () => {
+    // The user cancelled the drag (e.g. released outside any drop
+    // target). Roll the optimistic preview back to the committed
+    // order. We snapshot positions first so the FLIP hook can animate
+    // the items back to their real slots instead of snapping.
+    captureRoutingPositions();
     setDragSourceKey(null);
     setDragTargetKey(null);
     setOptimisticRouting(null);
