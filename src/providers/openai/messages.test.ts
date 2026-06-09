@@ -150,7 +150,7 @@ describe('transformAnthropicMessagesToOpenAI', () => {
     ]);
   });
 
-  it('emits tool_result blocks as separate tool role messages', () => {
+  it('emits tool_result blocks as separate tool role messages before the user message', () => {
     const result = transformAnthropicMessagesToOpenAI({
       messages: [
         {
@@ -165,8 +165,9 @@ describe('transformAnthropicMessagesToOpenAI', () => {
         },
       ],
     } as any);
+    // Tool messages come first (before any user message), and the empty
+    // user message is skipped when it has no text content.
     expect(result).toEqual([
-      { role: 'user', content: '' },
       { role: 'tool', tool_call_id: 'call_1', content: 'sunny, 22C' },
     ]);
   });
@@ -197,7 +198,7 @@ describe('transformAnthropicMessagesToOpenAI', () => {
     });
   });
 
-  it('preserves inline system/developer messages in order', () => {
+  it('merges inline system/developer messages into a single leading system message', () => {
     const result = transformAnthropicMessagesToOpenAI({
       system: 'top',
       messages: [
@@ -205,7 +206,10 @@ describe('transformAnthropicMessagesToOpenAI', () => {
         { role: 'user', content: 'hi' },
       ],
     } as any);
-    expect(result.map((m) => m.content)).toEqual(['top', 'inline', 'hi']);
+    // All system content is merged into the first message.
+    expect(result[0]).toEqual({ role: 'system', content: 'top\n\ninline' });
+    expect(result[1]).toEqual({ role: 'user', content: 'hi' });
+    expect(result).toHaveLength(2);
   });
 
   it('drops cache_control fields and thinking blocks from assistant history', () => {
@@ -273,6 +277,33 @@ describe('transformAnthropicToolsToOpenAI', () => {
 
   it('returns undefined for no tools', () => {
     expect(transformAnthropicToolsToOpenAI({} as any)).toBeUndefined();
+  });
+
+  it('converts Anthropic-format {name,input_schema} tools to OpenAI function format', () => {
+    const result = transformAnthropicToolsToOpenAI({
+      tools: [
+        {
+          name: 'get_weather',
+          description: 'Get the weather',
+          input_schema: {
+            type: 'object',
+            properties: { city: { type: 'string' } },
+          },
+        },
+      ],
+    } as any);
+    expect(result).toHaveLength(1);
+    expect(result![0]).toEqual({
+      type: 'function',
+      function: {
+        name: 'get_weather',
+        description: 'Get the weather',
+        parameters: {
+          type: 'object',
+          properties: { city: { type: 'string' } },
+        },
+      },
+    });
   });
 });
 
@@ -1044,9 +1075,9 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
       input_tokens: 100,
       output_tokens: 42,
     });
-    // stop_reason is omitted on the update delta (it was already set on the
-    // previous message_delta).
-    expect(usageDelta!.data.delta.stop_reason).toBeNull();
+    // stop_reason is carried through on the final message_delta so the
+    // SDK snapshots the correct value on message_stop.
+    expect(usageDelta!.data.delta.stop_reason).toBe('end_turn');
     // message_stop is now emitted — it must come AFTER the final
     // message_delta in event order.
     const eventOrder = usageEvents.map((e) => e.event);
@@ -1140,6 +1171,31 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
     expect(eventNames[eventNames.length - 1]).toBe('message_stop');
   });
 
+  it('force-finalizes via [DONE] when stream has no stop_reason and no open block', () => {
+    const state = makeState();
+    // Simulate a stream that started (messageStartSent) but produced no
+    // finish_reason and has no open content block.
+    state.messageStartSent = true;
+    state.pendingStopReason = undefined;
+    state.currentBlock = null;
+    const r = OpenAIMessagesStreamChunkTransform(
+      'data: [DONE]',
+      'fb',
+      state,
+      false,
+      { model: 'gpt-4o' } as any
+    );
+    expect(r).toBeDefined();
+    const events = parseEvents(r!);
+    const eventNames = events.map((e) => e.event);
+    expect(eventNames).toContain('message_delta');
+    expect(eventNames).toContain('message_stop');
+    expect(eventNames[eventNames.length - 1]).toBe('message_stop');
+    // Synthesized stop_reason should be 'end_turn'
+    const delta = events.find((e) => e.event === 'message_delta');
+    expect(delta!.data.delta.stop_reason).toBe('end_turn');
+  });
+
   it('ignores [DONE] after message_stop has been emitted', () => {
     const state = makeState();
     const request = { model: 'gpt-4o' } as any;
@@ -1214,6 +1270,67 @@ describe('OpenAIMessagesStreamChunkTransform', () => {
       'message_stop',
     ]);
     expect(events[1].data.delta.stop_reason).toBe('end_turn');
+  });
+
+  it('preserves stop_reason in final message_delta when usage arrives separately', () => {
+    const state = makeState();
+    const request = { model: 'gpt-4o' } as any;
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify(streamChunk({ role: 'assistant', content: '' })),
+      'fb',
+      state,
+      false,
+      request
+    );
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' + JSON.stringify(streamChunk({ content: 'done' })),
+      'fb',
+      state,
+      false,
+      request
+    );
+    // Stop reason: 'length' -> Anthropic 'max_tokens'
+    OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify(
+          streamChunk(
+            {},
+            { choices: [{ index: 0, delta: {}, finish_reason: 'length' }] }
+          )
+        ),
+      'fb',
+      state,
+      false,
+      request
+    );
+    // Usage-only chunk finalizes
+    const usage = OpenAIMessagesStreamChunkTransform(
+      'data: ' +
+        JSON.stringify({
+          id: 'chatcmpl-stream',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: 'gpt-4o',
+          choices: [],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }),
+      'fb',
+      state,
+      false,
+      request
+    );
+    const usageEvents = parseEvents(usage!);
+    const delta = usageEvents.find((e) => e.event === 'message_delta');
+    // MUST preserve the stop_reason from the prior chunk (max_tokens)
+    expect(delta!.data.delta.stop_reason).toBe('max_tokens');
+    expect(delta!.data.usage).toMatchObject({
+      input_tokens: 10,
+      output_tokens: 5,
+    });
+    const eventNames = usageEvents.map((e) => e.event);
+    expect(eventNames).toContain('message_stop');
+    expect(eventNames[eventNames.length - 1]).toBe('message_stop');
   });
 
   it('ignores unparseable chunks', () => {
