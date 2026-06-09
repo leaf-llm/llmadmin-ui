@@ -21,7 +21,7 @@ import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react';
  */
 export function useFlipReorder<T>(
   items: T[],
-  durationMs = 180
+  durationMs = 220
 ): {
   containerRef: RefObject<HTMLDivElement | null>;
   capturePositions: () => void;

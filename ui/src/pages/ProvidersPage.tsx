@@ -315,6 +315,12 @@ export default function ProvidersPage({
 
     if (toIndex === sourceIdx) return; // already in the right place
 
+    // Snapshot the current DOM positions so the FLIP hook can animate
+    // each item from its current (post-previous-reorder) position to
+    // its new slot. capturePositions must be called BEFORE the setState
+    // commit, otherwise useLayoutEffect will measure the wrong "first"
+    // frame and the slide will look like an instant teleport.
+    captureRoutingPositions();
     const next = [...list];
     const [moved] = next.splice(sourceIdx, 1);
     next.splice(toIndex, 0, moved);
