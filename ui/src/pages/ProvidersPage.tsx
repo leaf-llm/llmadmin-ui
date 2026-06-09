@@ -340,27 +340,39 @@ export default function ProvidersPage({
     e.preventDefault();
     const sourceKey = e.dataTransfer.getData('text/plain');
     const finalOrder = optimisticRouting;
-    setDragTargetKey(null);
-    setDragSourceKey(null);
-    setOptimisticRouting(null);
-    if (!sourceKey || !finalOrder) return;
+    if (!sourceKey || !finalOrder) {
+      setOptimisticRouting(null);
+      setDragTargetKey(null);
+      setDragSourceKey(null);
+      return;
+    }
 
-    captureRoutingPositions();
+    // Persist the locally reordered array in one shot. We only call
+    // the backend when the order actually changed.
+    const orderChanged =
+      finalOrder.length !== routing.length ||
+      !finalOrder.every((e, i) => entryKey(e) === entryKey(routing[i]));
+
     try {
-      // Persist the locally reordered array in one shot. We only call
-      // the backend when the order actually changed.
-      if (
-        finalOrder.length === routing.length &&
-        finalOrder.every(
-          (e, i) => entryKey(e) === entryKey(routing[i])
-        )
-      ) {
-        return;
+      let nextRouting = routing;
+      if (orderChanged) {
+        const res = await saveRoutingOrder(activeCategory, finalOrder);
+        nextRouting = res.routing;
       }
-      await saveRoutingOrder(activeCategory, finalOrder);
-      const routingRes = await listRouting(activeCategory);
-      setRouting(routingRes.routing);
+      // Commit the new canonical order FIRST, then clear the optimistic
+      // preview. Because nextRouting has the same shape as finalOrder,
+      // the DOM never visibly jumps back to the old positions: the
+      // order stays as-is when optimistic is cleared.
+      setRouting(nextRouting);
+      setOptimisticRouting(null);
+      setDragTargetKey(null);
+      setDragSourceKey(null);
     } catch (e: any) {
+      // On error, abandon the preview so the UI returns to the
+      // committed order rather than a half-applied reordering.
+      setOptimisticRouting(null);
+      setDragTargetKey(null);
+      setDragSourceKey(null);
       setError(e?.message ?? String(e));
     }
   };
