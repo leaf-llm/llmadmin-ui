@@ -9,6 +9,7 @@ import {
   removeFromRouting,
   updateRoutingPrimary,
   moveRoutingEntry,
+  moveRoutingEntryToIndex,
   RoutingEntry,
   listProviderSummaries,
   getProviderModels,
@@ -64,6 +65,13 @@ export default function ProvidersPage({
     message: string;
     type: 'error' | 'notice';
   } | null>(null);
+
+  // Drag-and-drop reordering state
+  const [dragSourceKey, setDragSourceKey] = useState<string | null>(null);
+  const [dragTargetKey, setDragTargetKey] = useState<string | null>(null);
+  const [dragTargetPosition, setDragTargetPosition] = useState<
+    'before' | 'after'
+  >('after');
 
   const {
     containerRef: routingListRef,
@@ -252,6 +260,92 @@ export default function ProvidersPage({
       setError(e?.message ?? String(e));
     }
   };
+
+  const entryKey = (entry: RoutingEntry) =>
+    `${entry.provider}:${entry.model}:${entry.configId}`;
+
+  const handleDragStart = (e: React.DragEvent, entry: RoutingEntry) => {
+    const key = entryKey(entry);
+    e.dataTransfer.setData('text/plain', key);
+    e.dataTransfer.effectAllowed = 'move';
+    setDragSourceKey(key);
+  };
+
+  const handleDragOver = (e: React.DragEvent, entry: RoutingEntry) => {
+    const key = entryKey(entry);
+    if (key === dragSourceKey) return;
+    // Do not allow cross-group drops
+    const draggedEntry = routing.find(
+      (r) => entryKey(r) === dragSourceKey
+    );
+    if (draggedEntry && draggedEntry.isPrimary !== entry.isPrimary) {
+      e.dataTransfer.dropEffect = 'none';
+      return;
+    }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    setDragTargetKey(key);
+    setDragTargetPosition(e.clientY < midY ? 'before' : 'after');
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (
+      e.currentTarget === e.target ||
+      !e.currentTarget.contains(e.relatedTarget as Node)
+    ) {
+      setDragTargetKey(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, entry: RoutingEntry) => {
+    e.preventDefault();
+    const sourceKey = e.dataTransfer.getData('text/plain');
+    const key = entryKey(entry);
+    setDragTargetKey(null);
+    setDragSourceKey(null);
+    if (!sourceKey || sourceKey === key) return;
+
+    const sourceIdx = routing.findIndex((r) => entryKey(r) === sourceKey);
+    const targetIdx = routing.findIndex((r) => entryKey(r) === key);
+    if (sourceIdx === -1 || targetIdx === -1) return;
+
+    // Do not allow cross-group drops
+    if (routing[sourceIdx].isPrimary !== routing[targetIdx].isPrimary) return;
+
+    // Calculate the insertion index in the final array
+    // After removing source, target's index shifts by -1 if source was before target
+    const adjusted =
+      sourceIdx < targetIdx ? targetIdx - 1 : targetIdx;
+    const toIndex =
+      adjusted + (dragTargetPosition === 'after' ? 1 : 0);
+
+    captureRoutingPositions();
+    try {
+      await moveRoutingEntryToIndex(activeCategory, sourceIdx, toIndex);
+      const routingRes = await listRouting(activeCategory);
+      setRouting(routingRes.routing);
+    } catch (e: any) {
+      setError(e?.message ?? String(e));
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDragSourceKey(null);
+    setDragTargetKey(null);
+  };
+
+  const dragOverClass = (entry: RoutingEntry) => {
+    const key = entryKey(entry);
+    if (dragTargetKey !== key) return '';
+    return dragTargetPosition === 'before'
+      ? 'drag-over-before'
+      : 'drag-over-after';
+  };
+
+  const isDragging = (entry: RoutingEntry) =>
+    dragSourceKey === entryKey(entry);
 
   const toggleModelSelection = (model: string) => {
     setSelectedModels((prev) =>
@@ -475,7 +569,17 @@ export default function ProvidersPage({
                                       <div
                                         key={`${entry.provider}-${entry.model}-${entry.configId}`}
                                         data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                        className="routing-item is-primary"
+                                        className={`routing-item is-primary${isDragging(entry) ? ' dragging' : ''}${dragOverClass(entry) ? ' ' + dragOverClass(entry) : ''}`}
+                                        draggable
+                                        onDragStart={(e) =>
+                                          handleDragStart(e, entry)
+                                        }
+                                        onDragOver={(e) =>
+                                          handleDragOver(e, entry)
+                                        }
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, entry)}
+                                        onDragEnd={handleDragEnd}
                                       >
                                         <div className="routing-info">
                                           <span className="routing-provider">
@@ -547,6 +651,13 @@ export default function ProvidersPage({
                                           >
                                             ×
                                           </button>
+                                          <span
+                                            className="drag-handle"
+                                            aria-hidden="true"
+                                            title={t('common.dragToReorder') as string}
+                                          >
+                                            ≡
+                                          </span>
                                         </div>
                                       </div>
                                     );
@@ -578,7 +689,17 @@ export default function ProvidersPage({
                                       <div
                                         key={`${entry.provider}-${entry.model}-${entry.configId}`}
                                         data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                        className="routing-item"
+                                        className={`routing-item${isDragging(entry) ? ' dragging' : ''}${dragOverClass(entry) ? ' ' + dragOverClass(entry) : ''}`}
+                                        draggable
+                                        onDragStart={(e) =>
+                                          handleDragStart(e, entry)
+                                        }
+                                        onDragOver={(e) =>
+                                          handleDragOver(e, entry)
+                                        }
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, entry)}
+                                        onDragEnd={handleDragEnd}
                                       >
                                         <div className="routing-info">
                                           <span className="routing-provider">

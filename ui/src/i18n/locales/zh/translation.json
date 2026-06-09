@@ -73,6 +73,7 @@
     "setAsPrimary": "设为主模型",
     "addToRouting": "添加到路由",
     "removeFromRouting": "从路由中移除",
+    "dragToReorder": "拖动以重新排序",
     "alreadyInRouting": "（已在路由中）",
     "primaryFallback": "主模型 / 顺序访问",
     "loadBalancing": "次级模型 / 随机访问",
