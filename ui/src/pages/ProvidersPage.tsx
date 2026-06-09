@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ProviderSummary,
@@ -79,6 +79,11 @@ export default function ProvidersPage({
   const [optimisticRouting, setOptimisticRouting] = useState<
     RoutingEntry[] | null
   >(null);
+  // Guards against a race: handleDrop is async and awaits the backend.
+  // While it is suspended, the browser fires the dragend event, which
+  // would clear optimisticRouting and cause displayRouting to snap
+  // back to the old committed order for one render frame.
+  const droppingRef = useRef(false);
 
   const displayRouting = useMemo(
     () => optimisticRouting ?? routing,
@@ -341,12 +346,14 @@ export default function ProvidersPage({
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
+    droppingRef.current = true;
     const sourceKey = e.dataTransfer.getData('text/plain');
     const finalOrder = optimisticRouting;
     if (!sourceKey || !finalOrder) {
       setOptimisticRouting(null);
       setDragTargetKey(null);
       setDragSourceKey(null);
+      droppingRef.current = false;
       return;
     }
 
@@ -362,35 +369,30 @@ export default function ProvidersPage({
         const res = await saveRoutingOrder(activeCategory, finalOrder);
         nextRouting = res.routing;
       }
-      // Sync the FLIP cache to the current DOM positions BEFORE the
-      // setState commit. Without this, the next useLayoutEffect pass
-      // would compare the new DOM positions against stale positions
-      // captured during the drag, snap every item back to those stale
-      // positions, and then transition them forward again — a visible
-      // "return to original order" on drop.
       captureRoutingPositions();
-      // Commit the new canonical order FIRST, then clear the optimistic
-      // preview. Because nextRouting has the same shape as finalOrder,
-      // the DOM never visibly jumps back to the old positions.
       setRouting(nextRouting);
       setOptimisticRouting(null);
       setDragTargetKey(null);
       setDragSourceKey(null);
     } catch (e: any) {
-      // On error, abandon the preview so the UI returns to the
-      // committed order rather than a half-applied reordering.
       setOptimisticRouting(null);
       setDragTargetKey(null);
       setDragSourceKey(null);
       setError(e?.message ?? String(e));
+    } finally {
+      droppingRef.current = false;
     }
   };
 
   const handleDragEnd = () => {
+    // handleDrop is async; dragend fires while it awaits the backend.
+    // If we clear optimisticRouting now, displayRouting falls back to
+    // the old (committed) order for one frame and the UI snaps back.
+    // The drop handler will clear everything once it finishes.
+    if (droppingRef.current) return;
     // The user cancelled the drag (e.g. released outside any drop
     // target). Roll the optimistic preview back to the committed
-    // order. We snapshot positions first so the FLIP hook can animate
-    // the items back to their real slots instead of snapping.
+    // order with a FLIP animation.
     captureRoutingPositions();
     setDragSourceKey(null);
     setDragTargetKey(null);
