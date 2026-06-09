@@ -354,13 +354,50 @@ export default function ProvidersPage({
     e.preventDefault();
     droppingRef.current = true;
     const sourceKey = e.dataTransfer.getData('text/plain');
-    const finalOrder = optimisticRouting;
-    if (!sourceKey || !finalOrder) {
+    if (!sourceKey) {
       setOptimisticRouting(null);
       setDragTargetKey(null);
       setDragSourceKey(null);
       droppingRef.current = false;
       return;
+    }
+
+    // Recompute the final order from the actual cursor position at
+    // drop time.  We cannot rely on optimisticRouting alone: after
+    // the live reorder slides the source item under the cursor, every
+    // subsequent dragOver hits the source element, returns early, and
+    // stops updating the optimistic array.  Using
+    // elementFromPoint(clientX,clientY) gives us the real target
+    // element regardless of what dragOver saw last.
+    const base = optimisticRouting ?? routing;
+    const dropEl = document.elementFromPoint(e.clientX, e.clientY);
+    const targetEl = dropEl?.closest<HTMLElement>('[data-flip-id]') ?? null;
+    const targetKey = targetEl?.dataset.flipId ?? null;
+
+    let finalOrder = base;
+    if (targetKey && targetKey !== sourceKey) {
+      const sourceIdx = base.findIndex((r) => entryKey(r) === sourceKey);
+      const targetIdx = base.findIndex((r) => entryKey(r) === targetKey);
+      if (
+        sourceIdx !== -1 &&
+        targetIdx !== -1 &&
+        base[sourceIdx].isPrimary === base[targetIdx].isPrimary
+      ) {
+        const rect = targetEl!.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const position: 'before' | 'after' =
+          e.clientY < midY ? 'before' : 'after';
+        const adjusted =
+          sourceIdx < targetIdx ? targetIdx - 1 : targetIdx;
+        const toIndex =
+          adjusted + (position === 'after' ? 1 : 0);
+        if (toIndex !== sourceIdx) {
+          const next = [...base];
+          const [moved] = next.splice(sourceIdx, 1);
+          next.splice(toIndex, 0, moved);
+          finalOrder = next;
+        }
+      }
     }
 
     // Persist the locally reordered array in one shot. We only call
