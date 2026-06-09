@@ -705,6 +705,33 @@ export async function moveRoutingEntryToIndex(
   return { routing: [...routing] };
 }
 
+export async function saveRoutingOrder(
+  category: ModelCategory,
+  order: RoutingEntry[]
+): Promise<{ routing: RoutingEntry[] }> {
+  const config = await loadUiConfig();
+  if (!config[category]) {
+    config[category] = createEmptyCategoryConfig();
+  }
+  // Preserve any existing entries that aren't part of the dragged subset
+  // (defensive: drag-and-drop should not introduce or drop entries).
+  const dragged = new Set(order.map(entryKey));
+  const merged = [
+    ...order,
+    ...(config[category].routing ?? []).filter(
+      (r) => !dragged.has(entryKey(r))
+    ),
+  ];
+  config[category].routing = merged;
+  await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
+  return { routing: [...merged] };
+}
+
+function entryKey(r: RoutingEntry): string {
+  return `${r.provider}:${r.model}:${r.configId}`;
+}
+
 export async function listRouting(category: ModelCategory): Promise<{
   routing: RoutingEntry[];
 }> {

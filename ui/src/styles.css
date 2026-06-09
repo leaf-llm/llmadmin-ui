@@ -682,20 +682,6 @@ button.secondary.small {
   border-style: dashed;
 }
 
-.drop-indicator {
-  height: 3px;
-  margin: -4px 0;
-  background: #2563eb;
-  border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
-  animation: drop-indicator-pulse 1s ease-in-out infinite;
-}
-
-@keyframes drop-indicator-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
-}
-
 .routing-item.is-primary {
   background: rgba(37, 99, 235, 0.04);
   border-color: rgba(37, 99, 235, 0.15);

@@ -10,6 +10,7 @@ import {
   updateRoutingPrimary,
   moveRoutingEntry,
   moveRoutingEntryToIndex,
+  saveRoutingOrder,
   RoutingEntry,
   listProviderSummaries,
   getProviderModels,
@@ -72,11 +73,19 @@ export default function ProvidersPage({
   const [dragTargetPosition, setDragTargetPosition] = useState<
     'before' | 'after'
   >('after');
+  // Local-only reorder preview. Set on dragOver to make the target
+  // items visibly "make way" for the dragged entry. Committed to the
+  // backend in handleDrop; cleared in handleDragEnd if no drop.
+  const [optimisticRouting, setOptimisticRouting] = useState<
+    RoutingEntry[] | null
+  >(null);
+
+  const displayRouting = optimisticRouting ?? routing;
 
   const {
     containerRef: routingListRef,
     capturePositions: captureRoutingPositions,
-  } = useFlipReorder(routing);
+  } = useFlipReorder(displayRouting);
 
   useEffect(() => {
     let cancelled = false;
@@ -275,7 +284,7 @@ export default function ProvidersPage({
     const key = entryKey(entry);
     if (key === dragSourceKey) return;
     // Do not allow cross-group drops
-    const draggedEntry = routing.find(
+    const draggedEntry = (optimisticRouting ?? routing).find(
       (r) => entryKey(r) === dragSourceKey
     );
     if (draggedEntry && draggedEntry.isPrimary !== entry.isPrimary) {
@@ -286,8 +295,30 @@ export default function ProvidersPage({
     e.dataTransfer.dropEffect = 'move';
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
+    const position: 'before' | 'after' =
+      e.clientY < midY ? 'before' : 'after';
     setDragTargetKey(key);
-    setDragTargetPosition(e.clientY < midY ? 'before' : 'after');
+    setDragTargetPosition(position);
+
+    // Live-reorder the local list so other items visibly slide out of
+    // the way. We only do this if the position has actually changed
+    // since the last dragOver to avoid useless re-renders.
+    const list = optimisticRouting ?? routing;
+    const sourceIdx = list.findIndex((r) => entryKey(r) === dragSourceKey);
+    if (sourceIdx === -1) return;
+    const targetIdx = list.findIndex((r) => entryKey(r) === key);
+    if (targetIdx === -1) return;
+
+    // Compute the index the source should occupy after removal
+    const adjusted = sourceIdx < targetIdx ? targetIdx - 1 : targetIdx;
+    const toIndex = adjusted + (position === 'after' ? 1 : 0);
+
+    if (toIndex === sourceIdx) return; // already in the right place
+
+    const next = [...list];
+    const [moved] = next.splice(sourceIdx, 1);
+    next.splice(toIndex, 0, moved);
+    setOptimisticRouting(next);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -299,31 +330,28 @@ export default function ProvidersPage({
     }
   };
 
-  const handleDrop = async (e: React.DragEvent, entry: RoutingEntry) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     const sourceKey = e.dataTransfer.getData('text/plain');
-    const key = entryKey(entry);
+    const finalOrder = optimisticRouting;
     setDragTargetKey(null);
     setDragSourceKey(null);
-    if (!sourceKey || sourceKey === key) return;
-
-    const sourceIdx = routing.findIndex((r) => entryKey(r) === sourceKey);
-    const targetIdx = routing.findIndex((r) => entryKey(r) === key);
-    if (sourceIdx === -1 || targetIdx === -1) return;
-
-    // Do not allow cross-group drops
-    if (routing[sourceIdx].isPrimary !== routing[targetIdx].isPrimary) return;
-
-    // Calculate the insertion index in the final array
-    // After removing source, target's index shifts by -1 if source was before target
-    const adjusted =
-      sourceIdx < targetIdx ? targetIdx - 1 : targetIdx;
-    const toIndex =
-      adjusted + (dragTargetPosition === 'after' ? 1 : 0);
+    setOptimisticRouting(null);
+    if (!sourceKey || !finalOrder) return;
 
     captureRoutingPositions();
     try {
-      await moveRoutingEntryToIndex(activeCategory, sourceIdx, toIndex);
+      // Persist the locally reordered array in one shot. We only call
+      // the backend when the order actually changed.
+      if (
+        finalOrder.length === routing.length &&
+        finalOrder.every(
+          (e, i) => entryKey(e) === entryKey(routing[i])
+        )
+      ) {
+        return;
+      }
+      await saveRoutingOrder(activeCategory, finalOrder);
       const routingRes = await listRouting(activeCategory);
       setRouting(routingRes.routing);
     } catch (e: any) {
@@ -334,6 +362,7 @@ export default function ProvidersPage({
   const handleDragEnd = () => {
     setDragSourceKey(null);
     setDragTargetKey(null);
+    setOptimisticRouting(null);
   };
 
   const isDragging = (entry: RoutingEntry) =>
@@ -509,7 +538,7 @@ export default function ProvidersPage({
               (p) => p.status === 'connected'
             );
             const routedProviderModels = new Map<string, string[]>();
-            for (const entry of routing) {
+            for (const entry of displayRouting) {
               const key = `${entry.provider}:${entry.configId}`;
               const existing = routedProviderModels.get(key) ?? [];
               existing.push(entry.model);
@@ -519,7 +548,7 @@ export default function ProvidersPage({
               <>
                 <div className="routing-section">
                   <h2 className="section-title">{t('common.modelRouting')}</h2>
-                  {routing.length === 0 ? (
+                  {displayRouting.length === 0 ? (
                     activeProviders.length > 0 ? (
                       <div className="notice-warning">
                         {t('common.noRoutingModels')}
@@ -532,10 +561,12 @@ export default function ProvidersPage({
                   ) : (
                     <div className="routing-groups" ref={routingListRef}>
                       {(() => {
-                        const primaryEntries = routing.filter(
+                        const primaryEntries = displayRouting.filter(
                           (e) => e.isPrimary
                         );
-                        const lbEntries = routing.filter((e) => !e.isPrimary);
+                        const lbEntries = displayRouting.filter(
+                          (e) => !e.isPrimary
+                        );
                         return (
                           <>
                             {primaryEntries.length > 0 && (
@@ -557,34 +588,22 @@ export default function ProvidersPage({
                                     const isFirst = idx === 0;
                                     const isLast =
                                       idx === primaryEntries.length - 1;
-                                    const showBeforeIndicator =
-                                      dragTargetKey === entryKey(entry) &&
-                                      dragTargetPosition === 'before';
-                                    const showAfterIndicator =
-                                      isLast &&
-                                      dragTargetKey === entryKey(entry) &&
-                                      dragTargetPosition === 'after';
                                     return (
-                                      <React.Fragment
+                                      <div
                                         key={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                        data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                        className={`routing-item is-primary${isDragging(entry) ? ' dragging' : ''}`}
+                                        draggable
+                                        onDragStart={(e) =>
+                                          handleDragStart(e, entry)
+                                        }
+                                        onDragOver={(e) =>
+                                          handleDragOver(e, entry)
+                                        }
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                        onDragEnd={handleDragEnd}
                                       >
-                                        {showBeforeIndicator && (
-                                          <div className="drop-indicator" />
-                                        )}
-                                        <div
-                                          data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                          className={`routing-item is-primary${isDragging(entry) ? ' dragging' : ''}`}
-                                          draggable
-                                          onDragStart={(e) =>
-                                            handleDragStart(e, entry)
-                                          }
-                                          onDragOver={(e) =>
-                                            handleDragOver(e, entry)
-                                          }
-                                          onDragLeave={handleDragLeave}
-                                          onDrop={(e) => handleDrop(e, entry)}
-                                          onDragEnd={handleDragEnd}
-                                        >
                                         <div className="routing-info">
                                           <span className="routing-provider">
                                             {getProviderDisplayName(
@@ -664,10 +683,6 @@ export default function ProvidersPage({
                                           </span>
                                         </div>
                                       </div>
-                                        {showAfterIndicator && (
-                                          <div className="drop-indicator" />
-                                        )}
-                                      </React.Fragment>
                                     );
                                   })}
                                 </div>
@@ -693,29 +708,17 @@ export default function ProvidersPage({
                                     const info = configInfo.get(entry.configId);
                                     const isFirst = idx === 0;
                                     const isLast = idx === lbEntries.length - 1;
-                                    const showBeforeIndicator =
-                                      dragTargetKey === entryKey(entry) &&
-                                      dragTargetPosition === 'before';
-                                    const showAfterIndicator =
-                                      isLast &&
-                                      dragTargetKey === entryKey(entry) &&
-                                      dragTargetPosition === 'after';
                                     return (
-                                      <React.Fragment
+                                      <div
                                         key={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                        data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
+                                        className={`routing-item${isDragging(entry) ? ' dragging' : ''}`}
+                                        onDragOver={(e) =>
+                                          handleDragOver(e, entry)
+                                        }
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
                                       >
-                                        {showBeforeIndicator && (
-                                          <div className="drop-indicator" />
-                                        )}
-                                        <div
-                                          data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                          className={`routing-item${isDragging(entry) ? ' dragging' : ''}`}
-                                          onDragOver={(e) =>
-                                            handleDragOver(e, entry)
-                                          }
-                                          onDragLeave={handleDragLeave}
-                                          onDrop={(e) => handleDrop(e, entry)}
-                                        >
                                         <div className="routing-info">
                                           <span className="routing-provider">
                                             {getProviderDisplayName(
@@ -766,10 +769,6 @@ export default function ProvidersPage({
                                           </button>
                                         </div>
                                       </div>
-                                        {showAfterIndicator && (
-                                          <div className="drop-indicator" />
-                                        )}
-                                      </React.Fragment>
                                     );
                                   })}
                                 </div>
