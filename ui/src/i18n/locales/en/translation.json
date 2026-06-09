@@ -73,6 +73,7 @@
     "setAsPrimary": "Set as Primary",
     "addToRouting": "Add to Routing",
     "removeFromRouting": "Remove from routing",
+    "dragToReorder": "Drag to reorder",
     "alreadyInRouting": "(already in routing)",
     "primaryFallback": "Primary / Sequential",
     "loadBalancing": "Secondary / Random",

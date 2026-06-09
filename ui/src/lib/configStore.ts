@@ -678,6 +678,33 @@ export async function moveRoutingEntry(
   return { routing: [...routing] };
 }
 
+export async function moveRoutingEntryToIndex(
+  category: ModelCategory,
+  fromIndex: number,
+  toIndex: number
+): Promise<{ routing: RoutingEntry[] }> {
+  const config = await loadUiConfig();
+  const routing = config[category].routing;
+
+  if (
+    !routing ||
+    fromIndex < 0 ||
+    fromIndex >= routing.length ||
+    toIndex < 0 ||
+    toIndex >= routing.length ||
+    fromIndex === toIndex
+  ) {
+    return { routing: routing ?? [] };
+  }
+
+  const [entry] = routing.splice(fromIndex, 1);
+  routing.splice(toIndex, 0, entry);
+
+  await saveUiConfig(config);
+  await syncUserConfigFromRouting(category);
+  return { routing: [...routing] };
+}
+
 export async function listRouting(category: ModelCategory): Promise<{
   routing: RoutingEntry[];
 }> {
