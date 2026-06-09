@@ -293,37 +293,64 @@ export const transformAnthropicMessagesToOpenAI = (
   params: Params
 ): OpenAIChatMessage[] => {
   const out: OpenAIChatMessage[] = [];
+  const systemParts: string[] = [];
 
-  // 1. Top-level system (string or TextBlock[]) -> a single system message at the head.
+  // 1. Top-level system (string or TextBlock[]).
   if (params.system != null) {
     if (typeof params.system === 'string') {
-      if (params.system.length > 0)
-        out.push({ role: 'system', content: params.system });
+      if (params.system.length > 0) systemParts.push(params.system);
     } else if (Array.isArray(params.system)) {
       const joined = params.system
         .filter((b: any) => b && b.type === 'text' && b.text != null)
         .map((b: any) => b.text)
         .join('\n');
-      if (joined.length > 0) out.push({ role: 'system', content: joined });
+      if (joined.length > 0) systemParts.push(joined);
     }
   }
 
-  // 2. Walk messages in order, extracting tool_result blocks into separate tool messages.
+  // 2. Collect all system/developer messages from the messages array.
+  //    OpenAI only supports `role: "system"` at the START of the
+  //    conversation. Inserting one between an assistant's `tool_calls`
+  //    and the following tool messages is invalid (OpenAI requires tool
+  //    messages to immediately follow the assistant turn). Merge them
+  //    into a single leading system message instead.
   for (const msg of params.messages ?? []) {
     if (!msg || typeof msg !== 'object') continue;
     if (msg.role === 'system' || msg.role === 'developer') {
       if (typeof msg.content === 'string' && msg.content.length > 0) {
-        out.push({ role: 'system', content: msg.content });
+        systemParts.push(msg.content);
       } else if (Array.isArray(msg.content)) {
         const joined = msg.content
           .filter((b: any) => b && b.type === 'text' && b.text != null)
           .map((b: any) => b.text)
           .join('\n');
-        if (joined.length > 0) out.push({ role: 'system', content: joined });
+        if (joined.length > 0) systemParts.push(joined);
       }
+    }
+  }
+
+  if (systemParts.length > 0) {
+    out.push({ role: 'system', content: systemParts.join('\n\n') });
+  }
+
+  // 3. Walk non-system messages in order, extracting tool_result blocks
+  //    into separate tool messages.
+  for (const msg of params.messages ?? []) {
+    if (!msg || typeof msg !== 'object') continue;
+    if (msg.role === 'system' || msg.role === 'developer') {
+      // Already collected into the leading system message above.
+      continue;
     } else if (msg.role === 'user') {
-      out.push(transformUserMessage(msg));
+      // Tool messages must immediately follow the assistant's tool_calls
+      // per OpenAI spec — emit them BEFORE the user message.
       for (const tr of extractToolResultBlocks(msg)) out.push(tr);
+      const userMsg = transformUserMessage(msg);
+      // Skip empty user messages that only contained tool_results.
+      const hasContent =
+        typeof userMsg.content === 'string'
+          ? userMsg.content.length > 0
+          : Array.isArray(userMsg.content) && userMsg.content.length > 0;
+      if (hasContent) out.push(userMsg);
     } else if (msg.role === 'assistant') {
       out.push(transformAssistantMessage(msg));
     } else if (msg.role === 'tool') {
@@ -355,6 +382,7 @@ export const transformAnthropicToolsToOpenAI = (
   for (const tool of params.tools) {
     if (!tool || typeof tool !== 'object') continue;
     if (tool.type === 'function' && tool.function) {
+      // Already OpenAI-shaped: pass through.
       out.push({
         type: 'function',
         function: {
@@ -364,9 +392,19 @@ export const transformAnthropicToolsToOpenAI = (
           strict: tool.function.strict,
         },
       });
+    } else if (tool.name && (tool as any).input_schema) {
+      // Anthropic-shaped: {name, description?, input_schema} -> OpenAI function.
+      out.push({
+        type: 'function',
+        function: {
+          name: tool.name,
+          description: (tool as any).description,
+          parameters: (tool as any).input_schema,
+        },
+      });
     }
-    // Non-function tools (web_search, code_execution, mcp_toolset, etc.) have no
-    // OpenAI equivalent in chat/completions - skip them.
+    // Non-function tools (web_search, code_execution, mcp_toolset, etc.)
+    // have no OpenAI equivalent in chat/completions — skip them.
   }
   return out.length > 0 ? out : undefined;
 };
@@ -762,7 +800,7 @@ const emitMessageStopEvents = (
   //     stop_reason and current (likely zero) usage. Do NOT emit
   //     message_stop.
   //   - usage chunk (after stop reason) -> emit message_delta with
-  //     updated usage (stop_reason null) AND message_stop.
+  //     updated usage AND message_stop.
   //   - [DONE] with no usage chunk yet -> force-finalize and emit
   //     message_stop with whatever usage we have.
 
@@ -826,18 +864,13 @@ const emitMessageStopEvents = (
   // Close any open content block first.
   out += closeBlock(state);
 
-  // Emit message_delta with the REAL usage (this is the last message_delta
-  // the SDK will see before message_stop snapshots the message).
+  // Emit message_delta with the REAL usage and stop_reason (this is the
+  // last message_delta the SDK will see before message_stop snapshots
+  // the message).
   const deltaEvt = JSON.parse(ANTHROPIC_MESSAGE_DELTA_EVENT);
-  // On force-finalize-without-usage, keep the stop_reason. On the
-  // normal usage-chunk path, this is an update so stop_reason is null.
-  if (hasUsage && !forceFinalize) {
-    deltaEvt.delta.stop_reason = null;
-  } else {
-    deltaEvt.delta.stop_reason = transformOpenAIFinishReasonToAnthropic(
-      state.pendingStopReason
-    );
-  }
+  deltaEvt.delta.stop_reason = transformOpenAIFinishReasonToAnthropic(
+    state.pendingStopReason
+  );
   if (state.inputTokens != null)
     deltaEvt.usage.input_tokens = state.inputTokens;
   if (state.outputTokens != null)
@@ -892,14 +925,10 @@ export const OpenAIMessagesStreamChunkTransform = (
       out += emitMessageStopEvents(streamState, emptyChunk, true);
       return out;
     }
-    // Otherwise: if we saw a finish_reason but never got the usage chunk
-    // (e.g., upstream omitted usage or the connection was cut before it
-    // landed), force-finalize so the SDK receives message_stop and
-    // doesn't hang waiting for the stream to end.
-    if (
-      !streamState.messageStopEmitted &&
-      (streamState.pendingStopReason || streamState.currentBlock)
-    ) {
+    // Otherwise: force-finalize if we haven't emitted message_stop yet
+    // (e.g., the stream ended without a finish_reason or usage chunk).
+    // The SDK will hang if it never receives message_stop.
+    if (!streamState.messageStopEmitted) {
       const emptyUsage: OpenAIStreamChunk = {
         id: fallbackId,
         object: 'chat.completion.chunk',
@@ -1020,7 +1049,7 @@ export const OpenAIMessagesStreamChunkTransform = (
 
   // 4. Termination: finish_reason set on the last choice, or usage-only chunk.
   const isTerminatingChunk =
-    chunk.choices?.length === 0 ||
+    (chunk.choices?.length === 0 && chunk.usage != null) ||
     (chunk.choices?.[0]?.finish_reason != null &&
       chunk.choices?.[0]?.finish_reason !== '');
   if (isTerminatingChunk) {
