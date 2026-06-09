@@ -289,6 +289,13 @@ export default function ProvidersPage({
   };
 
   const handleDragOver = (e: React.DragEvent, entry: RoutingEntry) => {
+    // Must call preventDefault() unconditionally — without it the
+    // browser refuses to fire the drop event. This is especially
+    // important after the optimistic reorder moves the source item
+    // under the cursor, because the next dragOver then hits the
+    // source item itself, and that early-return below would skip the
+    // preventDefault, silently killing any future drop.
+    e.preventDefault();
     const key = entryKey(entry);
     if (key === dragSourceKey) return;
     // Do not allow cross-group drops
@@ -299,7 +306,6 @@ export default function ProvidersPage({
       e.dataTransfer.dropEffect = 'none';
       return;
     }
-    e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
