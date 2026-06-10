@@ -25,14 +25,21 @@ export function useFlipReorder<T>(
 ): {
   containerRef: RefObject<HTMLDivElement | null>;
   capturePositions: () => void;
+  skipNextFlip: () => void;
 } {
   const containerRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<Map<string, number>>(new Map());
   const prevItemsRef = useRef<T[]>(items);
+  const skipRef = useRef(false);
 
   useLayoutEffect(() => {
     if (prevItemsRef.current === items) return;
     prevItemsRef.current = items;
+
+    if (skipRef.current) {
+      skipRef.current = false;
+      return;
+    }
 
     const container = containerRef.current;
     if (!container) return;
@@ -70,5 +77,9 @@ export function useFlipReorder<T>(
     positionsRef.current = map;
   }, []);
 
-  return { containerRef, capturePositions };
+  const skipNextFlip = useCallback(() => {
+    skipRef.current = true;
+  }, []);
+
+  return { containerRef, capturePositions, skipNextFlip };
 }
