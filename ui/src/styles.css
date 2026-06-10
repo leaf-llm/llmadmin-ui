@@ -628,9 +628,9 @@ button.secondary.small {
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 6px;
   position: relative;
-  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
   cursor: grab;
+  touch-action: none;
 }
 
 .routing-item:active {
@@ -659,6 +659,7 @@ button.secondary.small {
   overflow: hidden;
   transition: width 0.15s ease, opacity 0.15s ease, color 0.15s ease, margin-left 0.15s ease;
   margin-left: 0;
+  pointer-events: none;
 }
 
 .routing-item:hover .drag-handle {
@@ -671,25 +672,23 @@ button.secondary.small {
   color: rgba(37, 99, 235, 0.85);
 }
 
+.drag-handle--hidden {
+  opacity: 0 !important;
+  width: 0 !important;
+  margin-left: 0 !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .routing-item {
     transition: none;
   }
 }
 
-.routing-item.dragging {
-  opacity: 0.4;
-  border-style: dashed;
-}
-
-.routing-item.drag-over-before {
-  border-top: 2px solid #2563eb;
-  border-radius: 6px;
-}
-
-.routing-item.drag-over-after {
-  border-bottom: 2px solid #2563eb;
-  border-radius: 6px;
+/* dnd-kit active drag state */
+.routing-item.is-dragging {
+  opacity: 0.3;
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .routing-item.is-primary {

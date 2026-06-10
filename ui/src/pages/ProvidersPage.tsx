@@ -1,6 +1,21 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import SortableRoutingItem from '../components/SortableRoutingItem';
+import {
   ProviderSummary,
   ProviderUpdateRequest,
   upsertProvider,
@@ -66,17 +81,20 @@ export default function ProvidersPage({
     type: 'error' | 'notice';
   } | null>(null);
 
-  // Drag-and-drop reordering state
-  const [dragSourceKey, setDragSourceKey] = useState<string | null>(null);
-  const [dragTargetKey, setDragTargetKey] = useState<string | null>(null);
-  const [dragTargetPosition, setDragTargetPosition] = useState<
-    'before' | 'after'
-  >('after');
-
   const {
     containerRef: routingListRef,
     capturePositions: captureRoutingPositions,
+    skipNextFlip,
   } = useFlipReorder(routing);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -264,88 +282,35 @@ export default function ProvidersPage({
   const entryKey = (entry: RoutingEntry) =>
     `${entry.provider}:${entry.model}:${entry.configId}`;
 
-  const handleDragStart = (e: React.DragEvent, entry: RoutingEntry) => {
-    const key = entryKey(entry);
-    e.dataTransfer.setData('text/plain', key);
-    e.dataTransfer.effectAllowed = 'move';
-    setDragSourceKey(key);
-  };
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-  const handleDragOver = (e: React.DragEvent, entry: RoutingEntry) => {
-    const key = entryKey(entry);
-    if (key === dragSourceKey) return;
-    // Do not allow cross-group drops
-    const draggedEntry = routing.find(
-      (r) => entryKey(r) === dragSourceKey
-    );
-    if (draggedEntry && draggedEntry.isPrimary !== entry.isPrimary) {
-      e.dataTransfer.dropEffect = 'none';
-      return;
-    }
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-    setDragTargetKey(key);
-    setDragTargetPosition(e.clientY < midY ? 'before' : 'after');
-  };
+    const fromIndex = routing.findIndex((r) => entryKey(r) === active.id);
+    const toIndex = routing.findIndex((r) => entryKey(r) === over.id);
+    if (fromIndex === -1 || toIndex === -1) return;
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    if (
-      e.currentTarget === e.target ||
-      !e.currentTarget.contains(e.relatedTarget as Node)
-    ) {
-      setDragTargetKey(null);
-    }
-  };
-
-  const handleDrop = async (e: React.DragEvent, entry: RoutingEntry) => {
-    e.preventDefault();
-    const sourceKey = e.dataTransfer.getData('text/plain');
-    const key = entryKey(entry);
-    setDragTargetKey(null);
-    setDragSourceKey(null);
-    if (!sourceKey || sourceKey === key) return;
-
-    const sourceIdx = routing.findIndex((r) => entryKey(r) === sourceKey);
-    const targetIdx = routing.findIndex((r) => entryKey(r) === key);
-    if (sourceIdx === -1 || targetIdx === -1) return;
-
-    // Do not allow cross-group drops
-    if (routing[sourceIdx].isPrimary !== routing[targetIdx].isPrimary) return;
-
-    // Calculate the insertion index in the final array
-    // After removing source, target's index shifts by -1 if source was before target
-    const adjusted =
-      sourceIdx < targetIdx ? targetIdx - 1 : targetIdx;
-    const toIndex =
-      adjusted + (dragTargetPosition === 'after' ? 1 : 0);
-
+    // Capture current DOM positions after dnd-kit cleaned up transforms
     captureRoutingPositions();
+
+    // Optimistically reorder locally so FLIP animates the DOM reorder
+    const newRouting = [...routing];
+    const [moved] = newRouting.splice(fromIndex, 1);
+    newRouting.splice(toIndex, 0, moved);
+    setRouting(newRouting);
+
+    // Sync with server in the background
     try {
-      await moveRoutingEntryToIndex(activeCategory, sourceIdx, toIndex);
+      await moveRoutingEntryToIndex(activeCategory, fromIndex, toIndex);
       const routingRes = await listRouting(activeCategory);
+      skipNextFlip();
       setRouting(routingRes.routing);
     } catch (e: any) {
       setError(e?.message ?? String(e));
+      const routingRes = await listRouting(activeCategory);
+      setRouting(routingRes.routing);
     }
   };
-
-  const handleDragEnd = () => {
-    setDragSourceKey(null);
-    setDragTargetKey(null);
-  };
-
-  const dragOverClass = (entry: RoutingEntry) => {
-    const key = entryKey(entry);
-    if (dragTargetKey !== key) return '';
-    return dragTargetPosition === 'before'
-      ? 'drag-over-before'
-      : 'drag-over-after';
-  };
-
-  const isDragging = (entry: RoutingEntry) =>
-    dragSourceKey === entryKey(entry);
 
   const toggleModelSelection = (model: string) => {
     setSelectedModels((prev) =>
@@ -559,110 +524,35 @@ export default function ProvidersPage({
                                     </span>
                                   )}
                                 </div>
-                                <div className="routing-list">
-                                  {primaryEntries.map((entry, idx) => {
-                                    const info = configInfo.get(entry.configId);
-                                    const isFirst = idx === 0;
-                                    const isLast =
-                                      idx === primaryEntries.length - 1;
-                                    return (
-                                      <div
-                                        key={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                        data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                        className={`routing-item is-primary${isDragging(entry) ? ' dragging' : ''}${dragOverClass(entry) ? ' ' + dragOverClass(entry) : ''}`}
-                                        draggable
-                                        onDragStart={(e) =>
-                                          handleDragStart(e, entry)
-                                        }
-                                        onDragOver={(e) =>
-                                          handleDragOver(e, entry)
-                                        }
-                                        onDragLeave={handleDragLeave}
-                                        onDrop={(e) => handleDrop(e, entry)}
-                                        onDragEnd={handleDragEnd}
-                                      >
-                                        <div className="routing-info">
-                                          <span className="routing-provider">
-                                            {getProviderDisplayName(
-                                              entry.provider,
-                                              t
-                                            )}
-                                          </span>
-                                          <span className="routing-separator">
-                                            /
-                                          </span>
-                                          <span className="routing-model">
-                                            {entry.model}
-                                          </span>
-                                          {info?.remark && (
-                                            <span className="routing-config-info">
-                                              ({info.remark})
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="routing-actions">
-                                          <span className="move-buttons">
-                                            <button
-                                              className="move-btn"
-                                              onClick={() =>
-                                                handleMove(entry, 'up')
-                                              }
-                                              disabled={isFirst}
-                                              title="Move up"
-                                            >
-                                              ↑
-                                            </button>
-                                            <button
-                                              className="move-btn"
-                                              onClick={() =>
-                                                handleMove(entry, 'down')
-                                              }
-                                              disabled={isLast}
-                                              title="Move down"
-                                            >
-                                              ↓
-                                            </button>
-                                          </span>
-                                          <button
-                                            className="secondary small"
-                                            onClick={() =>
-                                              handleTogglePrimary(
-                                                entry.provider,
-                                                entry.model,
-                                                entry.configId,
-                                                true
-                                              )
-                                            }
-                                          >
-                                            {t('common.removePrimary')}
-                                          </button>
-                                          <button
-                                            className="routing-delete"
-                                            onClick={() =>
-                                              handleRemoveFromRouting(
-                                                entry.provider,
-                                                entry.model,
-                                                entry.configId
-                                              )
-                                            }
-                                            title={t(
-                                              'common.removeFromRouting'
-                                            )}
-                                          >
-                                            ×
-                                          </button>
-                                          <span
-                                            className="drag-handle"
-                                            aria-hidden="true"
-                                            title={t('common.dragToReorder') as string}
-                                          >
-                                            ≡
-                                          </span>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                <DndContext
+                                  sensors={sensors}
+                                  collisionDetection={closestCenter}
+                                  onDragEnd={handleDragEnd}
+                                >
+                                  <SortableContext
+                                    items={primaryEntries.map((e) =>
+                                      entryKey(e)
+                                    )}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    <div className="routing-list">
+                                      {primaryEntries.map((entry, idx) => (
+                                        <SortableRoutingItem
+                                          key={entryKey(entry)}
+                                          entry={entry}
+                                          index={idx}
+                                          totalInGroup={primaryEntries.length}
+                                          isPrimary={true}
+                                          configInfo={configInfo}
+                                          onMove={handleMove}
+                                          onTogglePrimary={handleTogglePrimary}
+                                          onRemove={handleRemoveFromRouting}
+                                          t={t}
+                                        />
+                                      ))}
+                                    </div>
+                                  </SortableContext>
+                                </DndContext>
                               </div>
                             )}
                             {lbEntries.length > 0 && (
@@ -680,80 +570,33 @@ export default function ProvidersPage({
                                     </span>
                                   )}
                                 </div>
-                                <div className="routing-list">
-                                  {lbEntries.map((entry, idx) => {
-                                    const info = configInfo.get(entry.configId);
-                                    const isFirst = idx === 0;
-                                    const isLast = idx === lbEntries.length - 1;
-                                    return (
-                                      <div
-                                        key={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                        data-flip-id={`${entry.provider}-${entry.model}-${entry.configId}`}
-                                        className={`routing-item${isDragging(entry) ? ' dragging' : ''}${dragOverClass(entry) ? ' ' + dragOverClass(entry) : ''}`}
-                                        draggable
-                                        onDragStart={(e) =>
-                                          handleDragStart(e, entry)
-                                        }
-                                        onDragOver={(e) =>
-                                          handleDragOver(e, entry)
-                                        }
-                                        onDragLeave={handleDragLeave}
-                                        onDrop={(e) => handleDrop(e, entry)}
-                                        onDragEnd={handleDragEnd}
-                                      >
-                                        <div className="routing-info">
-                                          <span className="routing-provider">
-                                            {getProviderDisplayName(
-                                              entry.provider,
-                                              t
-                                            )}
-                                          </span>
-                                          <span className="routing-separator">
-                                            /
-                                          </span>
-                                          <span className="routing-model">
-                                            {entry.model}
-                                          </span>
-                                          {info?.remark && (
-                                            <span className="routing-config-info">
-                                              ({info.remark})
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="routing-actions">
-                                          <button
-                                            className="secondary small"
-                                            onClick={() =>
-                                              handleTogglePrimary(
-                                                entry.provider,
-                                                entry.model,
-                                                entry.configId,
-                                                false
-                                              )
-                                            }
-                                          >
-                                            {t('common.setAsPrimary')}
-                                          </button>
-                                          <button
-                                            className="routing-delete"
-                                            onClick={() =>
-                                              handleRemoveFromRouting(
-                                                entry.provider,
-                                                entry.model,
-                                                entry.configId
-                                              )
-                                            }
-                                            title={t(
-                                              'common.removeFromRouting'
-                                            )}
-                                          >
-                                            ×
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                <DndContext
+                                  sensors={sensors}
+                                  collisionDetection={closestCenter}
+                                  onDragEnd={handleDragEnd}
+                                >
+                                  <SortableContext
+                                    items={lbEntries.map((e) => entryKey(e))}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    <div className="routing-list">
+                                      {lbEntries.map((entry, idx) => (
+                                        <SortableRoutingItem
+                                          key={entryKey(entry)}
+                                          entry={entry}
+                                          index={idx}
+                                          totalInGroup={lbEntries.length}
+                                          isPrimary={false}
+                                          configInfo={configInfo}
+                                          onMove={handleMove}
+                                          onTogglePrimary={handleTogglePrimary}
+                                          onRemove={handleRemoveFromRouting}
+                                          t={t}
+                                        />
+                                      ))}
+                                    </div>
+                                  </SortableContext>
+                                </DndContext>
                               </div>
                             )}
                           </>
