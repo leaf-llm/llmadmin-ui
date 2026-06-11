@@ -1,4 +1,6 @@
-import { ParameterConfig, ProviderConfig } from '../types';
+import { ParameterConfig, ProviderConfig, ErrorResponse } from '../types';
+import { MessagesResponse } from '../../types/messagesResponse';
+import { generateInvalidProviderResponseError } from '../utils';
 
 export const messagesBaseConfig: ProviderConfig = {
   model: {
@@ -92,4 +94,26 @@ export const getMessagesConfig = ({
   });
 
   return { ...baseParams, ...extra };
+};
+
+export const createMessagesResponseTransform = (
+  provider: string,
+  errorResponseTransform: (
+    response: any,
+    provider: string
+  ) => ErrorResponse | false
+): ((
+  response: any,
+  responseStatus: number
+) => MessagesResponse | ErrorResponse) => {
+  return (response, responseStatus) => {
+    if (responseStatus !== 200) {
+      const errorResponse = errorResponseTransform(response, provider);
+      if (errorResponse) return errorResponse;
+    }
+
+    if ('model' in response) return response;
+
+    return generateInvalidProviderResponseError(response, provider);
+  };
 };
