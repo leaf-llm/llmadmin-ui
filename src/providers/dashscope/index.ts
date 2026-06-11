@@ -3,6 +3,7 @@ import {
   chatCompleteParams,
   embedParams,
   responseTransformers,
+  buildOpenAIChatCompleteResponse,
 } from '../open-ai-base';
 import { ProviderConfigs } from '../types';
 import { dashscopeAPIConfig } from './api';
@@ -60,29 +61,7 @@ const dashscopeChatCompleteResponseTransform = (
   }
 
   if ('choices' in response) {
-    return {
-      id: response.id,
-      object: response.object,
-      created: response.created,
-      model: response.model,
-      provider: DASHSCOPE,
-      choices: response.choices.map((c: any) => ({
-        index: c.index,
-        message: {
-          role: c.message.role,
-          content: c.message.content,
-          ...(c.message.tool_calls && {
-            tool_calls: c.message.tool_calls,
-          }),
-        },
-        finish_reason: c.finish_reason,
-      })),
-      usage: {
-        prompt_tokens: response.usage?.prompt_tokens,
-        completion_tokens: response.usage?.completion_tokens,
-        total_tokens: response.usage?.total_tokens,
-      },
-    };
+    return buildOpenAIChatCompleteResponse(response, DASHSCOPE);
   }
 
   return generateInvalidProviderResponseError(response, DASHSCOPE);

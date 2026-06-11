@@ -1,109 +1,26 @@
 import { MOONSHOT } from '../../globals';
-import { Params, Message } from '../../types/requestBody';
-
 import {
   ChatCompletionResponse,
   ErrorResponse,
-  ProviderConfig,
 } from '../types';
 import {
   generateErrorResponse,
   generateInvalidProviderResponseError,
 } from '../utils';
+import {
+  chatCompleteParams,
+  buildOpenAIChatCompleteResponse,
+  parseSSEChunk,
+  buildOpenAIStreamChunk,
+} from '../open-ai-base';
 
-export const MoonshotChatCompleteConfig: ProviderConfig = {
-  model: {
-    param: 'model',
-    required: true,
-    default: 'moonshot-v1-8k',
-  },
-  messages: {
-    param: 'messages',
-    required: true,
-    transform: (params: Params) => {
-      return params.messages?.map((message: Message) => {
-        if (message.role === 'developer')
-          return { ...message, role: 'system' };
-        return message;
-      });
-    },
-  },
-  max_tokens: {
-    param: 'max_tokens',
-    required: true,
-    default: 100,
-    min: 0,
-  },
-  temperature: {
-    param: 'temperature',
-    default: 1,
-    min: 0,
-    max: 2,
-  },
-  top_p: {
-    param: 'top_p',
-    default: 1,
-    min: 0,
-    max: 1,
-  },
-  stream: {
-    param: 'stream',
-    default: false,
-  },
-  tools: {
-    param: 'tools',
-  },
-  tool_choice: {
-    param: 'tool_choice',
-  },
-};
-
-interface MoonshotChatCompleteResponse extends ChatCompletionResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: 'moonshot-v1-8k' | 'moonshot-v1-32k' | 'moonshot-v1-128k';
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
-export interface MoonshotErrorResponse {
-  object: string;
-  message: string;
-  type: string;
-  param: string | null;
-  code: string;
-}
-
-interface MoonshotStreamChunk {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: {
-    delta: {
-      role?: string | null;
-      content?: string | null;
-      tool_calls?: {
-        index: number;
-        id?: string;
-        type?: 'function';
-        function?: {
-          name?: string;
-          arguments?: string;
-        };
-      }[];
-    };
-    index: number;
-    finish_reason: string | null;
-  }[];
-}
+export const MoonshotChatCompleteConfig = chatCompleteParams(
+  [],
+  { model: 'moonshot-v1-8k' }
+);
 
 export const MoonshotChatCompleteResponseTransform: (
-  response: MoonshotChatCompleteResponse | MoonshotErrorResponse | Record<string, any>,
+  response: any,
   responseStatus: number
 ) => ChatCompletionResponse | ErrorResponse = (response, responseStatus) => {
   if ('message' in response && responseStatus !== 200) {
@@ -119,29 +36,7 @@ export const MoonshotChatCompleteResponseTransform: (
   }
 
   if ('choices' in response) {
-    return {
-      id: response.id,
-      object: response.object,
-      created: response.created,
-      model: response.model,
-      provider: MOONSHOT,
-      choices: response.choices.map((c: any) => ({
-        index: c.index,
-        message: {
-          role: c.message.role,
-          content: c.message.content,
-          ...(c.message.tool_calls && {
-            tool_calls: c.message.tool_calls,
-          }),
-        },
-        finish_reason: c.finish_reason,
-      })),
-      usage: {
-        prompt_tokens: response.usage?.prompt_tokens,
-        completion_tokens: response.usage?.completion_tokens,
-        total_tokens: response.usage?.total_tokens,
-      },
-    };
+    return buildOpenAIChatCompleteResponse(response, MOONSHOT);
   }
 
   return generateInvalidProviderResponseError(response, MOONSHOT);
@@ -150,27 +45,9 @@ export const MoonshotChatCompleteResponseTransform: (
 export const MoonshotChatCompleteStreamChunkTransform: (
   response: string
 ) => string = (responseChunk) => {
-  let chunk = responseChunk.trim();
-  chunk = chunk.replace(/^data: /, '');
-  chunk = chunk.trim();
-  if (chunk === '[DONE]') {
-    return `data: ${chunk}\n\n`;
+  const result = parseSSEChunk(responseChunk);
+  if (result.done) {
+    return `data: [DONE]\n\n`;
   }
-  const parsedChunk: MoonshotStreamChunk = JSON.parse(chunk);
-  return (
-    `data: ${JSON.stringify({
-      id: parsedChunk.id,
-      object: parsedChunk.object,
-      created: parsedChunk.created,
-      model: parsedChunk.model,
-      provider: MOONSHOT,
-      choices: [
-        {
-          index: parsedChunk.choices[0].index,
-          delta: parsedChunk.choices[0].delta,
-          finish_reason: parsedChunk.choices[0].finish_reason,
-        },
-      ],
-    })}` + '\n\n'
-  );
+  return buildOpenAIStreamChunk(result.data, MOONSHOT);
 };

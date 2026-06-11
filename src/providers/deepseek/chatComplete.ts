@@ -1,6 +1,4 @@
 import { DEEPSEEK } from '../../globals';
-import { Params, Message } from '../../types/requestBody';
-
 import {
   ChatCompletionResponse,
   ErrorResponse,
@@ -12,145 +10,23 @@ import {
   transformFinishReason,
 } from '../utils';
 import { DEEPSEEK_STOP_REASON } from './types';
+import {
+  chatCompleteParams,
+  buildOpenAIChatCompleteResponse,
+  parseSSEChunk,
+  buildOpenAIStreamChunk,
+} from '../open-ai-base';
 
-export const DeepSeekChatCompleteConfig: ProviderConfig = {
-  model: {
-    param: 'model',
-    required: true,
-    default: 'deepseek-chat',
-  },
-  messages: {
-    param: 'messages',
-    required: true,
-    transform: (params: Params) => {
-      return params.messages?.map((message: Message) => {
-        if (message.role === 'developer')
-          return { ...message, role: 'system' };
-        return message;
-      });
-    },
-  },
-  response_format: {
-    param: 'response_format',
-    default: null,
-  },
-  max_tokens: {
-    param: 'max_tokens',
-    default: 100,
-    min: 0,
-  },
-  max_completion_tokens: {
-    param: 'max_tokens',
-    default: 100,
-    min: 0,
-  },
-  temperature: {
-    param: 'temperature',
-    default: 1,
-    min: 0,
-    max: 2,
-  },
-  top_p: {
-    param: 'top_p',
-    default: 1,
-    min: 0,
-    max: 1,
-  },
-  stream: {
-    param: 'stream',
-    default: false,
-  },
-  frequency_penalty: {
-    param: 'frequency_penalty',
-    default: 0,
-    min: -2,
-    max: 2,
-  },
-  presence_penalty: {
-    param: 'presence_penalty',
-    default: 0,
-    min: -2,
-    max: 2,
-  },
-  stop: {
-    param: 'stop',
-    default: null,
-  },
-  logprobs: {
-    param: 'logprobs',
-    default: false,
-  },
-  top_logprobs: {
-    param: 'top_logprobs',
-    default: 0,
-    min: 0,
-    max: 20,
-  },
-  tools: {
-    param: 'tools',
-  },
-  tool_choice: {
-    param: 'tool_choice',
-  },
-};
-
-interface DeepSeekChatCompleteResponse extends ChatCompletionResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: 'deepseek-chat' | 'deepseek-coder';
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
-export interface DeepSeekErrorResponse {
-  object: string;
-  message: string;
-  type: string;
-  param: string | null;
-  code: string;
-}
-
-interface DeepSeekStreamChunk {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-  choices: {
-    delta: {
-      role?: string | null;
-      content?: string | null;
-      tool_calls?: {
-        index: number;
-        id?: string;
-        type?: 'function';
-        function?: {
-          name?: string;
-          arguments?: string;
-        };
-      }[];
-    };
-    index: number;
-    finish_reason: string | null;
-  }[];
-}
+export const DeepSeekChatCompleteConfig: ProviderConfig = chatCompleteParams(
+  [],
+  { model: 'deepseek-chat' }
+);
 
 export const DeepSeekChatCompleteResponseTransform: (
-  response:
-    | DeepSeekChatCompleteResponse
-    | DeepSeekErrorResponse
-    | Record<string, any>,
+  response: any,
   responseStatus: number,
-  responseHeaders: Headers,
-  strictOpenAiCompliance: boolean
+  _responseHeaders?: Headers,
+  strictOpenAiCompliance?: boolean
 ) => ChatCompletionResponse | ErrorResponse = (
   response,
   responseStatus,
@@ -170,35 +46,12 @@ export const DeepSeekChatCompleteResponseTransform: (
   }
 
   if ('choices' in response) {
-    return {
-      id: response.id,
-      object: response.object,
-      created: response.created,
-      model: response.model,
-      provider: DEEPSEEK,
-      choices: response.choices.map((c: any) => ({
-        index: c.index,
-        message: {
-          role: c.message.role,
-          content: c.message.content,
-          ...(c.message.reasoning_content && {
-            reasoning_content: c.message.reasoning_content,
-          }),
-          ...(c.message.tool_calls && {
-            tool_calls: c.message.tool_calls,
-          }),
-        },
-        finish_reason: transformFinishReason(
-          c.finish_reason as DEEPSEEK_STOP_REASON,
-          strictOpenAiCompliance
-        ),
-      })),
-      usage: {
-        prompt_tokens: response.usage?.prompt_tokens,
-        completion_tokens: response.usage?.completion_tokens,
-        total_tokens: response.usage?.total_tokens,
-      },
-    };
+    return buildOpenAIChatCompleteResponse(response, DEEPSEEK, (c) => ({
+      finish_reason: transformFinishReason(
+        c.finish_reason as DEEPSEEK_STOP_REASON,
+        strictOpenAiCompliance
+      ),
+    }));
   }
 
   return generateInvalidProviderResponseError(response, DEEPSEEK);
@@ -209,42 +62,24 @@ export const DeepSeekChatCompleteStreamChunkTransform: (
   fallbackId: string,
   streamState: any,
   strictOpenAiCompliance: boolean,
-  gatewayRequest: Params
-) => string | string[] = (
+  gatewayRequest: any
+) => string = (
   responseChunk,
-  fallbackId,
+  _fallbackId,
   _streamState,
   strictOpenAiCompliance,
   _gatewayRequest
 ) => {
-  let chunk = responseChunk.trim();
-  chunk = chunk.replace(/^data: /, '');
-  chunk = chunk.trim();
-  if (chunk === '[DONE]') {
-    return `data: ${chunk}\n\n`;
+  const result = parseSSEChunk(responseChunk);
+  if (result.done) {
+    return `data: [DONE]\n\n`;
   }
-  const parsedChunk: DeepSeekStreamChunk = JSON.parse(chunk);
-  const finishReason = parsedChunk.choices[0].finish_reason
-    ? transformFinishReason(
-        parsedChunk.choices[0].finish_reason as DEEPSEEK_STOP_REASON,
-        strictOpenAiCompliance
-      )
-    : null;
-  return (
-    `data: ${JSON.stringify({
-      id: parsedChunk.id,
-      object: parsedChunk.object,
-      created: parsedChunk.created,
-      model: parsedChunk.model,
-      provider: DEEPSEEK,
-      choices: [
-        {
-          index: parsedChunk.choices[0].index,
-          delta: parsedChunk.choices[0].delta,
-          finish_reason: finishReason,
-        },
-      ],
-      usage: parsedChunk.usage,
-    })}` + '\n\n'
-  );
+  return buildOpenAIStreamChunk(result.data, DEEPSEEK, (_delta, choice) => ({
+    finish_reason: choice.finish_reason
+      ? transformFinishReason(
+          choice.finish_reason as DEEPSEEK_STOP_REASON,
+          strictOpenAiCompliance
+        )
+      : null,
+  }));
 };

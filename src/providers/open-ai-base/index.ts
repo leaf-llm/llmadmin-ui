@@ -12,8 +12,10 @@ import {
 } from '../openai/chatComplete';
 import { OpenAICompleteResponse } from '../openai/complete';
 import { OpenAIErrorResponseTransform } from '../openai/utils';
-import { ErrorResponse, ProviderConfig } from '../types';
+import { ChatChoice, ChatCompletionResponse, ErrorResponse, ProviderConfig } from '../types';
+import { MessagesResponse } from '../../types/messagesResponse';
 import { OpenAICreateModelResponseConfig } from './createModelResponse';
+import { generateInvalidProviderResponseError } from '../utils';
 
 type CustomTransformer<T, U> = (
   response: T | ErrorResponse,
@@ -40,6 +42,13 @@ const excludeObjectKeys = (keyList: string[], object: Record<string, any>) => {
   }
 };
 
+export const developerToSystemMessagesTransform = (params: Params) => {
+  return params.messages?.map((message: Message) => {
+    if (message.role === 'developer') return { ...message, role: 'system' };
+    return message;
+  });
+};
+
 /**
  *
  * @param exclude List of string that we should exclude from open-ai default paramters
@@ -57,13 +66,7 @@ export const chatCompleteParams = (
     messages: {
       param: 'messages',
       default: '',
-      transform: (params: Params) => {
-        return params.messages?.map((message: Message) => {
-          if (message.role === 'developer')
-            return { ...message, role: 'system' };
-          return message;
-        });
-      },
+      transform: developerToSystemMessagesTransform,
     },
   };
 
@@ -594,6 +597,149 @@ export const responseTransformers = <
     );
   }
   return transformers;
+};
+
+export const convertOpenAIChatCompletionToMessagesResponse = (
+  response: Record<string, any>
+): MessagesResponse => {
+  const message = response.choices?.[0]?.message ?? {};
+  const content: any[] = [];
+
+  if (message.reasoning_content) {
+    content.push({
+      type: 'thinking' as const,
+      thinking: message.reasoning_content,
+      signature: '',
+    });
+  }
+  if (message.content) {
+    content.push({ type: 'text' as const, text: message.content });
+  }
+  if (message.tool_calls) {
+    for (const tc of message.tool_calls) {
+      let input = {};
+      try {
+        input = JSON.parse(tc.function?.arguments || '{}');
+      } catch {
+        input = {};
+      }
+      content.push({
+        type: 'tool_use' as const,
+        id: tc.id,
+        name: tc.function?.name ?? tc.name,
+        input,
+      });
+    }
+  }
+
+  return {
+    id: response.id,
+    type: 'message',
+    role: 'assistant',
+    content,
+    model: response.model,
+    stop_reason: response.choices?.[0]?.finish_reason ?? null,
+    usage: {
+      input_tokens: response.usage?.prompt_tokens || 0,
+      output_tokens: response.usage?.completion_tokens || 0,
+    },
+  };
+};
+
+export const buildOpenAIChatCompleteResponse = (
+  response: Record<string, any>,
+  provider: string,
+  mapChoice?: (
+    choice: any,
+    index: number
+  ) => {
+    message?: Partial<Message>;
+    finish_reason?: string | null;
+    index?: number;
+    logprobs?: any;
+  }
+): ChatCompletionResponse => {
+  return {
+    id: response.id,
+    object: response.object,
+    created: response.created,
+    model: response.model,
+    provider,
+    choices: response.choices.map((c: any, i: number) => {
+      const overrides = mapChoice ? mapChoice(c, i) : {};
+      return {
+        index: overrides.index ?? c.index ?? i,
+        message: {
+          role: 'assistant',
+          content: undefined,
+          ...(c.message?.tool_calls && { tool_calls: c.message.tool_calls }),
+          ...c.message,
+          ...overrides.message,
+        } as Message,
+        finish_reason: overrides.finish_reason ?? c.finish_reason,
+        ...(c.logprobs != null && { logprobs: c.logprobs }),
+        ...(overrides.logprobs != null && { logprobs: overrides.logprobs }),
+      } as ChatChoice;
+    }),
+    usage: {
+      prompt_tokens: response.usage?.prompt_tokens,
+      completion_tokens: response.usage?.completion_tokens,
+      total_tokens: response.usage?.total_tokens,
+    },
+  };
+};
+
+export const parseSSEChunk = (
+  chunk: string
+): { done: true } | { done: false; data: any } => {
+  let trimmed = chunk.trim();
+  trimmed = trimmed.replace(/^data: /, '');
+  trimmed = trimmed.trim();
+  if (trimmed === '[DONE]') {
+    return { done: true };
+  }
+  return { done: false, data: JSON.parse(trimmed) };
+};
+
+export const buildOpenAIStreamChunk = (
+  parsedChunk: Record<string, any>,
+  provider: string,
+  mapDelta?: (
+    delta: any,
+    choice: any,
+    index: number
+  ) => {
+    delta?: Record<string, any>;
+    finish_reason?: string | null;
+    index?: number;
+  }
+): string => {
+  const choice = parsedChunk.choices?.[0] ?? {};
+  const overrides = mapDelta
+    ? mapDelta(choice.delta, choice, choice.index ?? 0)
+    : {};
+
+  return `data: ${JSON.stringify({
+    id: parsedChunk.id,
+    object: parsedChunk.object,
+    created: parsedChunk.created,
+    model: parsedChunk.model,
+    provider,
+    choices: [
+      {
+        index: overrides.index ?? choice.index ?? 0,
+        delta: overrides.delta ?? choice.delta,
+        finish_reason: overrides.finish_reason ?? choice.finish_reason ?? null,
+      },
+    ],
+    ...(parsedChunk.usage && {
+      usage: {
+        prompt_tokens: parsedChunk.usage.prompt_tokens,
+        completion_tokens: parsedChunk.usage.completion_tokens,
+        total_tokens: parsedChunk.usage.total_tokens,
+      },
+    }),
+  })}\n\n`;
 };
 
 export const OpenAIResponseTransform = (
