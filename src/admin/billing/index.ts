@@ -15,6 +15,7 @@ function sumTotals(a: UsageTotals, b: UsageTotals): UsageTotals {
     costUSD: (a.costUSD ?? 0) + (b.costUSD ?? 0),
     inputTokens: (a.inputTokens ?? 0) + (b.inputTokens ?? 0),
     outputTokens: (a.outputTokens ?? 0) + (b.outputTokens ?? 0),
+    cacheInputTokens: (a.cacheInputTokens ?? 0) + (b.cacheInputTokens ?? 0),
     requests: (a.requests ?? 0) + (b.requests ?? 0),
   };
 }

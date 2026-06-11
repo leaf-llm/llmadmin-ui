@@ -110,18 +110,31 @@ export async function getAnthropicUsage(params: {
   ) {
     // If we only have aggregate usage, return a single "unknown" row.
     const totals: UsageTotals = {};
+    const baseInput = toNumber(
+      (payload.usage as any)?.input_tokens ??
+        (payload.usage as any)?.inputTokens
+    );
+    const cacheRead = toNumber(
+      (payload.usage as any)?.cache_read_input_tokens ??
+        (payload.usage as any)?.cacheReadInputTokens
+    );
+    const cacheCreate = toNumber(
+      (payload.usage as any)?.cache_creation_input_tokens ??
+        (payload.usage as any)?.cacheCreationInputTokens
+    );
+    const cacheTotal = (cacheRead ?? 0) + (cacheCreate ?? 0);
     const byModel: UsageByModel[] = [
       {
         model: 'unknown',
         requests: toNumber((payload.usage as any)?.requests),
-        inputTokens: toNumber(
-          (payload.usage as any)?.input_tokens ??
-            (payload.usage as any)?.inputTokens
-        ),
+        // Include cache input tokens in the total input count
+        inputTokens:
+          baseInput != null ? baseInput + cacheTotal : cacheTotal || undefined,
         outputTokens: toNumber(
           (payload.usage as any)?.output_tokens ??
             (payload.usage as any)?.outputTokens
         ),
+        cacheInputTokens: cacheTotal || undefined,
         costUSD: toNumber(
           (payload.usage as any)?.cost ?? (payload.usage as any)?.total_cost
         ),
@@ -131,38 +144,59 @@ export async function getAnthropicUsage(params: {
       totals.requests = (totals.requests ?? 0) + (r.requests ?? 0);
       totals.inputTokens = (totals.inputTokens ?? 0) + (r.inputTokens ?? 0);
       totals.outputTokens = (totals.outputTokens ?? 0) + (r.outputTokens ?? 0);
+      totals.cacheInputTokens =
+        (totals.cacheInputTokens ?? 0) + (r.cacheInputTokens ?? 0);
       totals.costUSD = (totals.costUSD ?? 0) + (r.costUSD ?? 0);
     }
     return { totals, byModel };
   }
 
-  const byModel: UsageByModel[] = rows.map((row) => ({
-    model: asModel(row),
-    requests: toNumber(
-      row?.requests ?? row?.request_count ?? row?.requestCount
-    ),
-    inputTokens: toNumber(
+  const byModel: UsageByModel[] = rows.map((row) => {
+    const baseInput = toNumber(
       row?.input_tokens ??
         row?.inputTokens ??
         row?.input_token_count ??
         row?.inputTokenCount
-    ),
-    outputTokens: toNumber(
-      row?.output_tokens ??
-        row?.outputTokens ??
-        row?.output_token_count ??
-        row?.outputTokenCount
-    ),
-    costUSD: toNumber(
-      row?.cost ?? row?.total_cost ?? row?.totalCost ?? row?.amount
-    ),
-  }));
+    );
+    const cacheRead = toNumber(
+      row?.cache_read_input_tokens ??
+        row?.cacheReadInputTokens ??
+        row?.cache_read_input_token_count
+    );
+    const cacheCreate = toNumber(
+      row?.cache_creation_input_tokens ??
+        row?.cacheCreationInputTokens ??
+        row?.cache_creation_input_token_count
+    );
+    const cacheTotal = (cacheRead ?? 0) + (cacheCreate ?? 0);
+    return {
+      model: asModel(row),
+      requests: toNumber(
+        row?.requests ?? row?.request_count ?? row?.requestCount
+      ),
+      // Include cache input tokens in the total input count
+      inputTokens:
+        baseInput != null ? baseInput + cacheTotal : cacheTotal || undefined,
+      outputTokens: toNumber(
+        row?.output_tokens ??
+          row?.outputTokens ??
+          row?.output_token_count ??
+          row?.outputTokenCount
+      ),
+      cacheInputTokens: cacheTotal || undefined,
+      costUSD: toNumber(
+        row?.cost ?? row?.total_cost ?? row?.totalCost ?? row?.amount
+      ),
+    };
+  });
 
   const totals: UsageTotals = {};
   for (const r of byModel) {
     totals.requests = (totals.requests ?? 0) + (r.requests ?? 0);
     totals.inputTokens = (totals.inputTokens ?? 0) + (r.inputTokens ?? 0);
     totals.outputTokens = (totals.outputTokens ?? 0) + (r.outputTokens ?? 0);
+    totals.cacheInputTokens =
+      (totals.cacheInputTokens ?? 0) + (r.cacheInputTokens ?? 0);
     totals.costUSD = (totals.costUSD ?? 0) + (r.costUSD ?? 0);
   }
 
