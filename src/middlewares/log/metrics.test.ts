@@ -144,7 +144,7 @@ describe('broadcastCounts', () => {
 });
 
 describe('extractTokens', () => {
-  test('extracts Anthropic cache_read_input_tokens', () => {
+  test('extracts Anthropic cache_read_input_tokens and adds to inputTokens', () => {
     const result = extractTokens(
       {
         usage: {
@@ -155,12 +155,12 @@ describe('extractTokens', () => {
       },
       'anthropic'
     );
-    expect(result.inputTokens).toBe(10);
+    expect(result.inputTokens).toBe(40);
     expect(result.outputTokens).toBe(5);
     expect(result.cacheInputTokens).toBe(30);
   });
 
-  test('extracts Anthropic cache_creation_input_tokens when read is absent', () => {
+  test('extracts Anthropic cache_creation_input_tokens when read is absent and adds to inputTokens', () => {
     const result = extractTokens(
       {
         usage: {
@@ -171,12 +171,28 @@ describe('extractTokens', () => {
       },
       'anthropic'
     );
-    expect(result.inputTokens).toBe(10);
+    expect(result.inputTokens).toBe(30);
     expect(result.outputTokens).toBe(5);
     expect(result.cacheInputTokens).toBe(20);
   });
 
-  test('extracts OpenAI prompt_tokens_details.cached_tokens', () => {
+  test('extracts Anthropic cache_read + cache_creation + input all into inputTokens', () => {
+    const result = extractTokens(
+      {
+        usage: {
+          input_tokens: 10,
+          output_tokens: 5,
+          cache_read_input_tokens: 30,
+          cache_creation_input_tokens: 20,
+        },
+      },
+      'anthropic'
+    );
+    expect(result.inputTokens).toBe(60);
+    expect(result.cacheInputTokens).toBe(30);
+  });
+
+  test('extracts OpenAI prompt_tokens_details.cached_tokens (OpenAI prompt_tokens already includes cache)', () => {
     const result = extractTokens(
       {
         usage: {
@@ -204,6 +220,22 @@ describe('extractTokens', () => {
     expect(result.cacheInputTokens).toBe(0);
   });
 
+  test('adds Google cachedContentTokenCount to inputTokens', () => {
+    const result = extractTokens(
+      {
+        usageMetadata: {
+          promptTokenCount: 7,
+          candidatesTokenCount: 4,
+          cachedContentTokenCount: 12,
+        },
+      },
+      'google'
+    );
+    expect(result.inputTokens).toBe(19);
+    expect(result.outputTokens).toBe(4);
+    expect(result.cacheInputTokens).toBe(12);
+  });
+
   test('returns zeros for an empty response', () => {
     const result = extractTokens({}, 'openai');
     expect(result.inputTokens).toBe(0);
@@ -213,7 +245,7 @@ describe('extractTokens', () => {
 });
 
 describe('recordMetrics cache token accumulation', () => {
-  test('accumulates cacheInputTokens from Anthropic usage into metricsStore', () => {
+  test('accumulates cacheInputTokens from Anthropic usage into metricsStore (inputTokens includes cache)', () => {
     recordMetrics(200, [
       {
         providerOptions: { provider: 'anthropic' },
@@ -244,8 +276,10 @@ describe('recordMetrics cache token accumulation', () => {
     const today = new Date().toISOString().slice(0, 10);
     const stored = metricsStore.get(today)?.get('anthropic');
     expect(stored).toBeDefined();
-    expect(stored!.inputTokens).toBe(20);
+    // inputTokens: (10+30) + (10+20) = 70
+    expect(stored!.inputTokens).toBe(70);
     expect(stored!.outputTokens).toBe(10);
+    // cacheInputTokens: 30 (read) + 20 (creation) = 50
     expect(stored!.cacheInputTokens).toBe(50);
   });
 

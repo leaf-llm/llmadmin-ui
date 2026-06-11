@@ -146,6 +146,8 @@ export function extractTokens(
   let cacheInputTokens = 0;
 
   // Try OpenAI format first (prompt_tokens, completion_tokens)
+  // Note: OpenAI's prompt_tokens ALREADY includes cached_tokens, so we
+  // don't add cacheInputTokens to inputTokens here.
   if (response?.usage?.prompt_tokens !== undefined) {
     inputTokens = response.usage.prompt_tokens || 0;
     outputTokens = response.usage.completion_tokens || 0;
@@ -153,20 +155,24 @@ export function extractTokens(
     cacheInputTokens = response.usage.prompt_tokens_details?.cached_tokens || 0;
   }
   // Anthropic format (input_tokens, output_tokens)
+  // Note: Anthropic's input_tokens does NOT include cache reads/writes —
+  // we must add them to get the true total input billed to the user.
   else if (response?.usage?.input_tokens !== undefined) {
-    inputTokens = response.usage.input_tokens || 0;
+    const cacheRead = response.usage.cache_read_input_tokens || 0;
+    const cacheCreate = response.usage.cache_creation_input_tokens || 0;
+    inputTokens =
+      (response.usage.input_tokens || 0) + cacheRead + cacheCreate;
     outputTokens = response.usage.output_tokens || 0;
     // Anthropic reports cache hits/writes in dedicated fields
-    cacheInputTokens =
-      response.usage.cache_read_input_tokens ||
-      response.usage.cache_creation_input_tokens ||
-      0;
+    cacheInputTokens = cacheRead || cacheCreate || 0;
   }
   // Google format (promptTokenCount, candidatesTokenCount)
+  // Note: Google's promptTokenCount does NOT include cachedContentTokenCount.
   else if (response?.usageMetadata?.promptTokenCount !== undefined) {
-    inputTokens = response.usageMetadata.promptTokenCount || 0;
+    const cacheTokens = response.usageMetadata.cachedContentTokenCount || 0;
+    inputTokens = (response.usageMetadata.promptTokenCount || 0) + cacheTokens;
     outputTokens = response.usageMetadata.candidatesTokenCount || 0;
-    cacheInputTokens = response.usageMetadata.cachedContentTokenCount || 0;
+    cacheInputTokens = cacheTokens;
   }
 
   return { inputTokens, outputTokens, cacheInputTokens };
