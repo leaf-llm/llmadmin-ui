@@ -50,6 +50,7 @@ export type UsageByModel = {
   model?: string;
   inputTokens?: number;
   outputTokens?: number;
+  cacheInputTokens?: number;
   requests?: number;
   costUSD?: number;
 };
@@ -58,6 +59,7 @@ export type UsageTotals = {
   costUSD?: number;
   inputTokens?: number;
   outputTokens?: number;
+  cacheInputTokens?: number;
   requests?: number;
 };
 
@@ -78,6 +80,7 @@ export type MetricsResponse = {
     failureCount: number;
     inputTokens: number;
     outputTokens: number;
+    cacheInputTokens: number;
   };
   daily: Array<{
     date: string;
@@ -87,5 +90,6 @@ export type MetricsResponse = {
     failureCount: number;
     inputTokens: number;
     outputTokens: number;
+    cacheInputTokens: number;
   }>;
 };
