@@ -1,4 +1,4 @@
 [submodule "src-gateway"]
 	path = src-gateway
-	url = git@github.com:llm-admin/gateway.git
+	url = git@github.com:mountain3th/llmadmin-core.git
 	branch = main
