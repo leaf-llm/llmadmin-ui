@@ -3,7 +3,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const buildDir = path.join(__dirname, '../../build');
+// Gateway binary is built by the src-gateway submodule at src-gateway/build/.
+// After build, it may be mirrored to a top-level build/ directory by the
+// `build:gateway` script, or we read it directly from the submodule.
+const buildDir = fs.existsSync(path.join(__dirname, '../../build'))
+  ? path.join(__dirname, '../../build')
+  : path.join(__dirname, '../../src-gateway/build');
 
 function copyDist(destDir) {
   if (!fs.existsSync(destDir)) {
