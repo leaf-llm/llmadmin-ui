@@ -1,7 +1,0 @@
-version: '3'
-services:
-  web:
-    ports:
-      - "8700:8700"
-    image: "portkeyai/gateway:latest"
-    restart: always

@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), neutralinoInjectPlugin()],
     base: isDesktop ? '/' : '/public/admin/',
     build: {
-      outDir: isDesktop ? '../desktop/resources' : '../build/public/admin',
+      outDir: isDesktop ? './desktop/resources' : './build/public/admin',
       emptyOutDir: !isDesktop,
     },
     server: {
