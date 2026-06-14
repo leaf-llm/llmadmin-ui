@@ -12,6 +12,8 @@ export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'minimax',
   'doubao',
   'deepseek',
+  'openai-compatible',
+  'anthropic-compatible',
 ];
 
 export type ModelCategory = 'text' | 'image' | 'video' | 'audio' | 'mcp';
@@ -228,8 +230,18 @@ export async function syncUserConfigFromRouting(
 
     if (!p?.apiKey?.trim()) return null;
 
+    // Map UI provider enum to backend provider: openai-compatible /
+    // anthropic-compatible are routed to the same backend provider as the
+    // official openai / anthropic.
+    const backendProvider =
+      entry.provider === 'openai-compatible'
+        ? 'openai'
+        : entry.provider === 'anthropic-compatible'
+          ? 'anthropic'
+          : entry.provider;
+
     const target: Record<string, unknown> = {
-      provider: entry.provider,
+      provider: backendProvider,
       api_key: p.apiKey.trim(),
       override_params: {
         model: entry.model,
@@ -322,7 +334,9 @@ export type ProviderSummary = {
 
 const DEFAULT_BASE_URLS: Record<ProviderId, string> = {
   openai: 'https://api.openai.com/v1',
+  'openai-compatible': 'https://api.openai.com/v1',
   anthropic: 'https://api.anthropic.com',
+  'anthropic-compatible': 'https://api.anthropic.com',
   'google-openai': 'https://generativelanguage.googleapis.com/v1beta/openai',
   zhipu: 'https://open.bigmodel.cn/api/paas/v4',
   dashscope: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -333,6 +347,8 @@ const DEFAULT_BASE_URLS: Record<ProviderId, string> = {
 };
 
 const DEFAULT_ANTHROPIC_BASE_URLS: Record<ProviderId, string> = {
+  'openai-compatible': '',
+  'anthropic-compatible': 'https://api.anthropic.com',
   zhipu: 'https://open.bigmodel.cn/api/anthropic',
   dashscope: 'https://dashscope.aliyuncs.com/apps/anthropic/v1',
   moonshot: 'https://api.moonshot.cn/anthropic/v1',
