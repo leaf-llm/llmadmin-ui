@@ -27,9 +27,8 @@ import {
   moveRoutingEntryToIndex,
   RoutingEntry,
   listProviderSummaries,
-  getProviderModels,
 } from '../lib/configStore';
-import { testProviderConnectivity } from '../api/adminClient';
+import { testProviderConnectivity, getProviderModels } from '../api/adminClient';
 import CategoryTabs from '../components/CategoryTabs';
 import TopNotification from '../components/TopNotification';
 import { ModelCategory } from '../types/models';
@@ -180,7 +179,7 @@ export default function ProvidersPage({
         })
         .filter(Boolean);
       setProviderModels(modelIds);
-    } catch (e) {
+    } catch {
       setProviderModels([]);
     }
   };

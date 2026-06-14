@@ -91,6 +91,8 @@ export const MODEL_CATEGORY_MAP: Record<string, ModelCategory> = {
   'doubao-pro-128k': 'text',
   'doubao-pro-256k': 'text',
   'doubao-lite-32k': 'text',
+  'doubao-seed-2-0-pro': 'text',
+  'doubao-seed-2.0-lite': 'text',
   // DeepSeek
   'deepseek-chat': 'text',
   'deepseek-coder': 'text',
