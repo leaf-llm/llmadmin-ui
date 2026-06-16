@@ -71,7 +71,7 @@ export async function getNeutralinoHomeDir(): Promise<string> {
   try {
     if (Neutralino?.os?.getEnv) {
       const home = await Neutralino.os.getEnv('HOME');
-      if (home && typeof home === 'string' && home.startsWith('/home/')) {
+      if (home && typeof home === 'string' && home.length > 0) {
         cachedHomeDir = home;
         return cachedHomeDir;
       }
@@ -82,7 +82,7 @@ export async function getNeutralinoHomeDir(): Promise<string> {
   try {
     if (Neutralino?.os?.homeDir) {
       const home = await Neutralino.os.homeDir();
-      if (home && typeof home === 'string' && home.startsWith('/home/')) {
+      if (home && typeof home === 'string' && home.length > 0) {
         cachedHomeDir = home;
         return cachedHomeDir;
       }

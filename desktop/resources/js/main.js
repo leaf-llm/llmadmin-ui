@@ -171,7 +171,7 @@ async function getHomeDir() {
   if (Neutralino?.os?.getEnv) {
     try {
       const home = await Neutralino.os.getEnv('HOME');
-      if (home && typeof home === 'string') {
+      if (home && typeof home === 'string' && home.length > 0) {
         return home;
       }
     } catch {}
@@ -179,7 +179,7 @@ async function getHomeDir() {
   if (Neutralino?.os?.homeDir) {
     try {
       const home = await Neutralino.os.homeDir();
-      if (home && typeof home === 'string') {
+      if (home && typeof home === 'string' && home.length > 0) {
         return home;
       }
     } catch {}
