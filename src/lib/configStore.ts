@@ -246,7 +246,7 @@ const DEFAULT_UNIFIED_CONFIG = JSON.stringify({
   settings: { plugins_enabled: ['default'], credentials: {}, cache: false, integrations: [] },
   gateway: { providers: {}, text: { routing: [], userConfig: null }, image: { routing: [], userConfig: null }, video: { routing: [], userConfig: null }, audio: { routing: [], userConfig: null }, mcp: { routing: [], userConfig: null } },
   server: { port: 8700, headless: false },
-});
+}, null, 2);
 
 function createUiDefaultConfig(): UiConfigFile {
   return {
