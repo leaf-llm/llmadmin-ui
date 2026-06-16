@@ -183,36 +183,18 @@ export default function SettingsPage() {
     setConfigError(null);
     setExportSuccess(null);
     try {
-      // Load the full unified config from disk (not just gateway)
+      // Read the actual config file from disk - this is the source of truth
       const Neutralino = isDesktopMode() ? (window as any).Neutralino : null;
       let unifiedConfig: Record<string, unknown> = {};
 
       if (Neutralino?.filesystem) {
-        try {
-          const home = await getNeutralinoHomeDir();
-          const configPath = `${home}/.llm-admin/conf.json`;
-          const text: string = await Neutralino.filesystem.readFile(configPath);
-          unifiedConfig = JSON.parse(text);
-        } catch {
-          // File doesn't exist - export with just gateway section
-        }
-      }
-
-      // Always include the current gateway config (from memory)
-      const gatewayConfig = await loadUiConfig();
-      unifiedConfig.gateway = gatewayConfig;
-
-      // Ensure settings and server sections exist
-      if (!unifiedConfig.settings) {
-        unifiedConfig.settings = {
-          plugins_enabled: ['default'],
-          credentials: {},
-          cache: false,
-          integrations: [],
-        };
-      }
-      if (!unifiedConfig.server) {
-        unifiedConfig.server = { port: 8700, headless: false };
+        const home = await getNeutralinoHomeDir();
+        const configPath = `${home}/.llm-admin/conf.json`;
+        const text: string = await Neutralino.filesystem.readFile(configPath);
+        unifiedConfig = JSON.parse(text);
+      } else {
+        // Web mode fallback: use loadUiConfig (just gateway section)
+        unifiedConfig.gateway = await loadUiConfig();
       }
 
       const jsonStr = JSON.stringify(unifiedConfig, null, 2);
@@ -255,6 +237,39 @@ export default function SettingsPage() {
     fileInputRef.current?.click();
   }
 
+  // Normalize parsed config into the new unified format
+  function normalizeToUnified(parsed: any): { settings?: any; gateway: any; server?: any } {
+    const isOldFormat = parsed && (
+      'providers' in parsed ||
+      'text' in parsed ||
+      'integrations' in parsed ||
+      'plugins_enabled' in parsed
+    );
+    const isNewFormat = parsed && ('settings' in parsed || 'gateway' in parsed);
+
+    if (isNewFormat) {
+      // Already unified - just ensure gateway is present
+      return {
+        settings: parsed.settings,
+        gateway: parsed.gateway || createEmptyUiConfig(),
+        server: parsed.server,
+      };
+    }
+
+    if (isOldFormat) {
+      // Old format - treat entire object as gateway section
+      // (validateConfig already confirmed it has valid gateway fields)
+      const { settings, gateway, server, ...rest } = parsed;
+      return {
+        settings: undefined,
+        gateway: rest,
+        server: undefined,
+      };
+    }
+
+    return { gateway: parsed };
+  }
+
   async function handleDesktopImport() {
     setImportError(null);
     setImportSuccess(false);
@@ -276,7 +291,8 @@ export default function SettingsPage() {
         return;
       }
 
-      await saveUiConfig(parsed as any);
+      const unified = normalizeToUnified(parsed);
+      await saveUiConfig(unified.gateway as any);
       setImportSuccess(true);
       await loadConfig();
     } catch (err: any) {
@@ -310,7 +326,8 @@ export default function SettingsPage() {
         return;
       }
 
-      await saveUiConfig(parsed as any);
+      const unified = normalizeToUnified(parsed);
+      await saveUiConfig(unified.gateway as any);
       setImportSuccess(true);
       await loadConfig();
     } catch (err: any) {
