@@ -168,15 +168,54 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
   const configPath = await getConfigPathAsync();
   try {
     const text: string = await Neutralino.filesystem.readFile(configPath);
-    const unified: UnifiedConfigFile = JSON.parse(text);
+    const parsed = JSON.parse(text);
 
-    // Extract gateway section from unified config
-    if (unified?.gateway) {
-      return unified.gateway;
+    // Detect unified format: has settings or gateway at root
+    const isUnified = parsed && (parsed.settings || parsed.gateway);
+
+    if (isUnified) {
+      // Extract gateway section (use empty if missing)
+      const gateway: UiConfigFile = parsed.gateway
+        ? { ...defaultConfig, ...parsed.gateway }
+        : defaultConfig;
+      return gateway;
     }
 
-    // Fallback for old conf.ui.json format (backward compat)
-    return JSON.parse(text) as UiConfigFile;
+    // Old format: text/image/video/audio/mcp/providers at root
+    // Treat entire object as gateway and normalize file on disk
+    const legacyAsGateway: UiConfigFile = {
+      ...defaultConfig,
+      providers: parsed.providers || {},
+      text: parsed.text || defaultConfig.text,
+      image: parsed.image || defaultConfig.image,
+      video: parsed.video || defaultConfig.video,
+      audio: parsed.audio || defaultConfig.audio,
+      mcp: parsed.mcp || defaultConfig.mcp,
+    };
+
+    // Normalize: write back as unified format
+    try {
+      const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+      await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
+      const normalized: UnifiedConfigFile = {
+        settings: {
+          plugins_enabled: ['default'],
+          credentials: {},
+          cache: false,
+          integrations: [],
+        },
+        gateway: legacyAsGateway,
+        server: { port: 8700, headless: false },
+      };
+      await Neutralino.filesystem.writeFile(
+        configPath,
+        JSON.stringify(normalized, null, 2)
+      );
+    } catch (writeErr) {
+      console.warn('Failed to normalize old config to unified format:', writeErr);
+    }
+
+    return legacyAsGateway;
   } catch (e: any) {
     const errMsg = e?.message || String(e);
     const isNotFound =
