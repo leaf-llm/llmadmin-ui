@@ -67,36 +67,81 @@ function timeoutPromise<T>(ms: number, fallback: T): Promise<T> {
   });
 }
 
+function getHomeFromStorage(): string | null {
+  try {
+    return localStorage.getItem('llm_admin_home');
+  } catch {
+    return null;
+  }
+}
+
+function setHomeToStorage(home: string): void {
+  try {
+    localStorage.setItem('llm_admin_home', home);
+  } catch {}
+}
+
 export async function getNeutralinoHomeDir(): Promise<string> {
   if (cachedHomeDir) {
     return cachedHomeDir;
   }
 
+  // Check localStorage for cached home dir
+  const stored = getHomeFromStorage();
+  if (stored) {
+    cachedHomeDir = stored;
+    return cachedHomeDir;
+  }
+
+  // Try to parse home from NL_PATH (synchronous, available immediately in Neutralino)
+  try {
+    const nlPath = (window as any).NL_PATH;
+    if (nlPath && typeof nlPath === 'string') {
+      // e.g. /home/sam/.local/share/llm-admin/app.neu
+      // Strategy: find /home/<user> or /Users/<user> pattern
+      for (const prefix of ['/home/', '/Users/']) {
+        const idx = nlPath.indexOf(prefix);
+        if (idx !== -1) {
+          const afterPrefix = nlPath.slice(idx + prefix.length);
+          const endIdx = afterPrefix.indexOf('/');
+          if (endIdx !== -1) {
+            const user = afterPrefix.slice(0, endIdx);
+            cachedHomeDir = prefix + user;
+            setHomeToStorage(cachedHomeDir);
+            return cachedHomeDir;
+          }
+        }
+      }
+    }
+  } catch {}
+
   const Neutralino = getNeutralino();
 
-  // Try os.getEnv('HOME') with 2s timeout
+  // Try os.getEnv('HOME') with 4s timeout
   try {
     if (Neutralino?.os?.getEnv) {
       const home = await Promise.race([
         Neutralino.os.getEnv('HOME'),
-        timeoutPromise(2000, null),
+        timeoutPromise(4000, null),
       ]);
       if (home && typeof home === 'string' && home.length > 0) {
         cachedHomeDir = home;
+        setHomeToStorage(home);
         return cachedHomeDir;
       }
     }
   } catch {}
 
-  // Try os.homeDir() with 2s timeout
+  // Try os.homeDir() with 4s timeout
   try {
     if (Neutralino?.os?.homeDir) {
       const home = await Promise.race([
         Neutralino.os.homeDir(),
-        timeoutPromise(2000, null),
+        timeoutPromise(4000, null),
       ]);
       if (home && typeof home === 'string' && home.length > 0) {
         cachedHomeDir = home;
+        setHomeToStorage(home);
         return cachedHomeDir;
       }
     }
@@ -169,9 +214,37 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
   ]);
   if (!result) {
     console.warn('loadUiConfig timed out, returning default');
+    // Try to create default config in background (don't await - best effort)
+    ensureDefaultConfigFile().catch(() => {});
     return createUiDefaultConfig();
   }
   return result;
+}
+
+async function ensureDefaultConfigFile(): Promise<void> {
+  try {
+    const Neutralino = getNeutralino();
+    if (!Neutralino?.filesystem) return;
+    const configPath = await getConfigPathAsync();
+    const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+    await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
+    const defaultConfig: UnifiedConfigFile = {
+      settings: {
+        plugins_enabled: ['default'],
+        credentials: {},
+        cache: false,
+        integrations: [],
+      },
+      gateway: createUiDefaultConfig(),
+      server: { port: 8700, headless: false },
+    };
+    await Neutralino.filesystem.writeFile(
+      configPath,
+      JSON.stringify(defaultConfig, null, 2)
+    );
+  } catch (e) {
+    console.warn('ensureDefaultConfigFile failed:', e);
+  }
 }
 
 function createUiDefaultConfig(): UiConfigFile {
