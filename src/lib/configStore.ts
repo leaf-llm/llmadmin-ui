@@ -178,7 +178,13 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     // Fallback for old conf.ui.json format (backward compat)
     return JSON.parse(text) as UiConfigFile;
   } catch (e: any) {
-    if (e?.message?.includes('ENOENT') || e?.message?.includes('file not found')) {
+    const errMsg = e?.message || String(e);
+    const isNotFound =
+      errMsg.includes('ENOENT') ||
+      errMsg.includes('file not found') ||
+      errMsg.includes('Unable to open file') ||
+      errMsg.includes('does not exist');
+    if (isNotFound) {
       // Create the default unified config file
       try {
         const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
