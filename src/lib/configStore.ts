@@ -271,23 +271,19 @@ async function loadUiConfigInner(): Promise<UiConfigFile> {
   }
 
   const configPath = await getConfigPathAsync();
+
+  // Always ensure the config file exists first (createDirectory + writeFile)
+  // This avoids readFile hanging when file doesn't exist
   try {
-    const text: string = await Neutralino.filesystem.readFile(configPath);
-    const parsed = JSON.parse(text);
-
-    if (!parsed || typeof parsed !== 'object') {
-      throw new Error('Invalid config format');
-    }
-
-    const gateway: UiConfigFile = parsed?.gateway
-      ? { ...defaultConfig, ...parsed.gateway }
-      : defaultConfig;
-    return gateway;
-  } catch {
-    // File doesn't exist or is invalid — create default unified config
+    const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+    await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
+    // Try reading first — if it fails, write default
+    let parsed: any;
     try {
-      const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
-      await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
+      const text: string = await Neutralino.filesystem.readFile(configPath);
+      parsed = JSON.parse(text);
+    } catch {
+      // File doesn't exist or invalid — write default
       const initialConfig: UnifiedConfigFile = {
         settings: {
           plugins_enabled: ['default'],
@@ -302,9 +298,17 @@ async function loadUiConfigInner(): Promise<UiConfigFile> {
         configPath,
         JSON.stringify(initialConfig, null, 2)
       );
-    } catch (createErr) {
-      console.warn('Failed to create default config file:', createErr);
+      return defaultConfig;
     }
+
+    if (!parsed || typeof parsed !== 'object') {
+      return defaultConfig;
+    }
+
+    return parsed?.gateway
+      ? { ...defaultConfig, ...parsed.gateway }
+      : defaultConfig;
+  } catch {
     return defaultConfig;
   }
 }
