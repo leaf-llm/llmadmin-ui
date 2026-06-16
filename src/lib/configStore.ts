@@ -62,8 +62,8 @@ let cachedHomeDir: string | null = null;
 
 function timeoutPromise<T>(ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {
-    const id = setTimeout(() => resolve(fallback), ms);
-    if (typeof id === 'object' && typeof id.unref === 'function') id.unref();
+    const id = window.setTimeout(() => resolve(fallback), ms);
+    (id as any)?.unref?.();
   });
 }
 
@@ -204,48 +204,49 @@ export function createEmptyUiConfig(): UiConfigFile {
   };
 }
 
-const LOAD_UI_CONFIG_TIMEOUT = 3000;
+// --- Shell-based file I/O (bypasses Neutralino filesystem API, uses execCommand) ---
 
-export async function loadUiConfig(): Promise<UiConfigFile> {
-  // Wrap in overall timeout so UI never hangs
-  const result = await Promise.race([
-    loadUiConfigInner(),
-    timeoutPromise(LOAD_UI_CONFIG_TIMEOUT, null),
-  ]);
-  if (!result) {
-    console.warn('loadUiConfig timed out, returning default');
-    // Try to create default config in background (don't await - best effort)
-    ensureDefaultConfigFile().catch(() => {});
-    return createUiDefaultConfig();
-  }
-  return result;
+function escapeShellArg(arg: string): string {
+  return arg.replace(/"/g, '\\"');
 }
 
-async function ensureDefaultConfigFile(): Promise<void> {
+async function shellReadFile(path: string): Promise<string> {
+  const Neutralino = getNeutralino();
+  const result = await Neutralino.os.execCommand(`cat "${escapeShellArg(path)}"`);
+  return (result.stdOut || result.stdout || '').trim();
+}
+
+async function shellWriteFile(path: string, content: string): Promise<void> {
+  const Neutralino = getNeutralino();
+  // Use base64 to avoid all quoting/escaping issues with shell
+  const b64 = btoa(content);
+  await Neutralino.os.execCommand(
+    `echo '${b64}' | base64 -d > "${escapeShellArg(path)}"`
+  );
+}
+
+async function shellMkdir(dir: string): Promise<void> {
+  const Neutralino = getNeutralino();
+  await Neutralino.os.execCommand(`mkdir -p "${escapeShellArg(dir)}"`);
+}
+
+async function shellFileExists(path: string): Promise<boolean> {
+  const Neutralino = getNeutralino();
   try {
-    const Neutralino = getNeutralino();
-    if (!Neutralino?.filesystem) return;
-    const configPath = await getConfigPathAsync();
-    const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
-    await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
-    const defaultConfig: UnifiedConfigFile = {
-      settings: {
-        plugins_enabled: ['default'],
-        credentials: {},
-        cache: false,
-        integrations: [],
-      },
-      gateway: createUiDefaultConfig(),
-      server: { port: 8700, headless: false },
-    };
-    await Neutralino.filesystem.writeFile(
-      configPath,
-      JSON.stringify(defaultConfig, null, 2)
-    );
-  } catch (e) {
-    console.warn('ensureDefaultConfigFile failed:', e);
+    const result = await Neutralino.os.execCommand(`test -f "${escapeShellArg(path)}" && echo YES || echo NO`);
+    return (result.stdOut || result.stdout || '').trim() === 'YES';
+  } catch {
+    return false;
   }
 }
+
+// --- Config loading ---
+
+const DEFAULT_UNIFIED_CONFIG = JSON.stringify({
+  settings: { plugins_enabled: ['default'], credentials: {}, cache: false, integrations: [] },
+  gateway: { providers: {}, text: { routing: [], userConfig: null }, image: { routing: [], userConfig: null }, video: { routing: [], userConfig: null }, audio: { routing: [], userConfig: null }, mcp: { routing: [], userConfig: null } },
+  server: { port: 8700, headless: false },
+});
 
 function createUiDefaultConfig(): UiConfigFile {
   return {
@@ -258,7 +259,7 @@ function createUiDefaultConfig(): UiConfigFile {
   };
 }
 
-async function loadUiConfigInner(): Promise<UiConfigFile> {
+export async function loadUiConfig(): Promise<UiConfigFile> {
   const defaultConfig = createUiDefaultConfig();
 
   if (!isDesktopMode()) {
@@ -266,49 +267,38 @@ async function loadUiConfigInner(): Promise<UiConfigFile> {
   }
 
   const Neutralino = getNeutralino();
-  if (!Neutralino?.filesystem) {
+  if (!Neutralino?.os?.execCommand) {
     return defaultConfig;
   }
 
   const configPath = await getConfigPathAsync();
+  const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
 
-  // Always ensure the config file exists first (createDirectory + writeFile)
-  // This avoids readFile hanging when file doesn't exist
   try {
-    const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
-    await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
-    // Try reading first — if it fails, write default
-    let parsed: any;
-    try {
-      const text: string = await Neutralino.filesystem.readFile(configPath);
-      parsed = JSON.parse(text);
-    } catch {
-      // File doesn't exist or invalid — write default
-      const initialConfig: UnifiedConfigFile = {
-        settings: {
-          plugins_enabled: ['default'],
-          credentials: {},
-          cache: false,
-          integrations: [],
-        },
-        gateway: defaultConfig,
-        server: { port: 8700, headless: false },
-      };
-      await Neutralino.filesystem.writeFile(
-        configPath,
-        JSON.stringify(initialConfig, null, 2)
-      );
+    // Ensure directory exists
+    await shellMkdir(dirPath);
+
+    // Check if file exists — create default if missing
+    const exists = await shellFileExists(configPath);
+    if (!exists) {
+      await shellWriteFile(configPath, DEFAULT_UNIFIED_CONFIG);
+      Neutralino.debug?.log?.('Created default config at ' + configPath, 'INFO');
+    }
+
+    // Read and parse file
+    const text = await shellReadFile(configPath);
+    if (!text) {
+      // File is empty or read failed — write default
+      await shellWriteFile(configPath, DEFAULT_UNIFIED_CONFIG);
       return defaultConfig;
     }
 
-    if (!parsed || typeof parsed !== 'object') {
-      return defaultConfig;
-    }
-
+    const parsed = JSON.parse(text);
     return parsed?.gateway
       ? { ...defaultConfig, ...parsed.gateway }
       : defaultConfig;
-  } catch {
+  } catch (e) {
+    console.warn('loadUiConfig error:', e);
     return defaultConfig;
   }
 }
@@ -319,41 +309,38 @@ export async function saveUiConfig(config: UiConfigFile): Promise<void> {
   }
 
   const Neutralino = getNeutralino();
-  if (!Neutralino?.filesystem) {
-    throw new Error('Neutralino filesystem not available');
+  if (!Neutralino?.os?.execCommand) {
+    throw new Error('Neutralino execCommand not available');
   }
 
   const configPath = await getConfigPathAsync();
-
-  // Ensure directory exists - extract directory from configPath
   const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+
   try {
-    await Neutralino.filesystem.createDirectory(dirPath, {
-      recursive: true,
-    });
-  } catch (e: any) {
-    // Ignore if already exists
-    if (!e?.message?.includes('already exists')) {
-      console.warn('Failed to create config directory:', e?.message);
+    // Ensure directory exists
+    await shellMkdir(dirPath);
+
+    // Read existing config to preserve settings and server
+    let existingConfig: UnifiedConfigFile = {};
+    const exists = await shellFileExists(configPath);
+    if (exists) {
+      try {
+        const text = await shellReadFile(configPath);
+        existingConfig = JSON.parse(text);
+      } catch {}
     }
+
+    // Update gateway, preserve settings and server
+    const unifiedConfig: UnifiedConfigFile = {
+      ...existingConfig,
+      gateway: config,
+    };
+
+    await shellWriteFile(configPath, JSON.stringify(unifiedConfig, null, 2));
+  } catch (e: any) {
+    console.warn('saveUiConfig error:', e);
+    throw new Error('Failed to save config: ' + (e?.message || e));
   }
-
-  // Read existing config to preserve settings and server
-  let existingConfig: UnifiedConfigFile = {};
-  try {
-    const text: string = await Neutralino.filesystem.readFile(configPath);
-    existingConfig = JSON.parse(text);
-  } catch {
-    // File doesn't exist yet
-  }
-
-  // Update gateway, preserve settings and server
-  const unifiedConfig: UnifiedConfigFile = {
-    ...existingConfig,
-    gateway: config,
-  };
-
-  await Neutralino.filesystem.writeFile(configPath, JSON.stringify(unifiedConfig, null, 2));
 }
 
 export async function loadUserConfig(

@@ -167,6 +167,23 @@ async function startBackend() {
 }
 
 async function getHomeDir() {
+  // Try NL_PATH first (synchronous, always available in Neutralino)
+  try {
+    const nlPath = window.NL_PATH;
+    if (nlPath && typeof nlPath === 'string') {
+      for (const prefix of ['/home/', '/Users/']) {
+        const idx = nlPath.indexOf(prefix);
+        if (idx !== -1) {
+          const afterPrefix = nlPath.slice(idx + prefix.length);
+          const endIdx = afterPrefix.indexOf('/');
+          if (endIdx !== -1) {
+            return prefix + afterPrefix.slice(0, endIdx);
+          }
+        }
+      }
+    }
+  } catch {}
+
   const Neutralino = getNeutralino();
   if (Neutralino?.os?.getEnv) {
     try {
@@ -193,53 +210,47 @@ function getNeutralino() {
 
 async function ensureConfigExists(configPath) {
   const Neutralino = getNeutralino();
-  if (!Neutralino?.filesystem) {
-    Neutralino?.debug?.log('Neutralino filesystem not available', 'WARN');
+  if (!Neutralino?.os?.execCommand) {
+    Neutralino?.debug?.log('Neutralino execCommand not available', 'WARN');
     return;
   }
 
-  let exists = true;
+  // Use shell command instead of Neutralino filesystem API
+  const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+
+  // Check if file exists
+  const checkCmd = isWindows
+    ? `if exist "${configPath}" (echo EXISTS) else (echo MISSING)`
+    : `test -f "${configPath}" && echo EXISTS || echo MISSING`;
+
   try {
-    const content = await Neutralino.filesystem.readFile(configPath);
-    if (content === null || content === undefined || content === '') {
-      exists = false;
+    const checkResult = await Neutralino.os.execCommand(checkCmd);
+    const output = (checkResult.stdOut || checkResult.stdout || '').trim();
+    if (output === 'EXISTS') {
+      Neutralino.debug.log('Config already exists at ' + configPath, 'INFO');
+      return;
     }
   } catch (e) {
-    Neutralino.debug.log('readFile threw: ' + (e?.message || e), 'INFO');
-    exists = false;
+    Neutralino.debug.log('Check failed, will try to create anyway: ' + (e?.message || e), 'INFO');
   }
 
-  if (exists) {
-    Neutralino.debug.log('Config already exists at ' + configPath, 'INFO');
-    return;
-  }
-
-  // File doesn't exist - create it
+  // File doesn't exist — create dir and write default using shell
   try {
-    const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
-    await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
-    const defaultConfig = {
-      settings: {
-        plugins_enabled: ['default'],
-        credentials: {},
-        cache: false,
-        integrations: [],
-      },
-      gateway: {
-        providers: {},
-        text: { routing: [], userConfig: null },
-        image: { routing: [], userConfig: null },
-        video: { routing: [], userConfig: null },
-        audio: { routing: [], userConfig: null },
-        mcp: { routing: [], userConfig: null },
-      },
-      server: { port: 8700, headless: false },
-    };
-    await Neutralino.filesystem.writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
+    const b64 = 'eyJzZXR0aW5ncyI6eyJwbHVnaW5zX2VuYWJsZWQiOlsibWluaW1heCJdLCJjcmVkZW50aWFscyI6e30sImNhY2hlIjpmYWxzZSwiaW50ZWdyYXRpb25zIjpbXX0sImdhdGV3YXkiOnsicHJvdmlkZXJzIjp7fSwidGV4dCI6eyJyb3V0aW5nIjpbXSwidXNlckNvbmZpZyI6bnVsbH0sImltYWdlIjp7InJvdXRpbmciOltdLCJ1c2VyQ29uZmlnIjpudWxsfSwidmlkZW8iOnsicm91dGluZyI6W10sInVzZXJDb25maWciOm51bGx9LCJhdWRpbyI6eyJyb3V0aW5nIjpbXSwidXNlckNvbmZpZyI6bnVsbH0sIm1jcCI6eyJyb3V0aW5nIjpbXSwidXNlckNvbmZpZyI6bnVsbH19LCJzZXJ2ZXIiOnsicG9ydCI6ODcwMCwiaGVhZGxlc3MiOmZhbHNlfX0=';
+
+    const mkdirCmd = isWindows
+      ? `mkdir "${dirPath}"`
+      : `mkdir -p "${dirPath}"`;
+    await Neutralino.os.execCommand(mkdirCmd);
+
+    // Write using base64 decode to avoid quoting issues
+    const writeCmd = isWindows
+      ? `powershell -Command "[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${b64}')) | Set-Content -Path '${configPath}'"`
+      : `echo '${b64}' | base64 -d > '${configPath}'`;
+    await Neutralino.os.execCommand(writeCmd);
+
     Neutralino.debug.log('Created default config at ' + configPath, 'INFO');
   } catch (createErr) {
-    Neutralino.debug.log('Failed to create config: ' + (createErr?.message || createErr), 'ERROR');
-  }
-}
+    Neutralino.debug.log('Failed to create config via shell: ' + (createErr?.message || createErr), 'ERROR');
   }
 }
