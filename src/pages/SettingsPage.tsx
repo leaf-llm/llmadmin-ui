@@ -4,6 +4,11 @@ import { loadUiConfig, saveUiConfig, createEmptyUiConfig, getNeutralinoHomeDir }
 import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
+  'settings',
+  'gateway',
+  'server',
+];
+const VALID_GATEWAY_KEYS = [
   'providers',
   'text',
   'image',
@@ -53,23 +58,23 @@ export default function SettingsPage() {
     }
   }
 
-  function validateConfig(cfg: unknown): string {
-    if (!cfg || typeof cfg !== 'object') {
-      return 'Config must be an object';
+  function validateGateway(gateway: unknown): string {
+    if (!gateway || typeof gateway !== 'object') {
+      return 'Gateway section must be an object';
     }
 
-    const c = cfg as Record<string, unknown>;
+    const g = gateway as Record<string, unknown>;
 
-    for (const key of Object.keys(c)) {
-      if (!VALID_CONFIG_KEYS.includes(key)) {
-        return `Invalid config key: ${key}`;
+    for (const key of Object.keys(g)) {
+      if (!VALID_GATEWAY_KEYS.includes(key)) {
+        return `Invalid gateway key: ${key}`;
       }
     }
 
-    if (!c.providers || typeof c.providers !== 'object') {
+    if (!g.providers || typeof g.providers !== 'object') {
       return 'Missing or invalid "providers" field';
     }
-    const providers = c.providers as Record<string, unknown>;
+    const providers = g.providers as Record<string, unknown>;
     for (const [providerId, providerConfigs] of Object.entries(providers)) {
       if (!VALID_PROVIDERS.includes(providerId)) {
         return `Unknown provider: ${providerId}`;
@@ -102,10 +107,10 @@ export default function SettingsPage() {
 
     const categories = ['text', 'image', 'video', 'audio', 'mcp'];
     for (const cat of categories) {
-      if (!c[cat] || typeof c[cat] !== 'object') {
+      if (!g[cat] || typeof g[cat] !== 'object') {
         return `Missing or invalid category: ${cat}`;
       }
-      const catConfig = c[cat] as Record<string, unknown>;
+      const catConfig = g[cat] as Record<string, unknown>;
       if (!Array.isArray(catConfig.routing)) {
         return `Category "${cat}" missing valid "routing" array`;
       }
@@ -138,42 +143,101 @@ export default function SettingsPage() {
     return '';
   }
 
+  function validateConfig(cfg: unknown): string {
+    if (!cfg || typeof cfg !== 'object') {
+      return 'Config must be an object';
+    }
+
+    const c = cfg as Record<string, unknown>;
+
+    // Detect format: old (providers at root) vs new (settings/gateway/server)
+    const isOldFormat = 'providers' in c || 'text' in c || 'integrations' in c;
+    const isNewFormat = 'settings' in c || 'gateway' in c || 'server' in c;
+
+    if (!isOldFormat && !isNewFormat) {
+      return 'Config must contain at least one of: settings, gateway, providers';
+    }
+
+    // Old format: validate as gateway directly
+    if (isOldFormat && !isNewFormat) {
+      return validateGateway(c);
+    }
+
+    // New unified format: validate top-level keys
+    for (const key of Object.keys(c)) {
+      if (!VALID_CONFIG_KEYS.includes(key)) {
+        return `Invalid config key: ${key}`;
+      }
+    }
+
+    // Validate gateway section if present
+    if (c.gateway) {
+      const err = validateGateway(c.gateway);
+      if (err) return err;
+    }
+
+    return '';
+  }
+
   async function handleExport() {
     setConfigError(null);
     setExportSuccess(null);
     try {
+      // Load the full unified config from disk (not just gateway)
+      const Neutralino = isDesktopMode() ? (window as any).Neutralino : null;
+      let unifiedConfig: Record<string, unknown> = {};
+
+      if (Neutralino?.filesystem) {
+        try {
+          const home = await getNeutralinoHomeDir();
+          const configPath = `${home}/.llm-admin/conf.json`;
+          const text: string = await Neutralino.filesystem.readFile(configPath);
+          unifiedConfig = JSON.parse(text);
+        } catch {
+          // File doesn't exist - export with just gateway section
+        }
+      }
+
+      // Always include the current gateway config (from memory)
+      const gatewayConfig = await loadUiConfig();
+      unifiedConfig.gateway = gatewayConfig;
+
+      // Ensure settings and server sections exist
+      if (!unifiedConfig.settings) {
+        unifiedConfig.settings = {
+          plugins_enabled: ['default'],
+          credentials: {},
+          cache: false,
+          integrations: [],
+        };
+      }
+      if (!unifiedConfig.server) {
+        unifiedConfig.server = { port: 8700, headless: false };
+      }
+
+      const jsonStr = JSON.stringify(unifiedConfig, null, 2);
+
       if (isDesktopMode()) {
-        const Neutralino = (window as any).Neutralino;
         let filePath: string | null = null;
         try {
           const result = await Neutralino.os.showSaveDialog('Export Config', {
-            defaultPath: 'conf.ui.json',
+            defaultPath: 'conf.json',
           });
           filePath = result || null;
         } catch {
-          // dialog API not available; treat as user-cancelled (silent abort)
           filePath = null;
         }
-        if (!filePath) {
-          // user cancelled (or dialog unavailable) - do nothing
-          return;
-        }
-        const fullConfig = await loadUiConfig();
-        const jsonStr = JSON.stringify(fullConfig, null, 2);
+        if (!filePath) return;
         await Neutralino.filesystem.writeFile(filePath, jsonStr);
         setExportSuccess(filePath);
         return;
       }
 
-      const fullConfig = await loadUiConfig();
-      const jsonStr = JSON.stringify(fullConfig, null, 2);
-      const blob = new Blob([jsonStr], {
-        type: 'application/json',
-      });
+      const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'conf.ui.json';
+      a.download = 'conf.json';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -265,7 +329,33 @@ export default function SettingsPage() {
   async function handleClear() {
     setConfigError(null);
     try {
+      const Neutralino = isDesktopMode() ? (window as any).Neutralino : null;
+
+      // Reset gateway section
       await saveUiConfig(createEmptyUiConfig());
+
+      // Reset settings section on disk
+      if (Neutralino?.filesystem) {
+        try {
+          const home = await getNeutralinoHomeDir();
+          const configPath = `${home}/.llm-admin/conf.json`;
+          const text: string = await Neutralino.filesystem.readFile(configPath);
+          const unified = JSON.parse(text);
+          unified.settings = {
+            plugins_enabled: ['default'],
+            credentials: {},
+            cache: false,
+            integrations: [],
+          };
+          await Neutralino.filesystem.writeFile(
+            configPath,
+            JSON.stringify(unified, null, 2)
+          );
+        } catch (e: any) {
+          console.warn('Failed to clear settings section:', e?.message);
+        }
+      }
+
       setShowClearDialog(false);
       await loadConfig();
     } catch (e: any) {
