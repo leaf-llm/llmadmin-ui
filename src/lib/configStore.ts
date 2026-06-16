@@ -170,52 +170,11 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     const text: string = await Neutralino.filesystem.readFile(configPath);
     const parsed = JSON.parse(text);
 
-    // Detect unified format: has settings or gateway at root
-    const isUnified = parsed && (parsed.settings || parsed.gateway);
-
-    if (isUnified) {
-      // Extract gateway section (use empty if missing)
-      const gateway: UiConfigFile = parsed.gateway
-        ? { ...defaultConfig, ...parsed.gateway }
-        : defaultConfig;
-      return gateway;
-    }
-
-    // Old format: text/image/video/audio/mcp/providers at root
-    // Treat entire object as gateway and normalize file on disk
-    const legacyAsGateway: UiConfigFile = {
-      ...defaultConfig,
-      providers: parsed.providers || {},
-      text: parsed.text || defaultConfig.text,
-      image: parsed.image || defaultConfig.image,
-      video: parsed.video || defaultConfig.video,
-      audio: parsed.audio || defaultConfig.audio,
-      mcp: parsed.mcp || defaultConfig.mcp,
-    };
-
-    // Normalize: write back as unified format
-    try {
-      const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
-      await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
-      const normalized: UnifiedConfigFile = {
-        settings: {
-          plugins_enabled: ['default'],
-          credentials: {},
-          cache: false,
-          integrations: [],
-        },
-        gateway: legacyAsGateway,
-        server: { port: 8700, headless: false },
-      };
-      await Neutralino.filesystem.writeFile(
-        configPath,
-        JSON.stringify(normalized, null, 2)
-      );
-    } catch (writeErr) {
-      console.warn('Failed to normalize old config to unified format:', writeErr);
-    }
-
-    return legacyAsGateway;
+    // Unified format only - return gateway section
+    const gateway: UiConfigFile = parsed?.gateway
+      ? { ...defaultConfig, ...parsed.gateway }
+      : defaultConfig;
+    return gateway;
   } catch (e: any) {
     const errMsg = e?.message || String(e);
     const isNotFound =
@@ -273,23 +232,16 @@ export async function saveUiConfig(config: UiConfigFile): Promise<void> {
     }
   }
 
-  // Read existing config to preserve other sections
+  // Read existing config to preserve settings and server
   let existingConfig: UnifiedConfigFile = {};
   try {
     const text: string = await Neutralino.filesystem.readFile(configPath);
-    const parsed = JSON.parse(text);
-
-    // Only keep known unified fields, discard old root fields like 'providers'
-    existingConfig = {
-      settings: parsed.settings,
-      gateway: parsed.gateway,
-      server: parsed.server,
-    };
+    existingConfig = JSON.parse(text);
   } catch {
-    // File doesn't exist yet, use empty config
+    // File doesn't exist yet
   }
 
-  // Merge: preserve settings, update gateway
+  // Update gateway, preserve settings and server
   const unifiedConfig: UnifiedConfigFile = {
     ...existingConfig,
     gateway: config,
