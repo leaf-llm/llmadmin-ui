@@ -151,10 +151,39 @@ async function startBackend() {
     'INFO'
   );
 
+  // Desktop app uses ~/.llm-admin/conf.json for unified config
+  const homeDir = await getHomeDir();
+  const configPath = `${homeDir}/.llm-admin/conf.json`;
+
   const ppidFlag = isWindows ? '' : ` --ppid=${window.NL_PID}`;
-  const cmd = `"${absPath}" --port=8700 --headless --quiet-log${ppidFlag}`;
+  const cmd = `"${absPath}" --port=8700 --headless --quiet-log --config="${configPath}"${ppidFlag}`;
   Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
 
   const result = await Neutralino.os.spawnProcess(cmd);
   Neutralino.debug.log('Spawn result PID: ' + result.pid, 'INFO');
+}
+
+async function getHomeDir() {
+  const Neutralino = getNeutralino();
+  if (Neutralino?.os?.getEnv) {
+    try {
+      const home = await Neutralino.os.getEnv('HOME');
+      if (home && typeof home === 'string') {
+        return home;
+      }
+    } catch {}
+  }
+  if (Neutralino?.os?.homeDir) {
+    try {
+      const home = await Neutralino.os.homeDir();
+      if (home && typeof home === 'string') {
+        return home;
+      }
+    } catch {}
+  }
+  return '/home/user';
+}
+
+function getNeutralino() {
+  return typeof window !== 'undefined' ? window.Neutralino : null;
 }

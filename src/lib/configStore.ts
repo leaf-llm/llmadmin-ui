@@ -99,14 +99,26 @@ async function getConfigPathAsync(): Promise<string> {
     return cachedConfigPath;
   }
   const home = await getNeutralinoHomeDir();
-  cachedConfigPath = `${home}/.llm-admin/conf.ui.json`;
+  cachedConfigPath = `${home}/.llm-admin/conf.json`;
   return cachedConfigPath;
 }
 
 // Sync fallback for initial load (before async path is computed)
 function getConfigPath(): string {
-  return cachedConfigPath || `/home/user/.llm-admin/conf.ui.json`;
+  return cachedConfigPath || `/home/user/.llm-admin/conf.json`;
 }
+
+// Unified config type for frontend
+export type UnifiedConfigFile = {
+  settings?: {
+    plugins_enabled?: string[];
+    credentials?: Record<string, { apiKey: string }>;
+    cache?: boolean;
+    integrations?: unknown[];
+  };
+  gateway?: UiConfigFile;
+  server?: { port?: number; headless?: boolean };
+};
 
 export function maskApiKey(key: string): string {
   const trimmed = key.trim();
@@ -156,6 +168,14 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
   const configPath = await getConfigPathAsync();
   try {
     const text: string = await Neutralino.filesystem.readFile(configPath);
+    const unified: UnifiedConfigFile = JSON.parse(text);
+
+    // Extract gateway section from unified config
+    if (unified?.gateway) {
+      return unified.gateway;
+    }
+
+    // Fallback for old conf.ui.json format (backward compat)
     return JSON.parse(text) as UiConfigFile;
   } catch (e: any) {
     if (e?.message?.includes('ENOENT') || e?.message?.includes('file not found')) {
@@ -190,7 +210,22 @@ export async function saveUiConfig(config: UiConfigFile): Promise<void> {
     }
   }
 
-  await Neutralino.filesystem.writeFile(configPath, JSON.stringify(config, null, 2));
+  // Read existing config to preserve other sections
+  let existingConfig: UnifiedConfigFile = {};
+  try {
+    const text: string = await Neutralino.filesystem.readFile(configPath);
+    existingConfig = JSON.parse(text);
+  } catch {
+    // File doesn't exist yet, use empty config
+  }
+
+  // Merge: preserve settings, update gateway
+  const unifiedConfig: UnifiedConfigFile = {
+    ...existingConfig,
+    gateway: config,
+  };
+
+  await Neutralino.filesystem.writeFile(configPath, JSON.stringify(unifiedConfig, null, 2));
 }
 
 export async function loadUserConfig(
