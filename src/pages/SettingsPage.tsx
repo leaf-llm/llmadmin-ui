@@ -48,9 +48,29 @@ export default function SettingsPage() {
     setConfigLoading(true);
     setConfigError(null);
     try {
-      const fullConfig = await loadUiConfig();
-      setConfig(fullConfig as any);
-      setRawConfig(JSON.stringify(fullConfig, null, 2));
+      const Neutralino = isDesktopMode() ? (window as any).Neutralino : null;
+      let unified: Record<string, unknown> | null = null;
+
+      // Read the full unified config directly from disk
+      if (Neutralino?.filesystem) {
+        try {
+          const home = await getNeutralinoHomeDir();
+          const configPath = `${home}/.llm-admin/conf.json`;
+          const text: string = await Neutralino.filesystem.readFile(configPath);
+          unified = JSON.parse(text);
+        } catch {
+          unified = null;
+        }
+      }
+
+      // Fallback: use loadUiConfig (gateway only)
+      if (!unified) {
+        const gateway = await loadUiConfig();
+        unified = { gateway };
+      }
+
+      setConfig(unified as any);
+      setRawConfig(JSON.stringify(unified, null, 2));
     } catch (e: any) {
       setConfigError(e?.message ?? String(e));
     } finally {
