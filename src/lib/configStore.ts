@@ -179,6 +179,24 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     return JSON.parse(text) as UiConfigFile;
   } catch (e: any) {
     if (e?.message?.includes('ENOENT') || e?.message?.includes('file not found')) {
+      // Create the default unified config file
+      try {
+        const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+        await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
+        const initialConfig: UnifiedConfigFile = {
+          settings: {
+            plugins_enabled: ['default'],
+            credentials: {},
+            cache: false,
+            integrations: [],
+          },
+          gateway: defaultConfig,
+          server: { port: 8700, headless: false },
+        };
+        await Neutralino.filesystem.writeFile(configPath, JSON.stringify(initialConfig, null, 2));
+      } catch (createErr) {
+        console.warn('Failed to create default config file:', createErr);
+      }
       return defaultConfig;
     }
     throw e;
