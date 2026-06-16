@@ -150,27 +150,12 @@ export default function SettingsPage() {
 
     const c = cfg as Record<string, unknown>;
 
-    // Detect format: old (providers at root) vs new (settings/gateway/server)
-    const isOldFormat = 'providers' in c || 'text' in c || 'integrations' in c;
-    const isNewFormat = 'settings' in c || 'gateway' in c || 'server' in c;
-
-    if (!isOldFormat && !isNewFormat) {
-      return 'Config must contain at least one of: settings, gateway, providers';
-    }
-
-    // Old format: validate as gateway directly
-    if (isOldFormat && !isNewFormat) {
-      return validateGateway(c);
-    }
-
-    // New unified format: validate top-level keys
     for (const key of Object.keys(c)) {
       if (!VALID_CONFIG_KEYS.includes(key)) {
         return `Invalid config key: ${key}`;
       }
     }
 
-    // Validate gateway section if present
     if (c.gateway) {
       const err = validateGateway(c.gateway);
       if (err) return err;
@@ -237,39 +222,6 @@ export default function SettingsPage() {
     fileInputRef.current?.click();
   }
 
-  // Normalize parsed config into the new unified format
-  function normalizeToUnified(parsed: any): { settings?: any; gateway: any; server?: any } {
-    const isOldFormat = parsed && (
-      'providers' in parsed ||
-      'text' in parsed ||
-      'integrations' in parsed ||
-      'plugins_enabled' in parsed
-    );
-    const isNewFormat = parsed && ('settings' in parsed || 'gateway' in parsed);
-
-    if (isNewFormat) {
-      // Already unified - just ensure gateway is present
-      return {
-        settings: parsed.settings,
-        gateway: parsed.gateway || createEmptyUiConfig(),
-        server: parsed.server,
-      };
-    }
-
-    if (isOldFormat) {
-      // Old format - treat entire object as gateway section
-      // (validateConfig already confirmed it has valid gateway fields)
-      const { settings, gateway, server, ...rest } = parsed;
-      return {
-        settings: undefined,
-        gateway: rest,
-        server: undefined,
-      };
-    }
-
-    return { gateway: parsed };
-  }
-
   async function handleDesktopImport() {
     setImportError(null);
     setImportSuccess(false);
@@ -291,8 +243,8 @@ export default function SettingsPage() {
         return;
       }
 
-      const unified = normalizeToUnified(parsed);
-      await saveUiConfig(unified.gateway as any);
+      const gateway = (parsed as any).gateway || createEmptyUiConfig();
+      await saveUiConfig(gateway);
       setImportSuccess(true);
       await loadConfig();
     } catch (err: any) {
@@ -326,8 +278,8 @@ export default function SettingsPage() {
         return;
       }
 
-      const unified = normalizeToUnified(parsed);
-      await saveUiConfig(unified.gateway as any);
+      const gateway = (parsed as any).gateway || createEmptyUiConfig();
+      await saveUiConfig(gateway);
       setImportSuccess(true);
       await loadConfig();
     } catch (err: any) {
