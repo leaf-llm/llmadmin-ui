@@ -238,7 +238,14 @@ export async function saveUiConfig(config: UiConfigFile): Promise<void> {
   let existingConfig: UnifiedConfigFile = {};
   try {
     const text: string = await Neutralino.filesystem.readFile(configPath);
-    existingConfig = JSON.parse(text);
+    const parsed = JSON.parse(text);
+
+    // Only keep known unified fields, discard old root fields like 'providers'
+    existingConfig = {
+      settings: parsed.settings,
+      gateway: parsed.gateway,
+      server: parsed.server,
+    };
   } catch {
     // File doesn't exist yet, use empty config
   }

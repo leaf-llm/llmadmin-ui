@@ -155,6 +155,9 @@ async function startBackend() {
   const homeDir = await getHomeDir();
   const configPath = `${homeDir}/.llm-admin/conf.json`;
 
+  // Ensure the config file exists with default unified format before starting backend
+  await ensureConfigExists(configPath);
+
   const ppidFlag = isWindows ? '' : ` --ppid=${window.NL_PID}`;
   const cmd = `"${absPath}" --port=8700 --headless --quiet-log --config="${configPath}"${ppidFlag}`;
   Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
@@ -186,4 +189,47 @@ async function getHomeDir() {
 
 function getNeutralino() {
   return typeof window !== 'undefined' ? window.Neutralino : null;
+}
+
+async function ensureConfigExists(configPath) {
+  const Neutralino = getNeutralino();
+  if (!Neutralino?.filesystem) return;
+  try {
+    await Neutralino.filesystem.readFile(configPath);
+    // File exists, nothing to do
+  } catch (e) {
+    const errMsg = e?.message || String(e);
+    const isNotFound =
+      errMsg.includes('ENOENT') ||
+      errMsg.includes('Unable to open file') ||
+      errMsg.includes('file not found') ||
+      errMsg.includes('does not exist');
+    if (isNotFound) {
+      try {
+        const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+        await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
+        const defaultConfig = {
+          settings: {
+            plugins_enabled: ['default'],
+            credentials: {},
+            cache: false,
+            integrations: [],
+          },
+          gateway: {
+            providers: {},
+            text: { routing: [], userConfig: null },
+            image: { routing: [], userConfig: null },
+            video: { routing: [], userConfig: null },
+            audio: { routing: [], userConfig: null },
+            mcp: { routing: [], userConfig: null },
+          },
+          server: { port: 8700, headless: false },
+        };
+        await Neutralino.filesystem.writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
+        Neutralino.debug.log('Created default config at ' + configPath, 'INFO');
+      } catch (createErr) {
+        Neutralino.debug.log('Failed to create config: ' + createErr.message, 'ERROR');
+      }
+    }
+  }
 }
