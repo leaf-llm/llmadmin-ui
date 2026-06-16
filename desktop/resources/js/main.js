@@ -236,7 +236,24 @@ async function ensureConfigExists(configPath) {
 
   // File doesn't exist — create dir and write default using shell
   try {
-    const b64 = 'ewogICAgInNldHRpbmdzIjogewogICAgICAgICJwbHVnaW5zX2VuYWJsZWQiOiBbCiAgICAgICAgICAgICJkZWZhdWx0IgogICAgICAgIF0sCiAgICAgICAgImNyZWRlbnRpYWxzIjoge30sCiAgICAgICAgImNhY2hlIjogZmFsc2UsCiAgICAgICAgImludGVncmF0aW9ucyI6IFtdCiAgICB9LAogICAgImdhdGV3YXkiOiB7CiAgICAgICAgInByb3ZpZGVycyI6IHt9LAogICAgICAgICJ0ZXh0IjogewogICAgICAgICAgICAicm91dGluZyI6IFtdLAogICAgICAgICAgICAidXNlckNvbmZpZyI6IG51bGwKICAgICAgICB9LAogICAgICAgICJpbWFnZSI6IHsKICAgICAgICAgICAgInJvdXRpbmciOiBbXSwKICAgICAgICAgICAgInVzZXJDb25maWciOiBudWxsCiAgICAgICAgfSwKICAgICAgICAidmlkZW8iOiB7CiAgICAgICAgICAgICJyb3V0aW5nIjogW10sCiAgICAgICAgICAgICJ1c2VyQ29uZmlnIjogbnVsbAogICAgICAgIH0sCiAgICAgICAgImF1ZGlvIjogewogICAgICAgICAgICAicm91dGluZyI6IFtdLAogICAgICAgICAgICAidXNlckNvbmZpZyI6IG51bGwKICAgICAgICB9LAogICAgICAgICJtY3AiOiB7CiAgICAgICAgICAgICJyb3V0aW5nIjogW10sCiAgICAgICAgICAgICJ1c2VyQ29uZmlnIjogbnVsbAogICAgICAgIH0KICAgIH0sCiAgICAic2VydmVyIjogewogICAgICAgICJwb3J0IjogODcwMCwKICAgICAgICAiaGVhZGxlc3MiOiBmYWxzZQogICAgfQp9Cg==';
+    const defaultConfig = {
+      settings: {
+        plugins_enabled: ['default'],
+        credentials: {},
+        cache: false,
+        integrations: [],
+      },
+      gateway: {
+        providers: {},
+        text: { routing: [], userConfig: null },
+        image: { routing: [], userConfig: null },
+        video: { routing: [], userConfig: null },
+        audio: { routing: [], userConfig: null },
+        mcp: { routing: [], userConfig: null },
+      },
+      server: { port: 8700, headless: false },
+    };
+    const b64 = btoa(JSON.stringify(defaultConfig, null, 2));
 
     const mkdirCmd = isWindows
       ? `mkdir "${dirPath}"`
