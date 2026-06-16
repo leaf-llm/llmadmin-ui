@@ -193,43 +193,53 @@ function getNeutralino() {
 
 async function ensureConfigExists(configPath) {
   const Neutralino = getNeutralino();
-  if (!Neutralino?.filesystem) return;
+  if (!Neutralino?.filesystem) {
+    Neutralino?.debug?.log('Neutralino filesystem not available', 'WARN');
+    return;
+  }
+
+  let exists = true;
   try {
-    await Neutralino.filesystem.readFile(configPath);
-    // File exists, nothing to do
-  } catch (e) {
-    const errMsg = e?.message || String(e);
-    const isNotFound =
-      errMsg.includes('ENOENT') ||
-      errMsg.includes('Unable to open file') ||
-      errMsg.includes('file not found') ||
-      errMsg.includes('does not exist');
-    if (isNotFound) {
-      try {
-        const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
-        await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
-        const defaultConfig = {
-          settings: {
-            plugins_enabled: ['default'],
-            credentials: {},
-            cache: false,
-            integrations: [],
-          },
-          gateway: {
-            providers: {},
-            text: { routing: [], userConfig: null },
-            image: { routing: [], userConfig: null },
-            video: { routing: [], userConfig: null },
-            audio: { routing: [], userConfig: null },
-            mcp: { routing: [], userConfig: null },
-          },
-          server: { port: 8700, headless: false },
-        };
-        await Neutralino.filesystem.writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
-        Neutralino.debug.log('Created default config at ' + configPath, 'INFO');
-      } catch (createErr) {
-        Neutralino.debug.log('Failed to create config: ' + createErr.message, 'ERROR');
-      }
+    const content = await Neutralino.filesystem.readFile(configPath);
+    if (content === null || content === undefined || content === '') {
+      exists = false;
     }
+  } catch (e) {
+    Neutralino.debug.log('readFile threw: ' + (e?.message || e), 'INFO');
+    exists = false;
+  }
+
+  if (exists) {
+    Neutralino.debug.log('Config already exists at ' + configPath, 'INFO');
+    return;
+  }
+
+  // File doesn't exist - create it
+  try {
+    const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+    await Neutralino.filesystem.createDirectory(dirPath, { recursive: true });
+    const defaultConfig = {
+      settings: {
+        plugins_enabled: ['default'],
+        credentials: {},
+        cache: false,
+        integrations: [],
+      },
+      gateway: {
+        providers: {},
+        text: { routing: [], userConfig: null },
+        image: { routing: [], userConfig: null },
+        video: { routing: [], userConfig: null },
+        audio: { routing: [], userConfig: null },
+        mcp: { routing: [], userConfig: null },
+      },
+      server: { port: 8700, headless: false },
+    };
+    await Neutralino.filesystem.writeFile(configPath, JSON.stringify(defaultConfig, null, 2));
+    Neutralino.debug.log('Created default config at ' + configPath, 'INFO');
+  } catch (createErr) {
+    Neutralino.debug.log('Failed to create config: ' + (createErr?.message || createErr), 'ERROR');
+  }
+}
   }
 }
