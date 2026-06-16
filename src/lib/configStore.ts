@@ -62,7 +62,8 @@ let cachedHomeDir: string | null = null;
 
 function timeoutPromise<T>(ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {
-    setTimeout(() => resolve(fallback), ms);
+    const id = setTimeout(() => resolve(fallback), ms);
+    if (typeof id === 'object' && typeof id.unref === 'function') id.unref();
   });
 }
 
@@ -158,8 +159,23 @@ export function createEmptyUiConfig(): UiConfigFile {
   };
 }
 
+const LOAD_UI_CONFIG_TIMEOUT = 3000;
+
 export async function loadUiConfig(): Promise<UiConfigFile> {
-  const defaultConfig: UiConfigFile = {
+  // Wrap in overall timeout so UI never hangs
+  const result = await Promise.race([
+    loadUiConfigInner(),
+    timeoutPromise(LOAD_UI_CONFIG_TIMEOUT, null),
+  ]);
+  if (!result) {
+    console.warn('loadUiConfig timed out, returning default');
+    return createUiDefaultConfig();
+  }
+  return result;
+}
+
+function createUiDefaultConfig(): UiConfigFile {
+  return {
     providers: {},
     text: createEmptyCategoryConfig(),
     image: createEmptyCategoryConfig(),
@@ -167,6 +183,10 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     audio: createEmptyCategoryConfig(),
     mcp: createEmptyCategoryConfig(),
   };
+}
+
+async function loadUiConfigInner(): Promise<UiConfigFile> {
+  const defaultConfig = createUiDefaultConfig();
 
   if (!isDesktopMode()) {
     return defaultConfig;
@@ -179,7 +199,6 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
 
   const configPath = await getConfigPathAsync();
   try {
-    // Try reading the file
     const text: string = await Neutralino.filesystem.readFile(configPath);
     const parsed = JSON.parse(text);
 
