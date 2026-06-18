@@ -16,7 +16,7 @@
     "bun:build": "npm --prefix src-gateway run bun:build",
     "bun:dev": "npm --prefix src-gateway run bun:dev",
     "build:desktop": "npm run bun:build && rm -rf desktop/resources/assets desktop/resources/index.html && npm run build:ui:desktop && cd desktop && neu build && node scripts/copy-binary.js",
-    "dev:desktop": "npm run bun:dev & cd desktop && neu run"
+    "dev:desktop": "cd desktop && neu run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
