@@ -60,30 +60,88 @@ function getNeutralino(): any {
 let cachedConfigPath: string | null = null;
 let cachedHomeDir: string | null = null;
 
+function timeoutPromise<T>(ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const id = window.setTimeout(() => resolve(fallback), ms);
+    (id as any)?.unref?.();
+  });
+}
+
+function getHomeFromStorage(): string | null {
+  try {
+    return localStorage.getItem('llm_admin_home');
+  } catch {
+    return null;
+  }
+}
+
+function setHomeToStorage(home: string): void {
+  try {
+    localStorage.setItem('llm_admin_home', home);
+  } catch {}
+}
+
 export async function getNeutralinoHomeDir(): Promise<string> {
   if (cachedHomeDir) {
     return cachedHomeDir;
   }
 
+  // Check localStorage for cached home dir
+  const stored = getHomeFromStorage();
+  if (stored) {
+    cachedHomeDir = stored;
+    return cachedHomeDir;
+  }
+
+  // Try to parse home from NL_PATH (synchronous, available immediately in Neutralino)
+  try {
+    const nlPath = (window as any).NL_PATH;
+    if (nlPath && typeof nlPath === 'string') {
+      // e.g. /home/sam/.local/share/llm-admin/app.neu
+      // Strategy: find /home/<user> or /Users/<user> pattern
+      for (const prefix of ['/home/', '/Users/']) {
+        const idx = nlPath.indexOf(prefix);
+        if (idx !== -1) {
+          const afterPrefix = nlPath.slice(idx + prefix.length);
+          const endIdx = afterPrefix.indexOf('/');
+          if (endIdx !== -1) {
+            const user = afterPrefix.slice(0, endIdx);
+            cachedHomeDir = prefix + user;
+            setHomeToStorage(cachedHomeDir);
+            return cachedHomeDir;
+          }
+        }
+      }
+    }
+  } catch {}
+
   const Neutralino = getNeutralino();
 
-  // Try os.getEnv('HOME') - returns Promise in newer versions
+  // Try os.getEnv('HOME') with 4s timeout
   try {
     if (Neutralino?.os?.getEnv) {
-      const home = await Neutralino.os.getEnv('HOME');
-      if (home && typeof home === 'string' && home.startsWith('/home/')) {
+      const home = await Promise.race([
+        Neutralino.os.getEnv('HOME'),
+        timeoutPromise(4000, null),
+      ]);
+      if (home && typeof home === 'string' && home.length > 0) {
         cachedHomeDir = home;
+        setHomeToStorage(home);
         return cachedHomeDir;
       }
     }
   } catch {}
 
-  // Try os.homeDir() - returns Promise
+  // Try os.homeDir() with 4s timeout
   try {
     if (Neutralino?.os?.homeDir) {
-      const home = await Neutralino.os.homeDir();
-      if (home && typeof home === 'string' && home.startsWith('/home/')) {
+      const home = await Promise.race([
+        Neutralino.os.homeDir(),
+        timeoutPromise(4000, null),
+      ]);
+      if (home && typeof home === 'string' && home.length > 0) {
         cachedHomeDir = home;
+        setHomeToStorage(home);
         return cachedHomeDir;
       }
     }
@@ -99,14 +157,26 @@ async function getConfigPathAsync(): Promise<string> {
     return cachedConfigPath;
   }
   const home = await getNeutralinoHomeDir();
-  cachedConfigPath = `${home}/.llm-admin/conf.ui.json`;
+  cachedConfigPath = `${home}/.llm-admin/conf.json`;
   return cachedConfigPath;
 }
 
 // Sync fallback for initial load (before async path is computed)
 function getConfigPath(): string {
-  return cachedConfigPath || `/home/user/.llm-admin/conf.ui.json`;
+  return cachedConfigPath || `/home/user/.llm-admin/conf.json`;
 }
+
+// Unified config type for frontend
+export type UnifiedConfigFile = {
+  settings?: {
+    plugins_enabled?: string[];
+    credentials?: Record<string, { apiKey: string }>;
+    cache?: boolean;
+    integrations?: unknown[];
+  };
+  gateway?: UiConfigFile;
+  server?: { port?: number; headless?: boolean };
+};
 
 export function maskApiKey(key: string): string {
   const trimmed = key.trim();
@@ -134,8 +204,52 @@ export function createEmptyUiConfig(): UiConfigFile {
   };
 }
 
-export async function loadUiConfig(): Promise<UiConfigFile> {
-  const defaultConfig: UiConfigFile = {
+// --- Shell-based file I/O (bypasses Neutralino filesystem API, uses execCommand) ---
+
+function escapeShellArg(arg: string): string {
+  return arg.replace(/"/g, '\\"');
+}
+
+async function shellReadFile(path: string): Promise<string> {
+  const Neutralino = getNeutralino();
+  const result = await Neutralino.os.execCommand(`cat "${escapeShellArg(path)}"`);
+  return (result.stdOut || result.stdout || '').trim();
+}
+
+async function shellWriteFile(path: string, content: string): Promise<void> {
+  const Neutralino = getNeutralino();
+  // Use base64 to avoid all quoting/escaping issues with shell
+  const b64 = btoa(content);
+  await Neutralino.os.execCommand(
+    `echo '${b64}' | base64 -d > "${escapeShellArg(path)}"`
+  );
+}
+
+async function shellMkdir(dir: string): Promise<void> {
+  const Neutralino = getNeutralino();
+  await Neutralino.os.execCommand(`mkdir -p "${escapeShellArg(dir)}"`);
+}
+
+async function shellFileExists(path: string): Promise<boolean> {
+  const Neutralino = getNeutralino();
+  try {
+    const result = await Neutralino.os.execCommand(`test -f "${escapeShellArg(path)}" && echo YES || echo NO`);
+    return (result.stdOut || result.stdout || '').trim() === 'YES';
+  } catch {
+    return false;
+  }
+}
+
+// --- Config loading ---
+
+const DEFAULT_UNIFIED_CONFIG = JSON.stringify({
+  settings: { plugins_enabled: ['default'], credentials: {}, cache: false, integrations: [] },
+  gateway: { providers: {}, text: { routing: [], userConfig: null }, image: { routing: [], userConfig: null }, video: { routing: [], userConfig: null }, audio: { routing: [], userConfig: null }, mcp: { routing: [], userConfig: null } },
+  server: { port: 8700, headless: false },
+}, null, 2);
+
+function createUiDefaultConfig(): UiConfigFile {
+  return {
     providers: {},
     text: createEmptyCategoryConfig(),
     image: createEmptyCategoryConfig(),
@@ -143,25 +257,49 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     audio: createEmptyCategoryConfig(),
     mcp: createEmptyCategoryConfig(),
   };
+}
+
+export async function loadUiConfig(): Promise<UiConfigFile> {
+  const defaultConfig = createUiDefaultConfig();
 
   if (!isDesktopMode()) {
     return defaultConfig;
   }
 
   const Neutralino = getNeutralino();
-  if (!Neutralino?.filesystem) {
+  if (!Neutralino?.os?.execCommand) {
     return defaultConfig;
   }
 
   const configPath = await getConfigPathAsync();
+  const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+
   try {
-    const text: string = await Neutralino.filesystem.readFile(configPath);
-    return JSON.parse(text) as UiConfigFile;
-  } catch (e: any) {
-    if (e?.message?.includes('ENOENT') || e?.message?.includes('file not found')) {
+    // Ensure directory exists
+    await shellMkdir(dirPath);
+
+    // Check if file exists — create default if missing
+    const exists = await shellFileExists(configPath);
+    if (!exists) {
+      await shellWriteFile(configPath, DEFAULT_UNIFIED_CONFIG);
+      Neutralino.debug?.log?.('Created default config at ' + configPath, 'INFO');
+    }
+
+    // Read and parse file
+    const text = await shellReadFile(configPath);
+    if (!text) {
+      // File is empty or read failed — write default
+      await shellWriteFile(configPath, DEFAULT_UNIFIED_CONFIG);
       return defaultConfig;
     }
-    throw e;
+
+    const parsed = JSON.parse(text);
+    return parsed?.gateway
+      ? { ...defaultConfig, ...parsed.gateway }
+      : defaultConfig;
+  } catch (e) {
+    console.warn('loadUiConfig error:', e);
+    return defaultConfig;
   }
 }
 
@@ -171,26 +309,38 @@ export async function saveUiConfig(config: UiConfigFile): Promise<void> {
   }
 
   const Neutralino = getNeutralino();
-  if (!Neutralino?.filesystem) {
-    throw new Error('Neutralino filesystem not available');
+  if (!Neutralino?.os?.execCommand) {
+    throw new Error('Neutralino execCommand not available');
   }
 
   const configPath = await getConfigPathAsync();
-
-  // Ensure directory exists - extract directory from configPath
   const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
-  try {
-    await Neutralino.filesystem.createDirectory(dirPath, {
-      recursive: true,
-    });
-  } catch (e: any) {
-    // Ignore if already exists
-    if (!e?.message?.includes('already exists')) {
-      console.warn('Failed to create config directory:', e?.message);
-    }
-  }
 
-  await Neutralino.filesystem.writeFile(configPath, JSON.stringify(config, null, 2));
+  try {
+    // Ensure directory exists
+    await shellMkdir(dirPath);
+
+    // Read existing config to preserve settings and server
+    let existingConfig: UnifiedConfigFile = {};
+    const exists = await shellFileExists(configPath);
+    if (exists) {
+      try {
+        const text = await shellReadFile(configPath);
+        existingConfig = JSON.parse(text);
+      } catch {}
+    }
+
+    // Update gateway, preserve settings and server
+    const unifiedConfig: UnifiedConfigFile = {
+      ...existingConfig,
+      gateway: config,
+    };
+
+    await shellWriteFile(configPath, JSON.stringify(unifiedConfig, null, 2));
+  } catch (e: any) {
+    console.warn('saveUiConfig error:', e);
+    throw new Error('Failed to save config: ' + (e?.message || e));
+  }
 }
 
 export async function loadUserConfig(
