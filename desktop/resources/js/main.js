@@ -120,7 +120,7 @@ async function startBackend() {
   const candidates = [
     `${nlDir}${binaryName}`,
     `./${binaryName}`,
-    `../build/${binaryName}`,
+    `./dist/llm-admin/${binaryName}`,
   ];
   for (const candidate of candidates) {
     try {
