@@ -218,10 +218,14 @@ async function shellReadFile(path: string): Promise<string> {
 
 async function shellWriteFile(path: string, content: string): Promise<void> {
   const Neutralino = getNeutralino();
-  // Use base64 to avoid all quoting/escaping issues with shell
+  // Use base64 to avoid all quoting/escaping issues with shell.
+  // Write to a tmp file first, then `mv` into place so the file is either
+  // the old contents or the new contents — never a half-written truncation
+  // visible to readers (e.g. the backend's mtime-checked cache invalidation).
   const b64 = btoa(content);
+  const tmpPath = `${path}.tmp-${Date.now()}`;
   await Neutralino.os.execCommand(
-    `echo '${b64}' | base64 -d > "${escapeShellArg(path)}"`
+    `echo '${b64}' | base64 -d > "${escapeShellArg(tmpPath)}" && mv "${escapeShellArg(tmpPath)}" "${escapeShellArg(path)}"`
   );
 }
 
