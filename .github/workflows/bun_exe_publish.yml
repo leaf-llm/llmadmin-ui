@@ -66,6 +66,7 @@ jobs:
       - name: Get version from package.json
         if: matrix.build_type == 'desktop'
         id: pkg_version
+        shell: bash   # explicit: Windows runners default to pwsh, where $() and $GITHUB_OUTPUT handling differ
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
       # ── Platform-specific build ────────────────────────────────────
@@ -96,7 +97,11 @@ jobs:
         uses: ./.github/actions/package-windows
         with:
           dist_dir: desktop/dist/llm-admin
-          output_exe: desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}.exe
+          # Bare filename: package-windows.sh does `cd "$DIST_DIR"` before
+          # invoking ISCC, so passing a full path here would resolve to
+          # `desktop/dist/llm-admin/desktop/dist/llm-admin/<name>.exe`
+          # (double dist prefix).
+          output_exe: llm-admin_${{ steps.pkg_version.outputs.version }}.exe
           version: ${{ steps.pkg_version.outputs.version }}
 
       # ── Stage for cross-runner handoff (release) and manual downloads ─
