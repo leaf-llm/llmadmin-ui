@@ -17,13 +17,13 @@
 
 ### 下载桌面端
 
-从 [Releases](https://github.com/your-org/llm-admin/releases) 下载对应平台的桌面端应用，开箱即用。
+从 [Releases](https://github.com/leaf-llm/llmadmin-ui/releases) 下载对应平台的桌面端应用，开箱即用。
 
 ### 或从源码运行
 
 ```bash
 # 1. 克隆仓库
-git clone <repo-url>
+git clone https://github.com/leaf-llm/llmadmin-ui
 cd llm-admin
 
 # 2. 安装依赖
