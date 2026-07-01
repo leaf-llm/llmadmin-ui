@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { loadUiConfig, saveUiConfig, createEmptyUiConfig, getNeutralinoHomeDir } from '../lib/configStore';
+import { loadUiConfig, saveUiConfig, createEmptyUiConfig, getNeutralinoHomeDir, getConfigPathAsync } from '../lib/configStore';
 import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
@@ -48,11 +48,29 @@ export default function SettingsPage() {
     setConfigLoading(true);
     setConfigError(null);
     try {
-      // Always use loadUiConfig as the single source of truth
-      const gateway = await loadUiConfig();
-      const unified: Record<string, unknown> = { gateway };
-      setConfig(unified as any);
-      setRawConfig(JSON.stringify(unified, null, 2));
+      // Read the raw conf.json so the preview shows all top-level keys
+      // (settings, gateway, server) — not just the gateway section.
+      const Neutralino = (window as any).Neutralino;
+      if (Neutralino?.filesystem?.readFile) {
+        try {
+          const configPath = await getConfigPathAsync();
+          const text = await Neutralino.filesystem.readFile(configPath);
+          const parsed = JSON.parse(text);
+          setConfig(parsed as any);
+          setRawConfig(JSON.stringify(parsed, null, 2));
+        } catch {
+          // Fall through to the loadUiConfig path
+          const gateway = await loadUiConfig();
+          const unified: Record<string, unknown> = { gateway };
+          setConfig(unified as any);
+          setRawConfig(JSON.stringify(unified, null, 2));
+        }
+      } else {
+        const gateway = await loadUiConfig();
+        const unified: Record<string, unknown> = { gateway };
+        setConfig(unified as any);
+        setRawConfig(JSON.stringify(unified, null, 2));
+      }
     } catch (e: any) {
       setConfigError(e?.message ?? String(e));
     } finally {
