@@ -17,14 +17,14 @@ jobs:
           # versioned paths inside each step.
           - os: ubuntu-latest
             build_type: desktop
-          # macOS desktop apps (GitHub-hosted macos-latest; was self-hosted pre-1e63b3e)
-          - os: macos-latest
-            build_type: desktop
+          # macOS desktop apps (self-hosted)
+          - build_type: desktop
             arch: x64
+            os: ''
           # Windows desktop apps
           - os: windows-latest
             build_type: desktop
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os || 'self-hosted' }}
 
     steps:
       - uses: actions/checkout@v4
