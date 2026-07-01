@@ -151,9 +151,17 @@ async function startBackend() {
     'INFO'
   );
 
-  // Desktop app uses ~/.llm-admin/conf.json for unified config
-  const homeDir = await getHomeDir();
-  const configPath = `${homeDir}/.llm-admin/conf.json`;
+  // Desktop app uses ~/.llm-admin/conf.json for unified config.
+  // The home dir + path joining helpers come from the Vite-bundled frontend
+  // (src/lib/neutralinoHomeDir.ts) — single source of truth, so the desktop
+  // launcher and the React UI can never disagree on the path.
+  if (typeof window.__getNeutralinoHomeDir !== 'function') {
+    throw new Error(
+      'Shared home-dir helper not loaded. The Vite bundle must be built before main.js can start the backend.'
+    );
+  }
+  const homeDir = await window.__getNeutralinoHomeDir();
+  const configPath = window.__joinPath(homeDir, '.llm-admin', 'conf.json');
 
   // Ensure the config file exists with default unified format before starting backend
   await ensureConfigExists(configPath);
@@ -166,75 +174,34 @@ async function startBackend() {
   Neutralino.debug.log('Spawn result PID: ' + result.pid, 'INFO');
 }
 
-async function getHomeDir() {
-  // Try NL_PATH first (synchronous, always available in Neutralino)
-  try {
-    const nlPath = window.NL_PATH;
-    if (nlPath && typeof nlPath === 'string') {
-      for (const prefix of ['/home/', '/Users/']) {
-        const idx = nlPath.indexOf(prefix);
-        if (idx !== -1) {
-          const afterPrefix = nlPath.slice(idx + prefix.length);
-          const endIdx = afterPrefix.indexOf('/');
-          if (endIdx !== -1) {
-            return prefix + afterPrefix.slice(0, endIdx);
-          }
-        }
-      }
-    }
-  } catch {}
-
-  const Neutralino = getNeutralino();
-  if (Neutralino?.os?.getEnv) {
-    try {
-      const home = await Neutralino.os.getEnv('HOME');
-      if (home && typeof home === 'string' && home.length > 0) {
-        return home;
-      }
-    } catch {}
-  }
-  if (Neutralino?.os?.homeDir) {
-    try {
-      const home = await Neutralino.os.homeDir();
-      if (home && typeof home === 'string' && home.length > 0) {
-        return home;
-      }
-    } catch {}
-  }
-  return '/home/user';
-}
-
 function getNeutralino() {
   return typeof window !== 'undefined' ? window.Neutralino : null;
 }
 
 async function ensureConfigExists(configPath) {
   const Neutralino = getNeutralino();
-  if (!Neutralino?.os?.execCommand) {
-    Neutralino?.debug?.log('Neutralino execCommand not available', 'WARN');
+  if (!Neutralino?.filesystem?.getStats) {
+    Neutralino?.debug?.log('Neutralino filesystem API not available', 'WARN');
     return;
   }
 
-  // Use shell command instead of Neutralino filesystem API
-  const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
+  // Use Neutralino.filesystem API directly — much faster than execCommand
+  // (no PowerShell / sh cold-start), and cross-platform by design.
+  const dirPath = configPath.substring(
+    0,
+    Math.max(configPath.lastIndexOf('/'), configPath.lastIndexOf('\\'))
+  );
 
-  // Check if file exists
-  const checkCmd = isWindows
-    ? `if exist "${configPath}" (echo EXISTS) else (echo MISSING)`
-    : `test -f "${configPath}" && echo EXISTS || echo MISSING`;
-
+  // Check if file already exists
   try {
-    const checkResult = await Neutralino.os.execCommand(checkCmd);
-    const output = (checkResult.stdOut || checkResult.stdout || '').trim();
-    if (output === 'EXISTS') {
-      Neutralino.debug.log('Config already exists at ' + configPath, 'INFO');
-      return;
-    }
-  } catch (e) {
-    Neutralino.debug.log('Check failed, will try to create anyway: ' + (e?.message || e), 'INFO');
+    await Neutralino.filesystem.getStats(configPath);
+    Neutralino.debug.log('Config already exists at ' + configPath, 'INFO');
+    return;
+  } catch {
+    // Missing — fall through and create
   }
 
-  // File doesn't exist — create dir and write default using shell
+  // File doesn't exist — create dir and write default.
   try {
     const defaultConfig = {
       settings: {
@@ -253,21 +220,21 @@ async function ensureConfigExists(configPath) {
       },
       server: { port: 8700, headless: false },
     };
-    const b64 = btoa(JSON.stringify(defaultConfig, null, 2));
+    const jsonStr = JSON.stringify(defaultConfig, null, 2);
 
-    const mkdirCmd = isWindows
-      ? `mkdir "${dirPath}"`
-      : `mkdir -p "${dirPath}"`;
-    await Neutralino.os.execCommand(mkdirCmd);
+    try {
+      await Neutralino.filesystem.createDirectory(dirPath);
+    } catch (e) {
+      // Ignore "already exists" — mkdir is idempotent
+      const msg = String(e?.message || e || '').toLowerCase();
+      if (!(e?.code === 'NE_FS_DIRCRER' || msg.includes('exists') || msg.includes('eexist'))) {
+        throw e;
+      }
+    }
 
-    // Write using base64 decode to avoid quoting issues
-    const writeCmd = isWindows
-      ? `powershell -Command "[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${b64}')) | Set-Content -Path '${configPath}'"`
-      : `echo '${b64}' | base64 -d > '${configPath}'`;
-    await Neutralino.os.execCommand(writeCmd);
-
+    await Neutralino.filesystem.writeFile(configPath, jsonStr);
     Neutralino.debug.log('Created default config at ' + configPath, 'INFO');
   } catch (createErr) {
-    Neutralino.debug.log('Failed to create config via shell: ' + (createErr?.message || createErr), 'ERROR');
+    Neutralino.debug.log('Failed to create config: ' + (createErr?.message || createErr), 'ERROR');
   }
 }
