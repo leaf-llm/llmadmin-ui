@@ -17,14 +17,14 @@ jobs:
           # versioned paths inside each step.
           - os: ubuntu-latest
             build_type: desktop
-          # macOS desktop app — neu build produces all three arch binaries
-          # (x64, arm64, universal) in a single run; we package them all here.
-          - os: macos-latest
-            build_type: desktop
+          # macOS desktop app — self-hosted runner; neu build produces all
+          # three arch binaries (x64, arm64, universal) in a single run.
+          - build_type: desktop
+            os: ''
           # Windows desktop apps
           - os: windows-latest
             build_type: desktop
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os || 'self-hosted' }}
 
     steps:
       - uses: actions/checkout@v4
