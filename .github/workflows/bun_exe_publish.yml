@@ -17,10 +17,20 @@ jobs:
           # versioned paths inside each step.
           - os: ubuntu-latest
             build_type: desktop
-          # macOS desktop apps (GitHub-hosted macos-latest; was self-hosted pre-1e63b3e)
+          # macOS desktop apps — build all three archs (x64, arm64, universal) as
+          # separate .dmg artifacts. GitHub-hosted macos-latest runner is arm64
+          # but launches x64 slices via Rosetta just fine, so a single runner
+          # produces all three. Each row's artifact name (L131) is suffixed with
+          # the arch to avoid `Multiple uploads to the same artifact` errors.
           - os: macos-latest
             build_type: desktop
             arch: x64
+          - os: macos-latest
+            build_type: desktop
+            arch: arm64
+          - os: macos-latest
+            build_type: desktop
+            arch: universal
           # Windows desktop apps
           - os: windows-latest
             build_type: desktop
@@ -127,7 +137,7 @@ jobs:
         if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: llm-admin-macos-dmg
+          name: llm-admin-macos-dmg-${{ matrix.arch }}
           path: desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_${{ matrix.arch }}.dmg
           if-no-files-found: error
           retention-days: 1

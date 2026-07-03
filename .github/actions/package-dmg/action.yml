@@ -6,7 +6,7 @@ inputs:
     description: "Path to dist directory containing build outputs"
     required: true
   binary_name:
-    description: "Neutralinojs runtime binary name (e.g. llm-admin-mac_x64)"
+    description: "Neutralinojs runtime binary name (e.g. llm-admin-mac_universal)"
     required: true
   output_dmg:
     description: "Output .dmg filename"
