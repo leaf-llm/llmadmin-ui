@@ -1,11 +1,17 @@
 # LLM Admin — 省钱可靠模型搭档
 
-统一调用 80+ 大模型，桌面端本地管理，省钱又省心。
+统一调用 100+ 大模型，桌面端本地管理，省钱又省心。
+
+## 预览
+
+<div align="center">
+  <img src="docs/screenshots/screen.png" alt="LLM Admin 路由界面预览" width="800">
+</div>
 
 ## 特性
 
 - 🖥️ **桌面端应用** — 基于 Neutralino.js 的跨平台桌面客户端（默认窗口 1280×840），开箱即用
-- 🔌 **统一接口** — HTTP 统一调用 80+ 大模型，支持**图像生成**和**文本生成**
+- 🔌 **统一接口** — HTTP 统一调用 100+ 大模型，支持**图像生成**和**文本生成**
 - 🔄 **协议转换** — 同时兼容 OpenAI `/v1/chat/completions` 和 Anthropic `/v1/messages` 协议，自动互转
 - 🧭 **自定义路由** — 声明式模型路由、**故障转移**和**负载均衡**策略
 - 🤖 **智能路由** — 按文本 / 图像 / 视频 / 音频 模态智能分配模型
@@ -63,7 +69,7 @@ npm run build:desktop
 └─┬──────────┬──────────┬──────────┬───┘
   │          │          │          │
   ▼          ▼          ▼          ▼
-OpenAI   Anthropic   DeepSeek   80+ 模型
+OpenAI   Anthropic   DeepSeek   100+ 模型
 ```
 
 ## 开发
