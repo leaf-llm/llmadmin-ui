@@ -4,13 +4,31 @@ set -e
 # Package Neutralinojs macOS app into a .dmg
 # Usage: ./scripts/package-dmg.sh <dist_dir> <binary_name> <output_dmg>
 #   dist_dir:    Path to dist directory (e.g. desktop/dist/llm-admin)
-#   binary_name: Neutralinojs runtime binary name (e.g. llm-admin-mac_x64)
-#   output_dmg:  Output .dmg path (e.g. llm-admin_0.1.0_arm64.dmg)
+#   binary_name: Neutralinojs runtime binary name (e.g. llm-admin-mac_universal)
+#   output_dmg:  Output .dmg path (e.g. llm-admin_0.1.0_universal.dmg)
+# Note: CFBundleShortVersionString is read from ./package.json (with a
+# hard-coded fallback + warning if node/package.json is unavailable).
 
 DIST_DIR="${1:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 BINARY_NAME="${2:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 OUTPUT_DMG="${3:?Usage: $0 <dist_dir> <binary_name> <output_dmg>}"
 ENTITLEMENTS="${4:-}"  # Optional: path to entitlements file for code signing
+
+# --- Resolve version from package.json (single source of truth) ---
+# Prefer ./package.json; fall back to ../package.json when CWD is desktop/.
+# If neither works, emit a GH Actions warning and use a literal default so
+# the script still produces a valid .app — but the operator will see the
+# warning, unlike today's silent drift.
+VERSION=""
+if [ -f "./package.json" ]; then
+  VERSION=$(node -p "require('./package.json').version" 2>/dev/null) || true
+elif [ -f "../package.json" ]; then
+  VERSION=$(cd .. && node -p "require('./package.json').version" 2>/dev/null) || true
+fi
+if [ -z "$VERSION" ]; then
+  echo "::warning::package-dmg.sh: could not read version from package.json; falling back to 0.0.0" >&2
+  VERSION="0.0.0"
+fi
 
 VOLUME_NAME="LLMAdmin"
 DMG_TMP=$(mktemp -d /tmp/dmg.XXXXXX)
@@ -80,7 +98,7 @@ cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>${VERSION}</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleIconFile</key>

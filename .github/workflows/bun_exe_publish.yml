@@ -17,10 +17,10 @@ jobs:
           # versioned paths inside each step.
           - os: ubuntu-latest
             build_type: desktop
-          # macOS desktop apps (GitHub-hosted macos-latest; was self-hosted pre-1e63b3e)
+          # macOS desktop app — neu build produces all three arch binaries
+          # (x64, arm64, universal) in a single run; we package them all here.
           - os: macos-latest
             build_type: desktop
-            arch: x64
           # Windows desktop apps
           - os: windows-latest
             build_type: desktop
@@ -82,15 +82,17 @@ jobs:
           dist_path: desktop/dist/llm-admin
           version: ${{ steps.pkg_version.outputs.version }}
 
-      - name: Package .dmg
+      - name: Package .dmg (all archs)
         if: matrix.build_type == 'desktop' && runner.os == 'macOS'
-        uses: ./.github/actions/package-dmg
-        with:
-          dist_dir: desktop/dist/llm-admin
-          binary_name: llm-admin-mac_${{ matrix.arch }}
-          # Pass full versioned path: package-dmg.sh writes hdiutil output
-          # to whatever OUTPUT_DMG points at.
-          output_dmg: desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_${{ matrix.arch }}.dmg
+        shell: bash
+        run: |
+          chmod +x scripts/package-dmg.sh
+          for arch in x64 arm64 universal; do
+            ./scripts/package-dmg.sh \
+              desktop/dist/llm-admin \
+              "llm-admin-mac_${arch}" \
+              "desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_${arch}.dmg"
+          done
 
       - name: Package Windows installer
         if: matrix.build_type == 'desktop' && runner.os == 'Windows'
@@ -128,7 +130,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llm-admin-macos-dmg
-          path: desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_${{ matrix.arch }}.dmg
+          path: |
+            desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_x64.dmg
+            desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_arm64.dmg
+            desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_universal.dmg
           if-no-files-found: error
           retention-days: 1
 
