@@ -102,7 +102,7 @@ cat > "$DMG_TMP/${APP_NAME}.app/Contents/Info.plist" << PLIST
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleIconFile</key>
-    <string>icon.icns</string>
+    <string>icon</string>
 </dict>
 </plist>
 PLIST
