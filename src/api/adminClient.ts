@@ -223,22 +223,37 @@ export function setAdminToken(token: string) {
 
 export type UserConfig = Record<string, unknown> | null;
 
-export async function getConfig(
-  category?: string
-): Promise<{ config: UserConfig }> {
-  const qs = category ? `?category=${encodeURIComponent(category)}` : '';
-  return adminFetch<{ config: UserConfig }>(`/admin/config${qs}`);
+export type UiGatewayConfig = {
+  providers?: Record<string, unknown[]>;
+  text?: { routing?: unknown[]; userConfig?: unknown };
+  image?: { routing?: unknown[]; userConfig?: unknown };
+  video?: { routing?: unknown[]; userConfig?: unknown };
+  audio?: { routing?: unknown[]; userConfig?: unknown };
+  mcp?: { routing?: unknown[]; userConfig?: unknown };
+  [key: string]: unknown;
+};
+
+export async function getConfig(): Promise<{
+  ok: boolean;
+  existed?: boolean;
+  config: UiGatewayConfig;
+}> {
+  return adminFetch<{
+    ok: boolean;
+    existed?: boolean;
+    config: UiGatewayConfig;
+  }>(`/admin/config`);
 }
 
-export async function syncConfig(category?: string): Promise<{
+export async function syncConfig(gateway: UiGatewayConfig): Promise<{
   ok: boolean;
-  config?: Record<string, unknown>;
+  config?: UiGatewayConfig;
 }> {
-  const qs = category ? `?category=${encodeURIComponent(category)}` : '';
-  return adminFetch<{ ok: boolean; config?: Record<string, unknown> }>(
-    `/admin/config${qs}`,
+  return adminFetch<{ ok: boolean; config?: UiGatewayConfig }>(
+    `/admin/config`,
     {
-      method: 'POST',
+      method: 'PUT',
+      body: JSON.stringify(gateway),
     }
   );
 }

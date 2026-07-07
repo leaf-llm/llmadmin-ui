@@ -3,6 +3,7 @@ import {
   getNeutralinoHomeDir,
   joinPath,
 } from './neutralinoHomeDir';
+import * as adminClient from '../api/adminClient';
 
 export type ProviderId = string;
 
@@ -216,11 +217,37 @@ function createUiDefaultConfig(): UiConfigFile {
   };
 }
 
+// In-memory cache for web-mode config. Populated by loadUiConfig, kept in
+// sync by saveUiConfig with optimistic-update + rollback on failure.
+let inMemoryConfig: UiConfigFile | null = null;
+
+export function getCachedUiConfig(): UiConfigFile | null {
+  return inMemoryConfig;
+}
+
+function setInMemoryConfig(next: UiConfigFile | null) {
+  inMemoryConfig = next;
+}
+
 export async function loadUiConfig(): Promise<UiConfigFile> {
   const defaultConfig = createUiDefaultConfig();
 
   if (!isDesktopMode()) {
-    return defaultConfig;
+    // Web mode: fetch from the dev server / production gateway over HTTP.
+    // On failure, fall back to the default and log a warning so callers
+    // (which don't handle rejections) keep working.
+    try {
+      const res = await adminClient.getConfig();
+      const cfg = res?.config
+        ? { ...defaultConfig, ...(res.config as Partial<UiConfigFile>) }
+        : defaultConfig;
+      setInMemoryConfig(cfg);
+      return cfg;
+    } catch (e) {
+      console.warn('loadUiConfig (web mode) error:', e);
+      setInMemoryConfig(defaultConfig);
+      return defaultConfig;
+    }
   }
 
   const Neutralino = getNeutralino();
@@ -254,9 +281,11 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     }
 
     const parsed = JSON.parse(text);
-    return parsed?.gateway
+    const cfg = parsed?.gateway
       ? { ...defaultConfig, ...parsed.gateway }
       : defaultConfig;
+    setInMemoryConfig(cfg);
+    return cfg;
   } catch (e) {
     console.warn('loadUiConfig error:', e);
     return defaultConfig;
@@ -265,7 +294,25 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
 
 export async function saveUiConfig(config: UiConfigFile): Promise<void> {
   if (!isDesktopMode()) {
-    throw new Error('Cannot save config in web mode');
+    // Optimistic update: apply locally first, then POST. On failure, restore
+    // the previous cache and rethrow so callers can surface the error.
+    const previous = inMemoryConfig;
+    setInMemoryConfig(config);
+    try {
+      const res = await adminClient.syncConfig(config as any);
+      if (res?.config) {
+        setInMemoryConfig({
+          ...config,
+          ...(res.config as Partial<UiConfigFile>),
+        });
+      }
+    } catch (e) {
+      setInMemoryConfig(previous);
+      throw new Error(
+        'Failed to save config: ' + ((e as any)?.message || e)
+      );
+    }
+    return;
   }
 
   const Neutralino = getNeutralino();
@@ -300,6 +347,7 @@ export async function saveUiConfig(config: UiConfigFile): Promise<void> {
     };
 
     await shellWriteFile(configPath, JSON.stringify(unifiedConfig, null, 2));
+    setInMemoryConfig(config);
   } catch (e: any) {
     console.warn('saveUiConfig error:', e);
     throw new Error('Failed to save config: ' + (e?.message || e));
