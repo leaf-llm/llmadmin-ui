@@ -29,6 +29,28 @@ function copyDist(destDir) {
   } else {
     console.log('Binary not found:', binarySrc);
   }
+
+  // Copy plugins directory alongside the binary so dynamic imports work.
+  const pluginsSrc = path.join(__dirname, '../../src-gateway/plugins');
+  const pluginsDest = path.join(destDir, 'plugins');
+  if (fs.existsSync(pluginsSrc)) {
+    fs.rmSync(pluginsDest, { recursive: true, force: true });
+    copyDirSync(pluginsSrc, pluginsDest);
+    console.log('Plugins copied to:', pluginsDest);
+  }
+}
+
+function copyDirSync(src, dest) {
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    if (entry.isDirectory()) {
+      copyDirSync(srcPath, destPath);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+    }
+  }
 }
 
 const destDir = path.join(__dirname, '../dist/llm-admin');
