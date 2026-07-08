@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import ProvidersPage from './pages/ProvidersPage';
 import AllProvidersPage from './pages/AllProvidersPage';
+import PluginsPage from './pages/PluginsPage';
 import UsagePage from './pages/UsagePage';
 import SettingsPage from './pages/SettingsPage';
 import { useBackendHealth, BackendStatus } from './hooks/useBackendHealth';
@@ -9,7 +10,7 @@ import { useRuntimeCounts } from './hooks/useRuntimeCounts';
 import { getApiBaseUrl } from './api/config';
 import logoUrl from './assets/logo.png';
 
-type Page = 'providers' | 'all-providers' | 'usage' | 'settings';
+type Page = 'providers' | 'all-providers' | 'plugins' | 'usage' | 'settings';
 
 function Header({
   active,
@@ -72,6 +73,16 @@ function Header({
               onClick={() => onNavigate('providers')}
             >
               {t('nav.routing')}
+            </button>
+            <button
+              className={
+                active === 'plugins'
+                  ? 'app-nav__link is-active'
+                  : 'app-nav__link'
+              }
+              onClick={() => onNavigate('plugins')}
+            >
+              {t('nav.plugins')}
             </button>
             <button
               className={
@@ -162,6 +173,8 @@ export default function App() {
     const path = window.location.pathname;
     if (path === '/providers') {
       setActivePage('providers');
+    } else if (path === '/plugins') {
+      setActivePage('plugins');
     } else if (path === '/usage') {
       setActivePage('usage');
     } else if (path === '/settings') {
@@ -199,6 +212,7 @@ export default function App() {
         {activePage === 'all-providers' && (
           <AllProvidersPage onBack={() => setActivePage('providers')} />
         )}
+        {activePage === 'plugins' && <PluginsPage />}
         {activePage === 'usage' && <UsagePage />}
         {activePage === 'settings' && <SettingsPage />}
       </main>
