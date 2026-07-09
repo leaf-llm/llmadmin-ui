@@ -164,7 +164,7 @@
       "deny": "拦截",
       "pii_detection": {
         "name": "PII 检测",
-        "description": "检测请求中的邮箱、手机号（中国大陆）、身份证号、信用卡号及美国 SSN 格式。包含 PII 的请求将被拦截。"
+        "description": "检测请求中的邮箱、手机号（中国大陆）、身份证号、信用卡号及常见 API 密钥（OpenAI/Stripe/GitHub/AWS 等）。检测到的敏感值在转发前会被掩码替换；请求不被拦截。"
       },
       "prompt_injection": {
         "name": "提示词注入防御",
@@ -178,9 +178,13 @@
         "name": "长度限制",
         "description": "拒绝超过 1000 词或 10000 字符的请求。防止提示词填充和过量 token 攻击。"
       },
-      "url_safety": {
-        "name": "URL 安全",
-        "description": "验证请求中的 URL 是否可解析到有效的 DNS 记录。缓解 SSRF 和钓鱼链接注入风险。不拦截，仅记录日志。"
+      "url_safety_blacklist": {
+        "name": "URL 黑名单",
+        "description": "检测常见短链服务（bit.ly、tinyurl.com、t.co 等）和高风险顶级域名（.xyz、.top、.click、.tk、.ml 等）。匹配的 URL 在转发前会被掩码替换；请求不被拦截。"
+      },
+      "url_safety_ssrf": {
+        "name": "SSRF 防护",
+        "description": "检测指向内网/私有网络地址的 URL（回环地址、链路本地地址、私有 IPv4、云元数据 IP、IPv6 等）。这些通常表明 SSRF 或提示词注入攻击。发现此类 URL 时请求将被拦截。"
       },
       "system_prompt_cache": {
         "name": "系统提示词缓存",

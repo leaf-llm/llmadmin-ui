@@ -210,7 +210,7 @@ function PluginsModal({
                     </span>
                   </label>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{t(p.i18nKey + '.name', p.name)}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{t(p.i18nKey + '.name', p.name)}</div>
                     <div style={{ fontSize: 12, color: 'rgba(17,24,39,0.6)', marginTop: 2, lineHeight: 1.4 }}>
                       {t(p.i18nKey + '.description', p.description)}
                     </div>

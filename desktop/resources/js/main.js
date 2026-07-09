@@ -167,10 +167,9 @@ async function startBackend() {
   await ensureConfigExists(configPath);
 
   const ppidFlag = isWindows ? '' : ` --ppid=${window.NL_PID}`;
-  // cd to the binary's directory so the gateway can find its plugins/
-  // via the CWD-based check in pluginsDir().
-  const binaryDir = absPath.substring(0, Math.max(absPath.lastIndexOf('/'), absPath.lastIndexOf('\\')));
-  const cmd = `cd "${binaryDir}" && "${absPath}" --port=8700 --headless --quiet-log --config="${configPath}"${ppidFlag}`;
+  // Plugin code is statically bundled into the binary, so the gateway can
+  // run from any CWD. No `cd` needed.
+  const cmd = `"${absPath}" --port=8700 --headless --quiet-log --config="${configPath}"${ppidFlag}`;
   Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
 
   const result = await Neutralino.os.spawnProcess(cmd);

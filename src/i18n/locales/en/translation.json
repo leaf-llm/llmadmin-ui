@@ -164,7 +164,7 @@
       "deny": "Deny",
       "pii_detection": {
         "name": "PII Detection",
-        "description": "Detects email addresses, phone numbers (CN), ID card numbers, credit card numbers, and SSN-like patterns in requests. Requests containing PII are denied."
+        "description": "Detects email addresses, phone numbers (CN), ID card numbers, credit card numbers, and common API keys in requests. Detected values are masked before forwarding; the request is allowed through."
       },
       "prompt_injection": {
         "name": "Prompt Injection Defense",
@@ -178,9 +178,13 @@
         "name": "Length Limit",
         "description": "Rejects requests longer than 1000 words or 10000 characters. Protects against prompt-stuffing and excessive-token attacks."
       },
-      "url_safety": {
-        "name": "URL Safety",
-        "description": "Validates that any URL in the request resolves to a real DNS record. Mitigates SSRF and phishing-link injection. Does not deny — logs only."
+      "url_safety_blacklist": {
+        "name": "URL Blacklist",
+        "description": "Detects common URL-shortener services (bit.ly, tinyurl.com, t.co, etc.) and known high-risk TLDs (.xyz, .top, .click, .tk, .ml, etc.). Matched URLs are masked before forwarding; request is allowed through."
+      },
+      "url_safety_ssrf": {
+        "name": "SSRF Guard",
+        "description": "Detects URLs pointing to internal/private network ranges (loopback, link-local, private IPv4, cloud metadata IP, IPv6). These indicate SSRF or prompt-injection attempts. Request is denied if any such URL is found."
       },
       "system_prompt_cache": {
         "name": "System Prompt Caching",
