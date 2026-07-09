@@ -426,3 +426,80 @@ export async function testProviderConnectivity(
     }
   );
 }
+
+// ---------------------------------------------------------------------------
+// Plugin API types & functions
+// ---------------------------------------------------------------------------
+
+export type PluginFunctionSummary = {
+  id: string;
+  name: string;
+  type: 'guardrail' | 'transformer';
+  description: string;
+  supportedHooks: string[];
+};
+
+export type PluginSummary = {
+  id: string;
+  manifestId: string;
+  description: string;
+  type: 'guardrail' | 'transformer';
+  enabled: boolean;
+  credentialsRequired: boolean;
+  hasCredentials: boolean;
+  credentialsSchema: Record<string, unknown> | null;
+  functions: PluginFunctionSummary[];
+  presets: Array<{
+    id: string;
+    name: string;
+    description: string;
+    i18nKey: string;
+    eventType: 'beforeRequestHook' | 'afterRequestHook';
+    deny: boolean;
+    enabled: boolean;
+  }> | null;
+};
+
+export type PluginsResponse = {
+  plugins: PluginSummary[];
+};
+
+export async function getPlugins(): Promise<PluginsResponse> {
+  return adminFetch<PluginsResponse>('/admin/plugins');
+}
+
+export async function setPluginEnabled(
+  id: string,
+  enabled: boolean,
+): Promise<{ ok: boolean; rebuildRequired?: boolean }> {
+  return adminFetch<{ ok: boolean; rebuildRequired?: boolean }>(
+    `/admin/plugins/${encodeURIComponent(id)}/enabled`,
+    { method: 'PUT', body: JSON.stringify({ enabled }) },
+  );
+}
+
+export async function setPluginCredentials(
+  id: string,
+  credentials: Record<string, string>,
+): Promise<{ ok: boolean }> {
+  return adminFetch<{ ok: boolean }>(
+    `/admin/plugins/${encodeURIComponent(id)}/credentials`,
+    { method: 'PUT', body: JSON.stringify({ credentials }) },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Preset security bundles (scoped under the default plugin)
+// ---------------------------------------------------------------------------
+
+export async function setPluginPresetEnabled(
+  pluginId: string,
+  presetId: string,
+  enabled: boolean,
+): Promise<{ ok: boolean; defaultPluginEnabled: boolean }> {
+  return adminFetch<{ ok: boolean; defaultPluginEnabled: boolean }>(
+    `/admin/plugins/${encodeURIComponent(pluginId)}/presets/${encodeURIComponent(presetId)}`,
+    { method: 'PUT', body: JSON.stringify({ enabled }) },
+  );
+}
+

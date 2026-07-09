@@ -29,6 +29,7 @@ function copyDist(destDir) {
   } else {
     console.log('Binary not found:', binarySrc);
   }
+
 }
 
 const destDir = path.join(__dirname, '../dist/llm-admin');

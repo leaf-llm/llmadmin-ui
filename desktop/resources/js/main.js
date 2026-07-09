@@ -167,6 +167,8 @@ async function startBackend() {
   await ensureConfigExists(configPath);
 
   const ppidFlag = isWindows ? '' : ` --ppid=${window.NL_PID}`;
+  // Plugin code is statically bundled into the binary, so the gateway can
+  // run from any CWD. No `cd` needed.
   const cmd = `"${absPath}" --port=8700 --headless --quiet-log --config="${configPath}"${ppidFlag}`;
   Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
 
