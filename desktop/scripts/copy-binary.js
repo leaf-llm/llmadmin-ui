@@ -30,9 +30,6 @@ function copyDist(destDir) {
     console.log('Binary not found:', binarySrc);
   }
 
-  // Plugin source code is now statically imported and bundled into the binary
-  // by `bun build --compile`, so the desktop bundle no longer needs a
-  // separate `plugins/` directory next to the binary.
 }
 
 const destDir = path.join(__dirname, '../dist/llm-admin');
