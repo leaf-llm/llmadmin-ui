@@ -460,7 +460,7 @@ export async function syncUserConfigFromRouting(
     config[category].userConfig = {
       strategy: {
         mode: 'fallback',
-        on_status_codes: [400, 402, 424, 429, 500, 502, 503, 504],
+        on_status_codes: [400, 402, 403, 424, 429, 500, 502, 503, 504],
       },
       targets,
     };
