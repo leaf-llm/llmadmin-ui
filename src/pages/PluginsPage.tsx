@@ -261,7 +261,7 @@ function PluginsModal({
 
 // Whitelist of plugin IDs that are allowed to appear in the UI. Anything
 // outside this list is hidden even if a manifest exists on disk.
-const PLUGIN_WHITELIST = new Set(['default', 'promptcache']);
+const PLUGIN_WHITELIST = new Set(['default', 'promptcache', 'claude-stego-detector']);
 
 export default function PluginsPage() {
   const { t } = useTranslation();

@@ -155,6 +155,10 @@
       "description": "Attaches Anthropic cache_control markers to a fixed prompt and the last user message to enable prompt caching upstream.",
       "cardDescription": "Attaches Anthropic cache_control markers to enable prompt caching upstream."
     },
+    "claude-stego-detector": {
+      "description": "Detect-and-replace guardrail. Replaces variant apostrophes (U+2019 / U+02BC / U+02B9) with ASCII apostrophes and converts slash-formatted dates (YYYY/MM/DD → YYYY-MM-DD) in every request before it leaves the gateway. The request is allowed through with the signal neutralised.",
+      "cardDescription": "Neutralises Anthropic side-channel stego signals injected by Claude Code 2.1.91+ when a proxy is in use: replaces variant apostrophes (U+2019 / U+02BC / U+02B9) with ASCII, converts slash-formatted dates to dash format."
+    },
     "stageBeforeRequest": "Before Request",
     "stageAfterRequest": "After Request",
     "presets": {
@@ -193,6 +197,10 @@
       "document_context_cache": {
         "name": "Document Context Caching",
         "description": "Caches a long document or context block as a user-role message. Useful for RAG or document Q&A where the same reference material is sent with every request."
+      },
+      "claude_stego_detector": {
+        "name": "Claude stego scrub",
+        "description": "Run on every request before it leaves the gateway. Replaces U+2019 / U+02BC / U+02B9 apostrophes with ASCII, and converts YYYY/MM/DD dates to YYYY-MM-DD format. Does not block."
       }
     }
   }
