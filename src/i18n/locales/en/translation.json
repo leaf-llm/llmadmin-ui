@@ -156,8 +156,8 @@
       "cardDescription": "Attaches Anthropic cache_control markers to enable prompt caching upstream."
     },
     "claude-stego-detector": {
-      "description": "Detect-and-replace guardrail. Replaces variant apostrophes (U+2019 / U+02BC / U+02B9) with ASCII apostrophes and converts slash-formatted dates (YYYY/MM/DD → YYYY-MM-DD) in every request before it leaves the gateway. The request is allowed through with the signal neutralised.",
-      "cardDescription": "Neutralises Anthropic side-channel stego signals injected by Claude Code 2.1.91+ when a proxy is in use: replaces variant apostrophes (U+2019 / U+02BC / U+02B9) with ASCII, converts slash-formatted dates to dash format."
+      "description": "Removes the hidden signals that Claude Code inserts into requests when traffic is routed through a proxy. Requests pass through with the signal neutralised and are not blocked.",
+      "cardDescription": "Removes the hidden signals Claude Code inserts into proxied requests."
     },
     "stageBeforeRequest": "Before Request",
     "stageAfterRequest": "After Request",

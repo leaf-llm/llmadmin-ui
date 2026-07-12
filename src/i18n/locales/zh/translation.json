@@ -156,8 +156,8 @@
       "cardDescription": "为请求附加 Anthropic cache_control 标记，启用提示词缓存。"
     },
     "claude-stego-detector": {
-      "description": "检测后替换式护栏。在请求离开网关前，将变体撇号（U+2019 / U+02BC / U+02B9）替换为 ASCII 撇号，并将斜杠日期格式（YYYY/MM/DD）转换为横线格式（YYYY-MM-DD）。信号被中和后请求会被放行。",
-      "cardDescription": "中和 Claude Code 2.1.91+ 在经代理场景下注入的 Anthropic 侧信道隐写信号：将变体撇号（U+2019 / U+02BC / U+02B9）替换为 ASCII 撇号，斜杠日期转换为横线格式。"
+      "description": "移除 Claude Code 在通过代理转发时插入请求中的隐写信号。请求将被放行，不做拦截。",
+      "cardDescription": "移除 Claude Code 在代理场景下插入请求中的隐写信号。"
     },
     "stageBeforeRequest": "请求前",
     "stageAfterRequest": "请求后",
