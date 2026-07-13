@@ -236,10 +236,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
     }));
 
     try {
+      const hasAnthropicUrl = p.provider !== 'openai-compatible' && p.provider !== 'anthropic-compatible';
       const res = await testProviderConnectivity(p.provider, {
         ...(draft.apiKey ? { apiKey: draft.apiKey } : {}),
         baseUrl: draft.baseUrl ?? p.baseUrl,
-        baseUrlAnthropic: draft.baseUrlAnthropic ?? p.baseUrlAnthropic,
+        ...(hasAnthropicUrl ? { baseUrlAnthropic: draft.baseUrlAnthropic ?? p.baseUrlAnthropic } : {}),
         configId: isNew ? undefined : p.configId,
       });
       setDrafts((prev) => ({
@@ -302,10 +303,11 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
           setSavingProvider(key);
           try {
             const draft = drafts[key];
+            const hasAnthropicUrl = p.provider !== 'openai-compatible' && p.provider !== 'anthropic-compatible';
             const req: ProviderUpdateRequest = {
               apiKey: draft?.apiKey ? draft.apiKey : undefined,
               baseUrl: draft?.baseUrl || undefined,
-              baseUrlAnthropic: draft?.baseUrlAnthropic || undefined,
+              ...(hasAnthropicUrl ? { baseUrlAnthropic: draft?.baseUrlAnthropic || undefined } : {}),
               remark: draft?.remark || undefined,
               configId: p.configId,
               apiFormat: draft?.apiFormat,
@@ -387,7 +389,8 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             }}
           />
         </div>
-        <div className="field">
+        {p.provider !== 'anthropic-compatible' && (
+          <div className="field">
           <div className="label">{t('common.baseUrlLabel')}</div>
           <div style={{ position: 'relative' }}>
             <input
@@ -431,7 +434,54 @@ export default function AllProvidersPage({ onBack }: AllProvidersPageProps) {
             )}
           </div>
         </div>
-        {(p.baseUrlAnthropic || d.baseUrlAnthropic) && (
+        )}
+        {p.provider === 'anthropic-compatible' && (
+          <div className="field">
+            <div className="label">{t('common.baseUrlLabel')}</div>
+            <div style={{ position: 'relative' }}>
+              <input
+                value={d.baseUrl ?? p.baseUrl ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDrafts((prev) => ({
+                    ...prev,
+                    [key]: {
+                      ...(prev[key] ?? {}),
+                      apiKey: (prev[key] ?? {}).apiKey,
+                      apiKeyMasked: p.apiKeyMasked,
+                      remark: (prev[key] ?? {}).remark,
+                      baseUrl: val,
+                      baseUrlAnthropic: val,
+                      testStatus: 'untested',
+                      testStatusAnthropic: 'untested',
+                      testMessage: undefined,
+                      testMessageAnthropic: undefined,
+                    },
+                  }));
+                }}
+                className="with-status-icon"
+              />
+              {d.testStatus && d.testStatus !== 'untested' && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    right: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: d.testStatus === 'passed' ? '#22c55e' : d.testStatus === 'testing' ? '#f59e0b' : '#ef4444',
+                    fontWeight: 'bold',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {d.testStatus === 'testing' ? (
+                    <span className="loading-dots"><span /><span /><span /></span>
+                  ) : d.testStatus === 'passed' ? '✓' : '✗'}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        {p.provider !== 'openai-compatible' && p.provider !== 'anthropic-compatible' && (p.baseUrlAnthropic || d.baseUrlAnthropic) && (
           <div className="field">
             <div className="label">{t('common.baseUrlLabel')} (Anthropic)</div>
             <div style={{ position: 'relative' }}>
