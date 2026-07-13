@@ -91,6 +91,8 @@ export const MODEL_CATEGORY_MAP: Record<string, ModelCategory> = {
   'doubao-pro-128k': 'text',
   'doubao-pro-256k': 'text',
   'doubao-lite-32k': 'text',
+  'doubao-seed-2-0-pro': 'text',
+  'doubao-seed-2.0-lite': 'text',
   // DeepSeek
   'deepseek-chat': 'text',
   'deepseek-coder': 'text',
@@ -120,7 +122,9 @@ export function getModelsByCategory(category: ModelCategory): string[] {
 
 const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
   openai: ['gpt-', 'dall-e', 'tts', 'whisper'],
+  'openai-compatible': ['gpt-', 'dall-e', 'tts', 'whisper'],
   anthropic: ['claude-'],
+  'anthropic-compatible': ['claude-'],
   'google-openai': ['gemini', 'imagen', 'veo', 'chirp'],
   zhipu: ['glm-'],
   dashscope: ['qwen-', 'wanx-'],
@@ -132,7 +136,9 @@ const PROVIDER_MODEL_PREFIXES: Record<string, string[]> = {
 
 export const PROVIDER_API_KEY_URLS: Record<string, string> = {
   openai: 'https://platform.openai.com/api-keys',
+  'openai-compatible': 'https://platform.openai.com/api-keys',
   anthropic: 'https://console.anthropic.com/settings/keys',
+  'anthropic-compatible': 'https://console.anthropic.com/settings/keys',
   'google-openai': 'https://aistudio.google.com/app/apikey',
   zhipu: 'https://open.bigmodel.cn/apikey/platform',
   dashscope: 'https://bailian.console.aliyun.com/cn-beijing?tab=model#/api-key',

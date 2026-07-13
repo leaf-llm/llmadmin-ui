@@ -1,0 +1,174 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build_exe:
+    strategy:
+      matrix:
+        include:
+          # Desktop apps. Filenames are computed per-step from
+          # ${{ steps.pkg_version.outputs.version }} — matrix-level
+          # expressions cannot reference step outputs (they'd evaluate
+          # to empty strings), so we keep the matrix minimal and build
+          # versioned paths inside each step.
+          - os: ubuntu-latest
+            build_type: desktop
+          # macOS desktop app — neu build produces all three arch binaries
+          # (x64, arm64, universal) in a single run; we package them all here.
+          - os: macos-latest
+            build_type: desktop
+          # Windows desktop apps
+          - os: windows-latest
+            build_type: desktop
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ── Shared dependencies (all platforms) ────────────────────────
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+
+      - name: Install Node.js (for neu CLI)
+        if: matrix.build_type == 'desktop'
+        uses: actions/setup-node@v4
+
+      - name: Install Neutralinojs CLI
+        if: matrix.build_type == 'desktop'
+        run: npm install -g @neutralinojs/neu
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install gateway dependencies
+        run: npm --prefix src-gateway install
+
+      - name: Build UI
+        run: bun run build:ui
+
+      - name: Copy conf.json
+        run: cp src-gateway/conf.example.json src-gateway/conf.json
+
+      - name: Start Xvfb (headless display)
+        if: matrix.build_type == 'desktop' && runner.os == 'Linux'
+        run: |
+          which Xvfb || sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 2
+
+      # ── Version extraction ─────────────────────────────────────────
+      - name: Get version from package.json
+        if: matrix.build_type == 'desktop'
+        id: pkg_version
+        shell: bash   # explicit: Windows runners default to pwsh, where $() and $GITHUB_OUTPUT handling differ
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # ── Platform-specific build ────────────────────────────────────
+      - name: Build desktop app
+        run: |
+          npm run desktop:setup
+          npm run build:desktop
+
+      - name: Package .deb
+        if: matrix.build_type == 'desktop' && runner.os == 'Linux'
+        uses: ./.github/actions/package-deb
+        with:
+          dist_path: desktop/dist/llm-admin
+          version: ${{ steps.pkg_version.outputs.version }}
+
+      - name: Package .dmg (all archs)
+        if: matrix.build_type == 'desktop' && runner.os == 'macOS'
+        shell: bash
+        run: |
+          chmod +x scripts/package-dmg.sh
+          for arch in x64 arm64 universal; do
+            ./scripts/package-dmg.sh \
+              desktop/dist/llm-admin \
+              "llm-admin-mac_${arch}" \
+              "desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_${arch}.dmg"
+          done
+
+      - name: Package Windows installer
+        if: matrix.build_type == 'desktop' && runner.os == 'Windows'
+        uses: ./.github/actions/package-windows
+        with:
+          dist_dir: desktop/dist/llm-admin
+          # Bare filename: package-windows.sh does `cd "$DIST_DIR"` before
+          # invoking ISCC, so passing a full path here would resolve to
+          # `desktop/dist/llm-admin/desktop/dist/llm-admin/<name>.exe`
+          # (double dist prefix).
+          output_exe: llm-admin_${{ steps.pkg_version.outputs.version }}.exe
+          version: ${{ steps.pkg_version.outputs.version }}
+
+      # ── Stage for cross-runner handoff (release) and manual downloads ─
+      # Run on both release: published AND workflow_dispatch so that:
+      #   - release events: the upload-to-release job downstream can
+      #     download these via actions/download-artifact and attach
+      #     them to the GitHub Release (the three platform jobs run on
+      #     different runners and have no shared FS).
+      #   - workflow_dispatch (manual) events: the same artifacts
+      #     become downloadable from the Actions UI for debugging.
+      # The intermediate artifact is cheap; reusing the same upload for
+      # both paths keeps the workflow simple.
+      - name: Stage .deb
+        if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-admin-linux-deb
+          path: desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_amd64.deb
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Stage .dmg
+        if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-admin-macos-dmg
+          path: |
+            desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_x64.dmg
+            desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_arm64.dmg
+            desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}_universal.dmg
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Stage .exe
+        if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: llm-admin-windows-exe
+          path: desktop/dist/llm-admin/llm-admin_${{ steps.pkg_version.outputs.version }}.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  upload-to-release:
+    name: Attach assets to GitHub Release
+    needs: build_exe
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # required to upload release assets
+    steps:
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Show downloaded artifacts
+        run: ls -la artifacts/
+
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            artifacts/*/*.deb
+            artifacts/*/*.dmg
+            artifacts/*/*.exe
+          fail_on_unmatched_files: true
+          generate_release_notes: false

@@ -120,7 +120,7 @@ async function startBackend() {
   const candidates = [
     `${nlDir}${binaryName}`,
     `./${binaryName}`,
-    `../build/${binaryName}`,
+    `./dist/llm-admin/${binaryName}`,
   ];
   for (const candidate of candidates) {
     try {
@@ -151,10 +151,92 @@ async function startBackend() {
     'INFO'
   );
 
+  // Desktop app uses ~/.llm-admin/conf.json for unified config.
+  // The home dir + path joining helpers come from the Vite-bundled frontend
+  // (src/lib/neutralinoHomeDir.ts) — single source of truth, so the desktop
+  // launcher and the React UI can never disagree on the path.
+  if (typeof window.__getNeutralinoHomeDir !== 'function') {
+    throw new Error(
+      'Shared home-dir helper not loaded. The Vite bundle must be built before main.js can start the backend.'
+    );
+  }
+  const homeDir = await window.__getNeutralinoHomeDir();
+  const configPath = window.__joinPath(homeDir, '.llm-admin', 'conf.json');
+
+  // Ensure the config file exists with default unified format before starting backend
+  await ensureConfigExists(configPath);
+
   const ppidFlag = isWindows ? '' : ` --ppid=${window.NL_PID}`;
-  const cmd = `"${absPath}" --port=8700 --headless --quiet-log${ppidFlag}`;
+  // Plugin code is statically bundled into the binary, so the gateway can
+  // run from any CWD. No `cd` needed.
+  const cmd = `"${absPath}" --port=8700 --headless --quiet-log --config="${configPath}"${ppidFlag}`;
   Neutralino.debug.log('Spawning: ' + cmd, 'INFO');
 
   const result = await Neutralino.os.spawnProcess(cmd);
   Neutralino.debug.log('Spawn result PID: ' + result.pid, 'INFO');
+}
+
+function getNeutralino() {
+  return typeof window !== 'undefined' ? window.Neutralino : null;
+}
+
+async function ensureConfigExists(configPath) {
+  const Neutralino = getNeutralino();
+  if (!Neutralino?.filesystem?.getStats) {
+    Neutralino?.debug?.log('Neutralino filesystem API not available', 'WARN');
+    return;
+  }
+
+  // Use Neutralino.filesystem API directly — much faster than execCommand
+  // (no PowerShell / sh cold-start), and cross-platform by design.
+  const dirPath = configPath.substring(
+    0,
+    Math.max(configPath.lastIndexOf('/'), configPath.lastIndexOf('\\'))
+  );
+
+  // Check if file already exists
+  try {
+    await Neutralino.filesystem.getStats(configPath);
+    Neutralino.debug.log('Config already exists at ' + configPath, 'INFO');
+    return;
+  } catch {
+    // Missing — fall through and create
+  }
+
+  // File doesn't exist — create dir and write default.
+  try {
+    const defaultConfig = {
+      settings: {
+        plugins_enabled: ['default'],
+        credentials: {},
+        cache: false,
+        integrations: [],
+      },
+      gateway: {
+        providers: {},
+        text: { routing: [], userConfig: null },
+        image: { routing: [], userConfig: null },
+        video: { routing: [], userConfig: null },
+        audio: { routing: [], userConfig: null },
+        mcp: { routing: [], userConfig: null },
+      },
+      server: { port: 8700, headless: false },
+    };
+    const jsonStr = JSON.stringify(defaultConfig, null, 2);
+
+    try {
+      await Neutralino.filesystem.createDirectory(dirPath);
+    } catch (e) {
+      // Ignore "already exists" — mkdir is idempotent
+      const msg = String(e?.message || e || '').toLowerCase();
+      if (!(e?.code === 'NE_FS_DIRCRER' || msg.includes('exists') || msg.includes('eexist'))) {
+        throw e;
+      }
+    }
+
+    await Neutralino.filesystem.writeFile(configPath, jsonStr);
+    Neutralino.debug.log('Created default config at ' + configPath, 'INFO');
+  } catch (createErr) {
+    Neutralino.debug.log('Failed to create config: ' + (createErr?.message || createErr), 'ERROR');
+  }
 }

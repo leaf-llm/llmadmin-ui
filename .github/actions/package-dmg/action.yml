@@ -1,0 +1,22 @@
+name: Package DMG
+description: Packages a macOS .app into a .dmg
+
+inputs:
+  dist_dir:
+    description: "Path to dist directory containing build outputs"
+    required: true
+  binary_name:
+    description: "Neutralinojs runtime binary name (e.g. llm-admin-mac_universal)"
+    required: true
+  output_dmg:
+    description: "Output .dmg filename"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Package DMG
+      shell: bash
+      run: |
+        chmod +x scripts/package-dmg.sh
+        ./scripts/package-dmg.sh "${{ inputs.dist_dir }}" "${{ inputs.binary_name }}" "${{ inputs.output_dmg }}"

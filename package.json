@@ -1,7 +1,7 @@
 {
   "name": "llm-admin-ui",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "LLM Admin UI desktop and web admin shell (consumes llm-admin-gateway submodule)",
   "scripts": {
@@ -10,13 +10,12 @@
     "build:ui:desktop": "vite build --mode desktop",
     "preview": "vite preview --port 5173 --strictPort",
     "build:gateway": "npm --prefix src-gateway run build",
-    "build:gateway:plugins": "npm --prefix src-gateway run build-plugins",
-    "build:all": "npm run build:gateway && npm run build:gateway:plugins && npm run build:ui",
+    "build:all": "npm run build:gateway && npm run build:ui",
     "desktop:setup": "cd desktop && neu update",
     "bun:build": "npm --prefix src-gateway run bun:build",
     "bun:dev": "npm --prefix src-gateway run bun:dev",
     "build:desktop": "npm run bun:build && rm -rf desktop/resources/assets desktop/resources/index.html && npm run build:ui:desktop && cd desktop && neu build && node scripts/copy-binary.js",
-    "dev:desktop": "npm run bun:dev & cd desktop && neu run"
+    "dev:desktop": "cd desktop && node scripts/copy-binary.js && neu run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

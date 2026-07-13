@@ -1,4 +1,9 @@
 import { isDesktopMode } from '../api/config';
+import {
+  getNeutralinoHomeDir,
+  joinPath,
+} from './neutralinoHomeDir';
+import * as adminClient from '../api/adminClient';
 
 export type ProviderId = string;
 
@@ -12,6 +17,8 @@ export const SUPPORTED_PROVIDERS: ProviderId[] = [
   'minimax',
   'doubao',
   'deepseek',
+  'openai-compatible',
+  'anthropic-compatible',
 ];
 
 export type ModelCategory = 'text' | 'image' | 'video' | 'audio' | 'mcp';
@@ -56,55 +63,43 @@ function getNeutralino(): any {
 
 // Cached config path
 let cachedConfigPath: string | null = null;
-let cachedHomeDir: string | null = null;
 
-export async function getNeutralinoHomeDir(): Promise<string> {
-  if (cachedHomeDir) {
-    return cachedHomeDir;
-  }
-
-  const Neutralino = getNeutralino();
-
-  // Try os.getEnv('HOME') - returns Promise in newer versions
-  try {
-    if (Neutralino?.os?.getEnv) {
-      const home = await Neutralino.os.getEnv('HOME');
-      if (home && typeof home === 'string' && home.startsWith('/home/')) {
-        cachedHomeDir = home;
-        return cachedHomeDir;
-      }
-    }
-  } catch {}
-
-  // Try os.homeDir() - returns Promise
-  try {
-    if (Neutralino?.os?.homeDir) {
-      const home = await Neutralino.os.homeDir();
-      if (home && typeof home === 'string' && home.startsWith('/home/')) {
-        cachedHomeDir = home;
-        return cachedHomeDir;
-      }
-    }
-  } catch {}
-
-  cachedHomeDir = '/home/user';
-  return cachedHomeDir;
-}
+// Re-export so existing imports of `getNeutralinoHomeDir` from this module
+// keep working — the implementation now lives in `./neutralinoHomeDir`.
+export { getNeutralinoHomeDir };
 
 // Get config path - must be called after Neutralino is initialized
-async function getConfigPathAsync(): Promise<string> {
+export async function getConfigPathAsync(): Promise<string> {
   if (cachedConfigPath) {
     return cachedConfigPath;
   }
   const home = await getNeutralinoHomeDir();
-  cachedConfigPath = `${home}/.llm-admin/conf.ui.json`;
+  cachedConfigPath = joinPath(home, '.llm-admin', 'conf.json');
   return cachedConfigPath;
 }
 
-// Sync fallback for initial load (before async path is computed)
+// Sync fallback for initial load (before async path is computed).
+// Throws instead of returning a hardcoded POSIX path that would silently
+// corrupt state on Windows (the previous behaviour, which is what this
+// refactor fixes).
 function getConfigPath(): string {
-  return cachedConfigPath || `/home/user/.llm-admin/conf.ui.json`;
+  if (cachedConfigPath) return cachedConfigPath;
+  throw new Error(
+    'Config path not initialized — call getConfigPathAsync() once before any synchronous config access.'
+  );
 }
+
+// Unified config type for frontend
+export type UnifiedConfigFile = {
+  settings?: {
+    plugins_enabled?: string[];
+    credentials?: Record<string, { apiKey: string }>;
+    cache?: boolean;
+    integrations?: unknown[];
+  };
+  gateway?: UiConfigFile;
+  server?: { port?: number; headless?: boolean };
+};
 
 export function maskApiKey(key: string): string {
   const trimmed = key.trim();
@@ -132,8 +127,87 @@ export function createEmptyUiConfig(): UiConfigFile {
   };
 }
 
-export async function loadUiConfig(): Promise<UiConfigFile> {
-  const defaultConfig: UiConfigFile = {
+// --- File I/O via Neutralino.filesystem API ---
+//
+// Why not execCommand: each `os.execCommand` call spawns a fresh
+// `powershell.exe` (Windows) or `/bin/sh` (Unix) — cold-start is ~300-1500ms
+// per call, and `saveUiConfig` previously made 4-5 such calls. The
+// `Neutralino.filesystem` API talks to the native Neutralino helper over a
+// WebSocket and is sub-millisecond per call.
+//
+// Atomicity: we still write to a tmp file and use `filesystem.move` (which
+// calls `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING` on Windows and
+// `rename(2)` on POSIX — both atomic) so the backend's mtime cache at
+// `src-gateway/src/admin/config/store.ts:66-103` only ever sees old or new,
+// never a half-written file.
+
+const ensuredDirs = new Set<string>();
+
+async function shellReadFile(path: string): Promise<string> {
+  const Neutralino = getNeutralino();
+  return await Neutralino.filesystem.readFile(path);
+}
+
+async function shellWriteFile(path: string, content: string): Promise<void> {
+  const Neutralino = getNeutralino();
+  // Atomic write: write to a tmp file in the same directory (so the move is
+  // on the same filesystem and therefore atomic), then rename over the
+  // destination. Readers see either the old content or the new content, never
+  // a half-written truncation.
+  const tmpPath = `${path}.tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await Neutralino.filesystem.writeFile(tmpPath, content);
+  try {
+    await Neutralino.filesystem.move(tmpPath, path);
+  } catch (e) {
+    // Clean up tmp on failure
+    try {
+      await Neutralino.filesystem.remove(tmpPath);
+    } catch {}
+    throw e;
+  }
+}
+
+async function shellMkdir(dir: string): Promise<void> {
+  if (ensuredDirs.has(dir)) return;
+  const Neutralino = getNeutralino();
+  try {
+    await Neutralino.filesystem.createDirectory(dir);
+  } catch (e: any) {
+    // Idempotent: ignore "already exists" errors (NL_ERR_DIR_EXISTS / EEXIST).
+    const msg = String(e?.message || e || '');
+    if (
+      e?.code === 'NE_FS_DIRCRER' ||
+      msg.toLowerCase().includes('exists') ||
+      msg.toLowerCase().includes('eexist')
+    ) {
+      // directory already exists — fine
+    } else {
+      throw e;
+    }
+  }
+  ensuredDirs.add(dir);
+}
+
+async function shellFileExists(path: string): Promise<boolean> {
+  const Neutralino = getNeutralino();
+  try {
+    await Neutralino.filesystem.getStats(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// --- Config loading ---
+
+const DEFAULT_UNIFIED_CONFIG = JSON.stringify({
+  settings: { plugins_enabled: ['default'], credentials: {}, cache: false, integrations: [] },
+  gateway: { providers: {}, text: { routing: [], userConfig: null }, image: { routing: [], userConfig: null }, video: { routing: [], userConfig: null }, audio: { routing: [], userConfig: null }, mcp: { routing: [], userConfig: null } },
+  server: { port: 8700, headless: false },
+}, null, 2);
+
+function createUiDefaultConfig(): UiConfigFile {
+  return {
     providers: {},
     text: createEmptyCategoryConfig(),
     image: createEmptyCategoryConfig(),
@@ -141,54 +215,143 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
     audio: createEmptyCategoryConfig(),
     mcp: createEmptyCategoryConfig(),
   };
+}
+
+// In-memory cache for web-mode config. Populated by loadUiConfig, kept in
+// sync by saveUiConfig with optimistic-update + rollback on failure.
+let inMemoryConfig: UiConfigFile | null = null;
+
+export function getCachedUiConfig(): UiConfigFile | null {
+  return inMemoryConfig;
+}
+
+function setInMemoryConfig(next: UiConfigFile | null) {
+  inMemoryConfig = next;
+}
+
+export async function loadUiConfig(): Promise<UiConfigFile> {
+  const defaultConfig = createUiDefaultConfig();
 
   if (!isDesktopMode()) {
-    return defaultConfig;
+    // Web mode: fetch from the dev server / production gateway over HTTP.
+    // On failure, fall back to the default and log a warning so callers
+    // (which don't handle rejections) keep working.
+    try {
+      const res = await adminClient.getConfig();
+      const cfg = res?.config
+        ? { ...defaultConfig, ...(res.config as Partial<UiConfigFile>) }
+        : defaultConfig;
+      setInMemoryConfig(cfg);
+      return cfg;
+    } catch (e) {
+      console.warn('loadUiConfig (web mode) error:', e);
+      setInMemoryConfig(defaultConfig);
+      return defaultConfig;
+    }
   }
 
   const Neutralino = getNeutralino();
-  if (!Neutralino?.filesystem) {
+  if (!Neutralino?.filesystem?.readFile) {
     return defaultConfig;
   }
 
   const configPath = await getConfigPathAsync();
+  const dirPath = configPath.substring(
+    0,
+    Math.max(configPath.lastIndexOf('/'), configPath.lastIndexOf('\\'))
+  );
+
   try {
-    const text: string = await Neutralino.filesystem.readFile(configPath);
-    return JSON.parse(text) as UiConfigFile;
-  } catch (e: any) {
-    if (e?.message?.includes('ENOENT') || e?.message?.includes('file not found')) {
+    // Ensure directory exists
+    await shellMkdir(dirPath);
+
+    // Check if file exists — create default if missing
+    const exists = await shellFileExists(configPath);
+    if (!exists) {
+      await shellWriteFile(configPath, DEFAULT_UNIFIED_CONFIG);
+      Neutralino.debug?.log?.('Created default config at ' + configPath, 'INFO');
+    }
+
+    // Read and parse file
+    const text = await shellReadFile(configPath);
+    if (!text) {
+      // File is empty or read failed — write default
+      await shellWriteFile(configPath, DEFAULT_UNIFIED_CONFIG);
       return defaultConfig;
     }
-    throw e;
+
+    const parsed = JSON.parse(text);
+    const cfg = parsed?.gateway
+      ? { ...defaultConfig, ...parsed.gateway }
+      : defaultConfig;
+    setInMemoryConfig(cfg);
+    return cfg;
+  } catch (e) {
+    console.warn('loadUiConfig error:', e);
+    return defaultConfig;
   }
 }
 
 export async function saveUiConfig(config: UiConfigFile): Promise<void> {
   if (!isDesktopMode()) {
-    throw new Error('Cannot save config in web mode');
+    // Optimistic update: apply locally first, then POST. On failure, restore
+    // the previous cache and rethrow so callers can surface the error.
+    const previous = inMemoryConfig;
+    setInMemoryConfig(config);
+    try {
+      const res = await adminClient.syncConfig(config as any);
+      if (res?.config) {
+        setInMemoryConfig({
+          ...config,
+          ...(res.config as Partial<UiConfigFile>),
+        });
+      }
+    } catch (e) {
+      setInMemoryConfig(previous);
+      throw new Error(
+        'Failed to save config: ' + ((e as any)?.message || e)
+      );
+    }
+    return;
   }
 
   const Neutralino = getNeutralino();
-  if (!Neutralino?.filesystem) {
-    throw new Error('Neutralino filesystem not available');
+  if (!Neutralino?.filesystem?.writeFile) {
+    throw new Error('Neutralino filesystem API not available');
   }
 
   const configPath = await getConfigPathAsync();
+  const dirPath = configPath.substring(
+    0,
+    Math.max(configPath.lastIndexOf('/'), configPath.lastIndexOf('\\'))
+  );
 
-  // Ensure directory exists - extract directory from configPath
-  const dirPath = configPath.substring(0, configPath.lastIndexOf('/'));
   try {
-    await Neutralino.filesystem.createDirectory(dirPath, {
-      recursive: true,
-    });
-  } catch (e: any) {
-    // Ignore if already exists
-    if (!e?.message?.includes('already exists')) {
-      console.warn('Failed to create config directory:', e?.message);
-    }
-  }
+    // Ensure directory exists
+    await shellMkdir(dirPath);
 
-  await Neutralino.filesystem.writeFile(configPath, JSON.stringify(config, null, 2));
+    // Read existing config to preserve settings and server
+    let existingConfig: UnifiedConfigFile = {};
+    const exists = await shellFileExists(configPath);
+    if (exists) {
+      try {
+        const text = await shellReadFile(configPath);
+        existingConfig = JSON.parse(text);
+      } catch {}
+    }
+
+    // Update gateway, preserve settings and server
+    const unifiedConfig: UnifiedConfigFile = {
+      ...existingConfig,
+      gateway: config,
+    };
+
+    await shellWriteFile(configPath, JSON.stringify(unifiedConfig, null, 2));
+    setInMemoryConfig(config);
+  } catch (e: any) {
+    console.warn('saveUiConfig error:', e);
+    throw new Error('Failed to save config: ' + (e?.message || e));
+  }
 }
 
 export async function loadUserConfig(
@@ -228,8 +391,18 @@ export async function syncUserConfigFromRouting(
 
     if (!p?.apiKey?.trim()) return null;
 
+    // Map UI provider enum to backend provider: openai-compatible /
+    // anthropic-compatible are routed to the same backend provider as the
+    // official openai / anthropic.
+    const backendProvider =
+      entry.provider === 'openai-compatible'
+        ? 'openai'
+        : entry.provider === 'anthropic-compatible'
+          ? 'anthropic'
+          : entry.provider;
+
     const target: Record<string, unknown> = {
-      provider: entry.provider,
+      provider: backendProvider,
       api_key: p.apiKey.trim(),
       override_params: {
         model: entry.model,
@@ -287,7 +460,7 @@ export async function syncUserConfigFromRouting(
     config[category].userConfig = {
       strategy: {
         mode: 'fallback',
-        on_status_codes: [429, 500, 502, 503, 504],
+        on_status_codes: [400, 402, 403, 424, 429, 500, 502, 503, 504],
       },
       targets,
     };
@@ -322,7 +495,9 @@ export type ProviderSummary = {
 
 const DEFAULT_BASE_URLS: Record<ProviderId, string> = {
   openai: 'https://api.openai.com/v1',
+  'openai-compatible': 'https://api.openai.com/v1',
   anthropic: 'https://api.anthropic.com',
+  'anthropic-compatible': 'https://api.anthropic.com',
   'google-openai': 'https://generativelanguage.googleapis.com/v1beta/openai',
   zhipu: 'https://open.bigmodel.cn/api/paas/v4',
   dashscope: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
@@ -333,6 +508,8 @@ const DEFAULT_BASE_URLS: Record<ProviderId, string> = {
 };
 
 const DEFAULT_ANTHROPIC_BASE_URLS: Record<ProviderId, string> = {
+  'openai-compatible': '',
+  'anthropic-compatible': 'https://api.anthropic.com',
   zhipu: 'https://open.bigmodel.cn/api/anthropic',
   dashscope: 'https://dashscope.aliyuncs.com/apps/anthropic/v1',
   moonshot: 'https://api.moonshot.cn/anthropic/v1',

@@ -2,7 +2,8 @@
   "nav": {
     "routing": "Routing",
     "usage": "Usage",
-    "settings": "Settings"
+    "settings": "Settings",
+    "plugins": "Plugins"
   },
   "common": {
     "save": "Save",
@@ -20,7 +21,7 @@
     "failed": "Failed",
     "apiKeyRequired": "API Key is required",
     "pleaseEnterApiKeyFirst": "Please enter API Key first",
-    "connectionFailed": "Connection failed",
+    "connectionFailed": "Connection Failed",
     "connectionDisconnected": "Disconnected",
     "connectionVerified": "Connection verified",
     "copied": "Copied!",
@@ -105,6 +106,10 @@
     "providerZhipu": "Zhipu",
     "providerDashscope": "Alibaba Dashscope",
     "providerDoubao": "Doubao",
+    "providerOpenAI": "OpenAI",
+    "providerOpenAICompatible": "OpenAI-Compatible",
+    "providerAnthropic": "Anthropic",
+    "providerAnthropicCompatible": "Anthropic-Compatible",
     "taskType": "Task Type",
     "modelRouting": "Model Routing",
     "noRoutingConfigured": "No routing configured, add a provider to set up routing.",
@@ -119,9 +124,84 @@
     "backendNotResponding": "Backend is not responding. Please wait for the gateway to start.",
     "maxRetriesExceeded": "Max retries exceeded",
     "connecting": "Connecting...",
-    "connectionFailed": "Connection Failed",
-    "connectionDisconnected": "Disconnected",
     "running": "Running",
     "usageDisclaimer": "* This usage statistics is for reference only. For details, please check the provider's bill."
+  },
+  "plugins": {
+    "configured": "Configured",
+    "configurable": "Configurable",
+    "noConfigured": "No plugins enabled",
+    "noConfigurable": "No plugins available",
+    "functions": "Functions",
+    "functionCount": "{{count}} functions",
+    "credentials": "Credentials",
+    "credentialsConfigured": "Credentials set",
+    "credentialsMissing": "Credentials missing",
+    "credentialsNotRequired": "No credentials needed",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable",
+    "credentialsSaved": "Credentials saved.",
+    "enableSaved": "Plugin state updated.",
+    "enablePluginFirst": "Please enable this plugin first to configure its presets.",
+    "typeGuardrail": "Guardrail",
+    "typeTransformer": "Transformer",
+    "default": {
+      "description": "The default set of guardrail functions available in the AI Gateway.",
+      "cardDescription": "Default guardrail functions: regex matching, content detection, length limits, and more."
+    },
+    "promptcache": {
+      "description": "Attaches Anthropic cache_control markers to a fixed prompt and the last user message to enable prompt caching upstream.",
+      "cardDescription": "Attaches Anthropic cache_control markers to enable prompt caching upstream."
+    },
+    "claude-stego-detector": {
+      "description": "Removes the hidden signals that Claude Code inserts into requests when traffic is routed through a proxy. Requests pass through with the signal neutralised and are not blocked.",
+      "cardDescription": "Removes the hidden signals Claude Code inserts into proxied requests."
+    },
+    "stageBeforeRequest": "Before Request",
+    "stageAfterRequest": "After Request",
+    "presets": {
+      "title": "Security Presets",
+      "subtitle": "Toggle preset security bundles — preconfigured with sensible defaults. No parameter tuning required.",
+      "enableDefaultFirst": "Enable the default plugin to configure security presets.",
+      "deny": "Deny",
+      "pii_detection": {
+        "name": "PII Detection",
+        "description": "Detects email addresses, phone numbers (CN), ID card numbers, credit card numbers, and common API keys in requests. Detected values are masked before forwarding; the request is allowed through."
+      },
+      "prompt_injection": {
+        "name": "Prompt Injection Defense",
+        "description": "Blocks common prompt-injection phrasing like \"ignore previous instructions\", \"disregard the above\", \"you are now\", etc. Requests containing these phrases are denied."
+      },
+      "content_moderation": {
+        "name": "Content Moderation",
+        "description": "Detects common profanity, hate-speech markers, and explicit content keywords. Requests containing these terms are denied."
+      },
+      "length_limit": {
+        "name": "Length Limit",
+        "description": "Rejects requests longer than 1000 words or 10000 characters. Protects against prompt-stuffing and excessive-token attacks."
+      },
+      "url_safety_blacklist": {
+        "name": "URL Blacklist",
+        "description": "Detects common URL-shortener services (bit.ly, tinyurl.com, t.co, etc.) and known high-risk TLDs (.xyz, .top, .click, .tk, .ml, etc.). Matched URLs are masked before forwarding; request is allowed through."
+      },
+      "url_safety_ssrf": {
+        "name": "SSRF Guard",
+        "description": "Detects URLs pointing to internal/private network ranges (loopback, link-local, private IPv4, cloud metadata IP, IPv6). These indicate SSRF or prompt-injection attempts. Request is denied if any such URL is found."
+      },
+      "system_prompt_cache": {
+        "name": "System Prompt Caching",
+        "description": "Caches a system-level prompt across requests using Anthropic prompt caching. The fixed prompt is inserted as a system message with cache_control, and the last user message gets a cache breakpoint."
+      },
+      "document_context_cache": {
+        "name": "Document Context Caching",
+        "description": "Caches a long document or context block as a user-role message. Useful for RAG or document Q&A where the same reference material is sent with every request."
+      },
+      "claude_stego_detector": {
+        "name": "Claude stego scrub",
+        "description": "Run on every request before it leaves the gateway. Replaces U+2019 / U+02BC / U+02B9 apostrophes with ASCII, and converts YYYY/MM/DD dates to YYYY-MM-DD format. Does not block."
+      }
+    }
   }
 }

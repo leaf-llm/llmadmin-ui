@@ -1,9 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { loadUiConfig, saveUiConfig, createEmptyUiConfig, getNeutralinoHomeDir } from '../lib/configStore';
+import { loadUiConfig, saveUiConfig, createEmptyUiConfig, getNeutralinoHomeDir, getConfigPathAsync } from '../lib/configStore';
 import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
+  'settings',
+  'gateway',
+  'server',
+];
+const VALID_GATEWAY_KEYS = [
   'providers',
   'text',
   'image',
@@ -43,9 +48,29 @@ export default function SettingsPage() {
     setConfigLoading(true);
     setConfigError(null);
     try {
-      const fullConfig = await loadUiConfig();
-      setConfig(fullConfig as any);
-      setRawConfig(JSON.stringify(fullConfig, null, 2));
+      // Read the raw conf.json so the preview shows all top-level keys
+      // (settings, gateway, server) — not just the gateway section.
+      const Neutralino = (window as any).Neutralino;
+      if (Neutralino?.filesystem?.readFile) {
+        try {
+          const configPath = await getConfigPathAsync();
+          const text = await Neutralino.filesystem.readFile(configPath);
+          const parsed = JSON.parse(text);
+          setConfig(parsed as any);
+          setRawConfig(JSON.stringify(parsed, null, 2));
+        } catch {
+          // Fall through to the loadUiConfig path
+          const gateway = await loadUiConfig();
+          const unified: Record<string, unknown> = { gateway };
+          setConfig(unified as any);
+          setRawConfig(JSON.stringify(unified, null, 2));
+        }
+      } else {
+        const gateway = await loadUiConfig();
+        const unified: Record<string, unknown> = { gateway };
+        setConfig(unified as any);
+        setRawConfig(JSON.stringify(unified, null, 2));
+      }
     } catch (e: any) {
       setConfigError(e?.message ?? String(e));
     } finally {
@@ -53,23 +78,23 @@ export default function SettingsPage() {
     }
   }
 
-  function validateConfig(cfg: unknown): string {
-    if (!cfg || typeof cfg !== 'object') {
-      return 'Config must be an object';
+  function validateGateway(gateway: unknown): string {
+    if (!gateway || typeof gateway !== 'object') {
+      return 'Gateway section must be an object';
     }
 
-    const c = cfg as Record<string, unknown>;
+    const g = gateway as Record<string, unknown>;
 
-    for (const key of Object.keys(c)) {
-      if (!VALID_CONFIG_KEYS.includes(key)) {
-        return `Invalid config key: ${key}`;
+    for (const key of Object.keys(g)) {
+      if (!VALID_GATEWAY_KEYS.includes(key)) {
+        return `Invalid gateway key: ${key}`;
       }
     }
 
-    if (!c.providers || typeof c.providers !== 'object') {
+    if (!g.providers || typeof g.providers !== 'object') {
       return 'Missing or invalid "providers" field';
     }
-    const providers = c.providers as Record<string, unknown>;
+    const providers = g.providers as Record<string, unknown>;
     for (const [providerId, providerConfigs] of Object.entries(providers)) {
       if (!VALID_PROVIDERS.includes(providerId)) {
         return `Unknown provider: ${providerId}`;
@@ -102,10 +127,10 @@ export default function SettingsPage() {
 
     const categories = ['text', 'image', 'video', 'audio', 'mcp'];
     for (const cat of categories) {
-      if (!c[cat] || typeof c[cat] !== 'object') {
+      if (!g[cat] || typeof g[cat] !== 'object') {
         return `Missing or invalid category: ${cat}`;
       }
-      const catConfig = c[cat] as Record<string, unknown>;
+      const catConfig = g[cat] as Record<string, unknown>;
       if (!Array.isArray(catConfig.routing)) {
         return `Category "${cat}" missing valid "routing" array`;
       }
@@ -138,42 +163,68 @@ export default function SettingsPage() {
     return '';
   }
 
+  function validateConfig(cfg: unknown): string {
+    if (!cfg || typeof cfg !== 'object') {
+      return 'Config must be an object';
+    }
+
+    const c = cfg as Record<string, unknown>;
+
+    for (const key of Object.keys(c)) {
+      if (!VALID_CONFIG_KEYS.includes(key)) {
+        return `Invalid config key: ${key}`;
+      }
+    }
+
+    if (c.gateway) {
+      const err = validateGateway(c.gateway);
+      if (err) return err;
+    }
+
+    return '';
+  }
+
   async function handleExport() {
     setConfigError(null);
     setExportSuccess(null);
     try {
+      // Read the actual config file from disk - this is the source of truth
+      const Neutralino = isDesktopMode() ? (window as any).Neutralino : null;
+      let unifiedConfig: Record<string, unknown> = {};
+
+      if (Neutralino?.filesystem) {
+        const home = await getNeutralinoHomeDir();
+        const configPath = `${home}/.llm-admin/conf.json`;
+        const text: string = await Neutralino.filesystem.readFile(configPath);
+        unifiedConfig = JSON.parse(text);
+      } else {
+        // Web mode fallback: use loadUiConfig (just gateway section)
+        unifiedConfig.gateway = await loadUiConfig();
+      }
+
+      const jsonStr = JSON.stringify(unifiedConfig, null, 2);
+
       if (isDesktopMode()) {
-        const Neutralino = (window as any).Neutralino;
         let filePath: string | null = null;
         try {
           const result = await Neutralino.os.showSaveDialog('Export Config', {
-            defaultPath: 'conf.ui.json',
+            defaultPath: 'conf.json',
           });
           filePath = result || null;
         } catch {
-          // dialog API not available; treat as user-cancelled (silent abort)
           filePath = null;
         }
-        if (!filePath) {
-          // user cancelled (or dialog unavailable) - do nothing
-          return;
-        }
-        const fullConfig = await loadUiConfig();
-        const jsonStr = JSON.stringify(fullConfig, null, 2);
+        if (!filePath) return;
         await Neutralino.filesystem.writeFile(filePath, jsonStr);
         setExportSuccess(filePath);
         return;
       }
 
-      const fullConfig = await loadUiConfig();
-      const jsonStr = JSON.stringify(fullConfig, null, 2);
-      const blob = new Blob([jsonStr], {
-        type: 'application/json',
-      });
+      const blob = new Blob([jsonStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'conf.ui.json';
+      a.download = 'conf.json';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -212,7 +263,8 @@ export default function SettingsPage() {
         return;
       }
 
-      await saveUiConfig(parsed as any);
+      const gateway = (parsed as any).gateway || createEmptyUiConfig();
+      await saveUiConfig(gateway);
       setImportSuccess(true);
       await loadConfig();
     } catch (err: any) {
@@ -246,7 +298,8 @@ export default function SettingsPage() {
         return;
       }
 
-      await saveUiConfig(parsed as any);
+      const gateway = (parsed as any).gateway || createEmptyUiConfig();
+      await saveUiConfig(gateway);
       setImportSuccess(true);
       await loadConfig();
     } catch (err: any) {
@@ -265,7 +318,33 @@ export default function SettingsPage() {
   async function handleClear() {
     setConfigError(null);
     try {
+      const Neutralino = isDesktopMode() ? (window as any).Neutralino : null;
+
+      // Reset gateway section
       await saveUiConfig(createEmptyUiConfig());
+
+      // Reset settings section on disk
+      if (Neutralino?.filesystem) {
+        try {
+          const home = await getNeutralinoHomeDir();
+          const configPath = `${home}/.llm-admin/conf.json`;
+          const text: string = await Neutralino.filesystem.readFile(configPath);
+          const unified = JSON.parse(text);
+          unified.settings = {
+            plugins_enabled: ['default'],
+            credentials: {},
+            cache: false,
+            integrations: [],
+          };
+          await Neutralino.filesystem.writeFile(
+            configPath,
+            JSON.stringify(unified, null, 2)
+          );
+        } catch (e: any) {
+          console.warn('Failed to clear settings section:', e?.message);
+        }
+      }
+
       setShowClearDialog(false);
       await loadConfig();
     } catch (e: any) {
