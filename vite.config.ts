@@ -242,7 +242,7 @@ export default defineConfig(({ mode }) => {
       host: '::',
       proxy: {
         '/admin': {
-          target: 'http://localhost:8701',
+          target: 'http://localhost:8700',
           changeOrigin: true,
           // Skip the gateway for /admin/config and /admin/config/ — our
           // dev-conf-json middleware handles those locally.
@@ -256,7 +256,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         '/log': {
-          target: 'http://localhost:8701',
+          target: 'http://localhost:8700',
           changeOrigin: true,
         },
       },
