@@ -26,6 +26,8 @@ const VALID_PROVIDERS = [
   'minimax',
   'doubao',
   'deepseek',
+  'openai-compatible',
+  'anthropic-compatible',
 ];
 
 export default function SettingsPage() {
