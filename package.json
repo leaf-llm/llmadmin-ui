@@ -8,9 +8,12 @@
     "dev:ui": "vite --port 5173 --strictPort --open",
     "build:ui": "vite build",
     "build:ui:desktop": "vite build --mode desktop",
+    "build:web": "node scripts/check-submodule.js && vite build --mode web",
     "preview": "vite preview --port 5173 --strictPort",
     "build:gateway": "npm --prefix src-gateway run build",
-    "build:all": "npm run build:gateway && npm run build:ui",
+    "build:all": "npm run build:web && npm run build:gateway",
+    "start": "node src-gateway/build/start-server.js",
+    "typecheck": "tsc --noEmit",
     "desktop:setup": "cd desktop && neu update",
     "bun:build": "npm --prefix src-gateway run bun:build",
     "bun:dev": "npm --prefix src-gateway run bun:dev",
@@ -32,6 +35,7 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@neutralinojs/neu": "^11.8.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "typescript": "latest"

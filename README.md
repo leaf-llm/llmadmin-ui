@@ -46,6 +46,34 @@ npm run build:desktop
 
 > 本桌面端是 llmadmin-core 的前端界面，用于可视化修改 `conf.json` 配置、管理提供商和路由策略等。
 
+## 部署到 Web / Render
+
+同一个仓库现在也可以作为 Web 服务运行，无需桌面端。默认模板使用 **Render + PostgreSQL**：
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/leaf-llm/llmadmin-ui)
+
+部署后：
+
+1. 在 Render Dashboard → 服务 → Environment 复制 `ADMIN_TOKEN` 和 `GATEWAY_API_KEY`；
+2. 打开 `https://<service>.onrender.com/public/admin/`，用 `ADMIN_TOKEN` 登录；
+3. 添加 provider、模型路由；
+4. 客户端用 `Authorization: Bearer <GATEWAY_API_KEY>` 调用 `/v1/chat/completions` 或 `/v1/messages`。
+
+配置和用量存在 PostgreSQL，重新部署不会丢。详细说明：
+
+- [Render 部署](docs/deploy/render.md)
+- [Docker / 其他 PaaS](docs/deploy/docker.md)
+- [Web 安全清单](docs/web/security.md)
+- [Web 架构与限制](docs/web/architecture.md)
+
+本地 Docker：
+
+```bash
+cp .env.example .env
+docker compose up --build
+# http://localhost:8700/public/admin/
+```
+
 ## 架构
 
 ```

@@ -7,7 +7,9 @@ import UsagePage from './pages/UsagePage';
 import SettingsPage from './pages/SettingsPage';
 import { useBackendHealth, BackendStatus } from './hooks/useBackendHealth';
 import { useRuntimeCounts } from './hooks/useRuntimeCounts';
-import { getApiBaseUrl } from './api/config';
+import { getApiBaseUrl, isDesktopMode } from './api/config';
+import { clearAdminToken } from './api/adminClient';
+import AdminAuthGate from './components/AdminAuthGate';
 import logoUrl from './assets/logo.png';
 
 type Page = 'providers' | 'all-providers' | 'plugins' | 'usage' | 'settings';
@@ -33,9 +35,13 @@ function Header({
     i18n.changeLanguage(newLang);
   };
 
+  const baseUrl = getApiBaseUrl();
+  const gatewayUrl = baseUrl
+    ? `${baseUrl}/v1`
+    : `${window.location.origin}/v1`;
+
   const handleCopyUrl = () => {
-    const baseUrl = getApiBaseUrl();
-    navigator.clipboard.writeText(baseUrl ? `${baseUrl}/v1` : 'http://127.0.0.1:8700/v1');
+    navigator.clipboard.writeText(gatewayUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -116,9 +122,7 @@ function Header({
               {t('common.gatewayAddressLabel')}
             </span>
             <span>
-              {copied
-                ? t('common.copied')
-                : (getApiBaseUrl() ? `${getApiBaseUrl()}/v1` : 'http://127.0.0.1:8700/v1')}
+              {copied ? t('common.copied') : gatewayUrl}
             </span>
           </div>
           <div
@@ -159,13 +163,25 @@ function Header({
           >
             {i18n.language.startsWith('zh') ? '中文' : 'EN'}
           </button>
+          {!isDesktopMode() && (
+            <button
+              className="lang-toggle"
+              onClick={() => {
+                clearAdminToken();
+                window.dispatchEvent(new CustomEvent('llmadmin:logout'));
+              }}
+              title="Sign out"
+            >
+              退出
+            </button>
+          )}
         </div>
       </div>
     </header>
   );
 }
 
-export default function App() {
+function AppShell() {
   const [activePage, setActivePage] = useState<Page>('providers');
   const { status: backendStatus, retry } = useBackendHealth();
 
@@ -180,7 +196,11 @@ export default function App() {
     } else if (path === '/settings') {
       setActivePage('settings');
     }
-    window.history.replaceState(null, '', '/');
+    window.history.replaceState(
+      null,
+      '',
+      isDesktopMode() ? '/' : import.meta.env.BASE_URL || '/public/admin/'
+    );
   }, []);
 
   const handleNavigate = (page: Page) => {
@@ -217,5 +237,16 @@ export default function App() {
         {activePage === 'settings' && <SettingsPage />}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  if (isDesktopMode()) {
+    return <AppShell />;
+  }
+  return (
+    <AdminAuthGate>
+      <AppShell />
+    </AdminAuthGate>
   );
 }

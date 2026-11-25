@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: llmadmin
+      POSTGRES_PASSWORD: llmadmin
+      POSTGRES_DB: llmadmin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llmadmin -d llmadmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - llmadmin-pgdata:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      args:
+        GATEWAY_REF: main
+    ports:
+      - "8700:8700"
+    environment:
+      NODE_ENV: production
+      PORT: "8700"
+      WEB_UI: "true"
+      ENABLE_LEGACY_LOGS: "false"
+      CONFIG_STORE: postgres
+      USAGE_STORE: postgres
+      DATABASE_URL: postgres://llmadmin:llmadmin@postgres:5432/llmadmin
+      DATABASE_SSL: "false"
+      CONFIG_CACHE_TTL_MS: "1000"
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-dev-admin-token}
+      GATEWAY_API_KEY: ${GATEWAY_API_KEY:-dev-gateway-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  llmadmin-pgdata:

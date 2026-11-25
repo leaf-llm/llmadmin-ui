@@ -1,0 +1,45 @@
+# Render Blueprint for LLM Admin (web / serverless-style template).
+#
+# One-click: fork the repo, then open
+# https://render.com/deploy?repo=https://github.com/leaf-llm/llmadmin-ui
+#
+# Free-plan caveats (check Render's current docs/pricing):
+#   - free web services sleep after inactivity (cold start on the next request)
+#   - free PostgreSQL has usage/expiry limits
+# For production, upgrade the web service and database plans.
+databases:
+  - name: llmadmin-db
+    databaseName: llmadmin
+    user: llmadmin
+    plan: free
+
+services:
+  - type: web
+    name: llmadmin
+    runtime: docker
+    plan: free
+    healthCheckPath: /admin/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CONFIG_STORE
+        value: postgres
+      - key: USAGE_STORE
+        value: postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: llmadmin-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: auto
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: GATEWAY_API_KEY
+        generateValue: true
+      - key: WEB_UI
+        value: "true"
+      - key: ENABLE_LEGACY_LOGS
+        value: "false"
+      - key: CONFIG_CACHE_TTL_MS
+        value: "5000"

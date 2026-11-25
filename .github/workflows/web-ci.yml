@@ -1,0 +1,120 @@
+name: Web build & smoke
+
+on:
+  push:
+    branches: [master, main, 'feat/**']
+  pull_request:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: llmadmin
+          POSTGRES_PASSWORD: llmadmin
+          POSTGRES_DB: llmadmin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U llmadmin -d llmadmin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://llmadmin:llmadmin@127.0.0.1:5432/llmadmin
+      DATABASE_SSL: 'false'
+      CONFIG_STORE: postgres
+      USAGE_STORE: postgres
+      ADMIN_TOKEN: test-admin-token
+      GATEWAY_API_KEY: test-gateway-key
+      WEB_UI: 'true'
+      ENABLE_LEGACY_LOGS: 'false'
+      PORT: '8700'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install UI dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install gateway dependencies
+        run: npm --prefix src-gateway ci --legacy-peer-deps
+
+      - name: Typecheck UI
+        run: npm run typecheck
+
+      - name: Typecheck gateway
+        run: npm --prefix src-gateway run typecheck
+
+      - name: Gateway config/admin tests
+        run: >-
+          npm --prefix src-gateway test --
+          --runInBand
+          src/storage/configStore.test.ts
+          src/admin/routes.test.ts
+
+      - name: Build web UI and gateway
+        run: |
+          npm run build:web
+          npm run build:gateway
+
+      - name: Build Docker image
+        run: docker build -t llmadmin-web:ci .
+
+      - name: Smoke test with PostgreSQL
+        run: |
+          set -euo pipefail
+          node src-gateway/build/start-server.js > /tmp/llmadmin.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8700/admin/health >/tmp/health.json; then break; fi
+            sleep 1
+          done
+          cat /tmp/health.json
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8700/admin/config)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8700/v1/models)" = "401"
+
+          GATEWAY='{"providers":{"deepseek":[{"id":"ci","apiKey":"sk-test","baseUrl":"https://api.deepseek.com/v1","lastSyncedAt":"2026-01-01T00:00:00.000Z"}]},"text":{"routing":[{"provider":"deepseek","model":"deepseek-chat","configId":"ci","isPrimary":true}],"userConfig":null},"image":{"routing":[],"userConfig":null},"video":{"routing":[],"userConfig":null},"audio":{"routing":[],"userConfig":null},"mcp":{"routing":[],"userConfig":null}}'
+          curl -fsS -X PUT http://127.0.0.1:8700/admin/config \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d "$GATEWAY" >/tmp/put.json
+          jq -e '.ok == true' /tmp/put.json
+
+          kill $SERVER_PID
+          wait $SERVER_PID || true
+
+          node src-gateway/build/start-server.js >> /tmp/llmadmin.log 2>&1 &
+          SERVER_PID=$!
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8700/admin/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8700/admin/config \
+            -H "Authorization: Bearer $ADMIN_TOKEN" >/tmp/get.json
+          jq -e '.config.providers.deepseek[0].apiKey == "sk-test"' /tmp/get.json
+          curl -fsS -H "Authorization: Bearer $GATEWAY_API_KEY" \
+            http://127.0.0.1:8700/v1/models >/tmp/models.json
+          jq -e '.object == "list"' /tmp/models.json
+          curl -fsS -o /dev/null http://127.0.0.1:8700/public/admin/
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: llmadmin-server-log
+          path: /tmp/llmadmin.log
+          if-no-files-found: ignore
