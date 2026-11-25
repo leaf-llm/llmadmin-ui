@@ -30,15 +30,16 @@
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/leaf-llm/llmadmin-ui
-cd llm-admin
+cd llmadmin-ui
 
-# 2. 安装依赖
+# 2. 安装依赖（UI + gateway submodule）
+git submodule update --init --recursive
 npm install
-cd src-gateway && npm install && cd ..
+npm --prefix src-gateway install
 
-# 3. 启动开发模式
-npm run dev:ui        # 启动 Web UI（端口 5173）
-npm run bun:dev       # 启动网关（端口 8700）
+# 3. 启动开发模式（两个终端）
+npm run dev           # 终端 A：Web UI（端口 5173）
+npm run dev:gateway   # 终端 B：网关（端口 8700）
 
 # 或构建桌面端
 npm run build:desktop
@@ -103,11 +104,16 @@ OpenAI   Anthropic   DeepSeek   100+ 模型
 ## 开发
 
 ```bash
-npm run dev:ui              # 启动 UI 开发服务器（端口 5173）
-npm run build:gateway       # 构建网关
-npm run build:desktop       # 构建桌面端应用
-npm run build:all           # 构建全部
+npm run dev                 # Web UI 开发服务器（5173）
+npm run dev:gateway         # 网关开发服务器（8700）
 npm run dev:desktop         # 桌面端开发模式
+
+npm run build               # Web 完整构建（UI + gateway）
+npm run build:web           # 仅 Web UI
+npm run build:gateway       # 仅 gateway
+npm run build:desktop       # 桌面端（含 Bun 二进制与 Neutralino 打包）
+
+npm run setup:desktop       # 首次桌面端开发前更新 Neutralino 运行时
 ```
 
 ## 许可证

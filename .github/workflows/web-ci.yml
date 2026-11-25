@@ -64,10 +64,8 @@ jobs:
           src/storage/configStore.test.ts
           src/admin/routes.test.ts
 
-      - name: Build web UI and gateway
-        run: |
-          npm run build:web
-          npm run build:gateway
+      - name: Build web
+        run: npm run build
 
       - name: Build Docker image
         run: docker build -t llmadmin-web:ci .

@@ -5,20 +5,17 @@
   "type": "module",
   "description": "LLM Admin UI desktop and web admin shell (consumes llm-admin-gateway submodule)",
   "scripts": {
-    "dev:ui": "vite --port 5173 --strictPort --open",
-    "build:ui": "vite build",
-    "build:ui:desktop": "vite build --mode desktop",
+    "dev": "vite --port 5173 --strictPort --open",
+    "dev:gateway": "npm --prefix src-gateway run dev -- --config=../conf.json",
+    "dev:desktop": "cd desktop && node scripts/copy-binary.js && neu run",
+    "build": "npm run build:web && npm run build:gateway",
     "build:web": "node scripts/check-submodule.js && vite build --mode web",
-    "preview": "vite preview --port 5173 --strictPort",
     "build:gateway": "npm --prefix src-gateway run build",
-    "build:all": "npm run build:web && npm run build:gateway",
+    "build:desktop": "npm --prefix src-gateway run build:bun && rm -rf desktop/resources/assets desktop/resources/index.html && vite build --mode desktop && cd desktop && neu build && node scripts/copy-binary.js",
     "start": "node src-gateway/build/start-server.js",
+    "preview": "vite preview --port 5173 --strictPort",
     "typecheck": "tsc --noEmit",
-    "desktop:setup": "cd desktop && neu update",
-    "bun:build": "npm --prefix src-gateway run bun:build",
-    "bun:dev": "npm --prefix src-gateway run bun:dev",
-    "build:desktop": "npm run bun:build && rm -rf desktop/resources/assets desktop/resources/index.html && npm run build:ui:desktop && cd desktop && neu build && node scripts/copy-binary.js",
-    "dev:desktop": "cd desktop && node scripts/copy-binary.js && neu run"
+    "setup:desktop": "cd desktop && neu update"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

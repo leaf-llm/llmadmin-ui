@@ -32,8 +32,7 @@ RUN npm ci --legacy-peer-deps \
  && npm --prefix src-gateway ci --legacy-peer-deps
 
 # Build the UI into src-gateway/build/public/admin, then bundle the server.
-RUN npm run build:web \
- && npm run build:gateway
+RUN npm run build
 
 # ---------------------------------------------------------------------------
 # Runtime stage
