@@ -45,7 +45,7 @@ jobs:
 
       - name: Checkout gateway branch
         env:
-          GATEWAY_REF: ${{ github.event_name == 'pull_request' && 'feat/web-render-template' || 'main' }}
+          GATEWAY_REF: ${{ github.ref == 'refs/heads/master' && 'main' || 'feat/web-render-template' }}
         run: |
           rm -rf src-gateway
           git clone --depth 1 --branch "$GATEWAY_REF" \
