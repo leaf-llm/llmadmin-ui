@@ -37,9 +37,11 @@ git submodule update --init --recursive
 npm install
 npm --prefix src-gateway install
 
-# 3. 启动开发模式（两个终端）
-npm run dev           # 终端 A：Web UI（端口 5173）
-npm run dev:gateway   # 终端 B：网关（端口 8700）
+# 3. 启动 Web 开发模式（UI + gateway 一条命令）
+npm run dev:web
+# 或分开：
+# npm run dev:ui      # Web UI（5173）
+# npm run dev:gateway # 网关（8700）
 
 # 或构建桌面端
 npm run build:desktop
@@ -104,8 +106,10 @@ OpenAI   Anthropic   DeepSeek   100+ 模型
 ## 开发
 
 ```bash
-npm run dev                 # Web UI 开发服务器（5173）
-npm run dev:gateway         # 网关开发服务器（8700）
+npm run dev                 # 等同 dev:web
+npm run dev:web             # Web 开发：UI（5173）+ 网关（8700）
+npm run dev:ui              # 仅 Web UI
+npm run dev:gateway         # 仅网关
 npm run dev:desktop         # 桌面端开发模式
 
 npm run build               # Web 完整构建（UI + gateway）

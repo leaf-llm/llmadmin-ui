@@ -5,7 +5,9 @@
   "type": "module",
   "description": "LLM Admin UI desktop and web admin shell (consumes llm-admin-gateway submodule)",
   "scripts": {
-    "dev": "vite --port 5173 --strictPort --open",
+    "dev": "npm run dev:web",
+    "dev:web": "concurrently -k -n ui,gateway -c cyan,green \"npm run dev:ui\" \"npm run dev:gateway\"",
+    "dev:ui": "vite --port 5173 --strictPort --open --mode web",
     "dev:gateway": "npm --prefix src-gateway run dev -- --config=../conf.json",
     "dev:desktop": "cd desktop && node scripts/copy-binary.js && neu run",
     "build": "npm run build:web && npm run build:gateway",
@@ -35,6 +37,7 @@
     "@neutralinojs/neu": "^11.8.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "concurrently": "^10.0.7",
     "typescript": "latest"
   }
 }
