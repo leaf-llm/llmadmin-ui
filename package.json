@@ -5,17 +5,20 @@
   "type": "module",
   "description": "LLM Admin UI desktop and web admin shell (consumes llm-admin-gateway submodule)",
   "scripts": {
-    "dev:ui": "vite --port 5173 --strictPort --open",
-    "build:ui": "vite build",
-    "build:ui:desktop": "vite build --mode desktop",
-    "preview": "vite preview --port 5173 --strictPort",
+    "dev": "npm run dev:web",
+    "dev:web": "concurrently -k -n ui,gateway -c cyan,green \"npm run dev:ui\" \"npm run dev:gateway\"",
+    "dev:ui": "vite --port 5173 --strictPort --open --mode web",
+    "dev:gateway": "npm --prefix src-gateway run dev -- --config=../conf.json",
+    "dev:desktop": "npm run build:desktop:ui && npm --prefix src-gateway run build:bun && node desktop/scripts/copy-binary.js --dev && cd desktop && neu run",
+    "build": "npm run build:web && npm run build:gateway",
+    "build:web": "node scripts/check-submodule.js && vite build --mode web",
     "build:gateway": "npm --prefix src-gateway run build",
-    "build:all": "npm run build:gateway && npm run build:ui",
-    "desktop:setup": "cd desktop && neu update",
-    "bun:build": "npm --prefix src-gateway run bun:build",
-    "bun:dev": "npm --prefix src-gateway run bun:dev",
-    "build:desktop": "npm run bun:build && rm -rf desktop/resources/assets desktop/resources/index.html && npm run build:ui:desktop && cd desktop && neu build && node scripts/copy-binary.js",
-    "dev:desktop": "cd desktop && node scripts/copy-binary.js && neu run"
+    "build:desktop": "npm --prefix src-gateway run build:bun && npm run build:desktop:ui && cd desktop && neu build && node scripts/copy-binary.js",
+    "build:desktop:ui": "rm -rf desktop/resources/assets desktop/resources/index.html && vite build --mode desktop",
+    "start": "node src-gateway/build/start-server.js",
+    "preview": "vite preview --port 5173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "setup:desktop": "cd desktop && neu update"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -32,8 +35,10 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@neutralinojs/neu": "^11.8.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "concurrently": "^10.0.7",
     "typescript": "latest"
   }
 }

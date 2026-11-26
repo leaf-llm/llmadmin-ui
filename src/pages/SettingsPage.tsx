@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { loadUiConfig, saveUiConfig, createEmptyUiConfig, getNeutralinoHomeDir, getConfigPathAsync } from '../lib/configStore';
+import {
+  loadUnifiedConfig,
+  saveUiConfig,
+  saveUnifiedConfig,
+  createEmptyUiConfig,
+  getNeutralinoHomeDir,
+  getConfigPathAsync,
+} from '../lib/configStore';
+import * as adminClient from '../api/adminClient';
 import { isDesktopMode } from '../api/config';
 
 const VALID_CONFIG_KEYS = [
@@ -61,15 +69,12 @@ export default function SettingsPage() {
           setConfig(parsed as any);
           setRawConfig(JSON.stringify(parsed, null, 2));
         } catch {
-          // Fall through to the loadUiConfig path
-          const gateway = await loadUiConfig();
-          const unified: Record<string, unknown> = { gateway };
+          const unified = await loadUnifiedConfig();
           setConfig(unified as any);
           setRawConfig(JSON.stringify(unified, null, 2));
         }
       } else {
-        const gateway = await loadUiConfig();
-        const unified: Record<string, unknown> = { gateway };
+        const unified = await loadUnifiedConfig();
         setConfig(unified as any);
         setRawConfig(JSON.stringify(unified, null, 2));
       }
@@ -200,8 +205,8 @@ export default function SettingsPage() {
         const text: string = await Neutralino.filesystem.readFile(configPath);
         unifiedConfig = JSON.parse(text);
       } else {
-        // Web mode fallback: use loadUiConfig (just gateway section)
-        unifiedConfig.gateway = await loadUiConfig();
+        // Web mode: export the complete unified document from the server.
+        unifiedConfig = await adminClient.exportConfig();
       }
 
       const jsonStr = JSON.stringify(unifiedConfig, null, 2);
@@ -296,7 +301,12 @@ export default function SettingsPage() {
       }
 
       if (!isDesktopMode()) {
-        setImportError('Config import is only available in desktop mode');
+        const unified = (parsed as any).gateway
+          ? (parsed as Record<string, unknown>)
+          : { gateway: parsed };
+        await saveUnifiedConfig(unified);
+        setImportSuccess(true);
+        await loadConfig();
         return;
       }
 
@@ -320,6 +330,23 @@ export default function SettingsPage() {
   async function handleClear() {
     setConfigError(null);
     try {
+      if (!isDesktopMode()) {
+        await saveUnifiedConfig({
+          gateway: createEmptyUiConfig(),
+          settings: {
+            plugins_enabled: ['default'],
+            credentials: {},
+            cache: false,
+            integrations: [],
+            default_hooks: [],
+            presets_enabled: {},
+          },
+        });
+        setShowClearDialog(false);
+        await loadConfig();
+        return;
+      }
+
       const Neutralino = isDesktopMode() ? (window as any).Neutralino : null;
 
       // Reset gateway section

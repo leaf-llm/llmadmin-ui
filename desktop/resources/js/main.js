@@ -117,9 +117,15 @@ async function startBackend() {
   }
 
   let backendBinary = null;
+  // `neu run` serves from desktop/resources while `neu build` puts the app in
+  // dist/llm-admin. Depending on the Neutralino version, NL_PATH can point at
+  // either the app root or the resources directory, so search both levels.
   const candidates = [
     `${nlDir}${binaryName}`,
+    `${nlDir}../${binaryName}`,
+    `${nlDir}../../${binaryName}`,
     `./${binaryName}`,
+    `../${binaryName}`,
     `./dist/llm-admin/${binaryName}`,
   ];
   for (const candidate of candidates) {

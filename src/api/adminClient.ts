@@ -94,19 +94,72 @@ export type MetricsResponse = {
   }>;
 };
 
-const ADMIN_TOKEN_KEY = 'adminToken';
-const REQUEST_TIMEOUT_MS = 5000;
+const ADMIN_TOKEN_KEY = 'llmadmin_admin_token';
+const LEGACY_TOKEN_KEY = 'adminToken';
+const REQUEST_TIMEOUT_MS = 15000;
 const MAX_RETRIES = 2;
 
-function getAdminToken() {
-  return localStorage.getItem(ADMIN_TOKEN_KEY) ?? '';
+export class AdminAuthError extends Error {
+  constructor(message = 'Admin authentication required') {
+    super(message);
+    this.name = 'AdminAuthError';
+  }
+}
+
+export function getAdminToken(): string {
+  try {
+    const current = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (current !== null) return current;
+    // One-time migration from the old localStorage key. We deliberately do
+    // not keep using localStorage: a compromised XSS payload should not get a
+    // permanent admin token.
+    const legacy = localStorage.getItem(LEGACY_TOKEN_KEY);
+    if (legacy) {
+      sessionStorage.setItem(ADMIN_TOKEN_KEY, legacy);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
+      return legacy;
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+export function setAdminToken(token: string): void {
+  try {
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  } catch {
+    // ignore storage failures (private mode)
+  }
+}
+
+export function clearAdminToken(): void {
+  try {
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function hasAdminToken(): boolean {
+  return getAdminToken().length > 0;
+}
+
+function notifyUnauthorized(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('llmadmin:unauthorized'));
+  }
 }
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
+export async function adminFetch<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
   const baseUrl = getApiBaseUrl();
   const url = baseUrl + path;
 
@@ -121,6 +174,9 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
+
+  const method = (options?.method || 'GET').toUpperCase();
+  const retryable = method === 'GET' || method === 'HEAD';
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const controller = new AbortController();
@@ -141,19 +197,32 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
         // ignore non-json responses
       }
 
+      if (res.status === 401) {
+        clearAdminToken();
+        notifyUnauthorized();
+        throw new AdminAuthError(
+          payload?.message || 'Admin token is invalid or expired'
+        );
+      }
+
       if (!res.ok) {
         const msg =
           payload?.message ||
+          payload?.error?.message ||
           payload?.error ||
           payload?.status ||
           `HTTP ${res.status}`;
-        throw new Error(msg);
+        const error: any = new Error(msg);
+        error.status = res.status;
+        error.code = payload?.code;
+        throw error;
       }
 
       return payload as T;
     } catch (err: any) {
       clearTimeout(timeout);
-      if (err.name === 'AbortError' || err instanceof TypeError) {
+      if (err instanceof AdminAuthError) throw err;
+      if ((err.name === 'AbortError' || err instanceof TypeError) && retryable) {
         if (attempt < MAX_RETRIES) {
           await sleep(1000 * (attempt + 1));
           continue;
@@ -217,10 +286,6 @@ export async function getMetrics(params: {
   return adminFetch<MetricsResponse>(`/admin/metrics${qs ? `?${qs}` : ''}`);
 }
 
-export function setAdminToken(token: string) {
-  localStorage.setItem(ADMIN_TOKEN_KEY, token);
-}
-
 export type UserConfig = Record<string, unknown> | null;
 
 export type UiGatewayConfig = {
@@ -237,12 +302,30 @@ export async function getConfig(): Promise<{
   ok: boolean;
   existed?: boolean;
   config: UiGatewayConfig;
+  unified?: Record<string, unknown>;
+  version?: string;
 }> {
   return adminFetch<{
     ok: boolean;
     existed?: boolean;
     config: UiGatewayConfig;
+    unified?: Record<string, unknown>;
+    version?: string;
   }>(`/admin/config`);
+}
+
+export async function getUnifiedConfig(): Promise<Record<string, unknown>> {
+  const res = await getConfig();
+  return res.unified ?? { gateway: res.config };
+}
+
+export async function saveUnifiedConfig(
+  unified: Record<string, unknown>
+): Promise<{ ok: boolean; version?: string }> {
+  return adminFetch<{ ok: boolean; version?: string }>(`/admin/config`, {
+    method: 'PUT',
+    body: JSON.stringify(unified),
+  });
 }
 
 export async function syncConfig(gateway: UiGatewayConfig): Promise<{

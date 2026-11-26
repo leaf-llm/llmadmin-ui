@@ -30,21 +30,54 @@
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/leaf-llm/llmadmin-ui
-cd llm-admin
+cd llmadmin-ui
 
-# 2. 安装依赖
+# 2. 安装依赖（UI + gateway submodule）
+git submodule update --init --recursive
 npm install
-cd src-gateway && npm install && cd ..
+npm --prefix src-gateway install
 
-# 3. 启动开发模式
-npm run dev:ui        # 启动 Web UI（端口 5173）
-npm run bun:dev       # 启动网关（端口 8700）
+# 3. 启动 Web 开发模式（UI + gateway 一条命令）
+npm run dev:web
+# 或分开：
+# npm run dev:ui      # Web UI（5173）
+# npm run dev:gateway # 网关（8700）
 
 # 或构建桌面端
 npm run build:desktop
 ```
 
 > 本桌面端是 llmadmin-core 的前端界面，用于可视化修改 `conf.json` 配置、管理提供商和路由策略等。
+
+## 部署到 Web / Render
+
+同一个仓库现在也可以作为 Web 服务运行，无需桌面端。默认模板使用 **Render + 文件存储**，不需要数据库，也不需要持久磁盘：
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/leaf-llm/llmadmin-ui)
+
+部署后：
+
+1. 在 Render Dashboard → 服务 → Environment 复制 `ADMIN_TOKEN` 和 `GATEWAY_API_KEY`；
+2. 打开 `https://<service>.onrender.com/public/admin/`，用 `ADMIN_TOKEN` 登录；
+3. 添加 provider、模型路由；
+4. 客户端用 `Authorization: Bearer <GATEWAY_API_KEY>` 调用 `/v1/chat/completions` 或 `/v1/messages`。
+
+> ⚠️ 默认文件模式写入容器 `/tmp`，**服务重启、重新部署或免费实例休眠后可能丢失配置**。需要持久化时再切换到 PostgreSQL/Neon（见部署文档）。
+
+详细说明：
+
+- [Render 部署](docs/deploy/render.md)
+- [Docker / 其他 PaaS](docs/deploy/docker.md)
+- [Web 安全清单](docs/web/security.md)
+- [Web 架构与限制](docs/web/architecture.md)
+
+本地 Docker：
+
+```bash
+cp .env.example .env
+docker compose up --build
+# http://localhost:8700/public/admin/
+```
 
 ## 架构
 
@@ -75,11 +108,18 @@ OpenAI   Anthropic   DeepSeek   100+ 模型
 ## 开发
 
 ```bash
-npm run dev:ui              # 启动 UI 开发服务器（端口 5173）
-npm run build:gateway       # 构建网关
-npm run build:desktop       # 构建桌面端应用
-npm run build:all           # 构建全部
+npm run dev                 # 等同 dev:web
+npm run dev:web             # Web 开发：UI（5173）+ 网关（8700）
+npm run dev:ui              # 仅 Web UI
+npm run dev:gateway         # 仅网关
 npm run dev:desktop         # 桌面端开发模式
+
+npm run build               # Web 完整构建（UI + gateway）
+npm run build:web           # 仅 Web UI
+npm run build:gateway       # 仅 gateway
+npm run build:desktop       # 桌面端（含 Bun 二进制与 Neutralino 打包）
+
+npm run setup:desktop       # 首次桌面端开发前更新 Neutralino 运行时
 ```
 
 ## 许可证

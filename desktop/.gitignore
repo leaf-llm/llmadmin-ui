@@ -12,3 +12,7 @@ resources/assets/
 
 # Temp files
 .tmp/
+
+# Dev-mode gateway binary
+llm-gateway
+llm-gateway.exe

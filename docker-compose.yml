@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        GATEWAY_REF: main
+    ports:
+      - "8700:8700"
+    environment:
+      # These are the only overrides needed on top of the Dockerfile defaults.
+      CONFIG_STORE: file
+      CONFIG_PATH: /tmp/llmadmin/conf.json
+      USAGE_STORE: file
+      HOME: /tmp/llmadmin
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-dev-admin-token}
+      GATEWAY_API_KEY: ${GATEWAY_API_KEY:-dev-gateway-key}

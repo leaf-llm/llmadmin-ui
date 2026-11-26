@@ -231,11 +231,18 @@ function devConfJsonPlugin() {
 
 export default defineConfig(({ mode }) => {
   const isDesktop = mode === 'desktop';
+  const isWeb = mode === 'web';
   return {
-    plugins: [react(), neutralinoInjectPlugin(), devConfJsonPlugin()],
+    // The dev-only conf.json middleware was removed: /admin/config now exists
+    // in the gateway, so development and production use the same API.
+    plugins: [react(), neutralinoInjectPlugin()],
     base: isDesktop ? '/' : '/public/admin/',
     build: {
-      outDir: isDesktop ? './desktop/resources' : './build/public/admin',
+      outDir: isDesktop
+        ? './desktop/resources'
+        : isWeb
+          ? './src-gateway/build/public/admin'
+          : './build/public/admin',
       emptyOutDir: !isDesktop,
     },
     server: {
@@ -244,16 +251,6 @@ export default defineConfig(({ mode }) => {
         '/admin': {
           target: 'http://localhost:8700',
           changeOrigin: true,
-          // Skip the gateway for /admin/config and /admin/config/ — our
-          // dev-conf-json middleware handles those locally.
-          bypass: (req: any) => {
-            const url = req.url || '';
-            const pathname = url.split('?')[0].replace(/\/+$/, '');
-            if (pathname === '/admin/config' || pathname === '/admin/config/') {
-              return url; // return string → middleware calls next() and our handler runs
-            }
-            return undefined; // fall through to normal proxying
-          },
         },
         '/log': {
           target: 'http://localhost:8700',

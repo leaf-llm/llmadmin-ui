@@ -1,0 +1,15 @@
+node_modules
+*/node_modules
+build
+*/build
+desktop/dist
+desktop/resources/assets
+desktop/resources/index.html
+docs/screenshots
+tmp
+.npm-cache
+.env
+.env.*
+conf.json
+*.log
+.DS_Store

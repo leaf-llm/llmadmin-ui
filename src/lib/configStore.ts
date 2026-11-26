@@ -244,6 +244,11 @@ export async function loadUiConfig(): Promise<UiConfigFile> {
       setInMemoryConfig(cfg);
       return cfg;
     } catch (e) {
+      if (e instanceof adminClient.AdminAuthError) {
+        // Let the login gate handle this instead of silently rendering an
+        // empty configuration that looks like data loss.
+        throw e;
+      }
       console.warn('loadUiConfig (web mode) error:', e);
       setInMemoryConfig(defaultConfig);
       return defaultConfig;
@@ -351,6 +356,53 @@ export async function saveUiConfig(config: UiConfigFile): Promise<void> {
   } catch (e: any) {
     console.warn('saveUiConfig error:', e);
     throw new Error('Failed to save config: ' + (e?.message || e));
+  }
+}
+
+/**
+ * Load the complete unified document (settings + gateway + server). Web mode
+ * uses the admin API; desktop reads the same conf.json file the gateway uses.
+ */
+export async function loadUnifiedConfig(): Promise<Record<string, unknown>> {
+  if (!isDesktopMode()) {
+    return adminClient.getUnifiedConfig();
+  }
+
+  const Neutralino = getNeutralino();
+  if (!Neutralino?.filesystem?.readFile) {
+    return { gateway: await loadUiConfig() };
+  }
+
+  try {
+    const configPath = await getConfigPathAsync();
+    const text = await shellReadFile(configPath);
+    return JSON.parse(text);
+  } catch {
+    return { gateway: await loadUiConfig() };
+  }
+}
+
+/**
+ * Persist a complete unified document. Used by the Settings raw editor and
+ * imports; provider pages keep using saveUiConfig (gateway only).
+ */
+export async function saveUnifiedConfig(
+  unified: Record<string, unknown>
+): Promise<void> {
+  if (!isDesktopMode()) {
+    await adminClient.saveUnifiedConfig(unified);
+    return;
+  }
+
+  const Neutralino = getNeutralino();
+  if (!Neutralino?.filesystem?.writeFile) {
+    throw new Error('Neutralino filesystem API not available');
+  }
+
+  const configPath = await getConfigPathAsync();
+  await shellWriteFile(configPath, JSON.stringify(unified, null, 2));
+  if (unified.gateway) {
+    setInMemoryConfig(unified.gateway as UiConfigFile);
   }
 }
 

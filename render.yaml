@@ -1,0 +1,38 @@
+# Render Blueprint for LLM Admin (web / serverless-style template).
+#
+# One-click: fork the repo, then open
+# https://render.com/deploy?repo=https://github.com/leaf-llm/llmadmin-ui
+#
+# Default storage is a file in the container's /tmp directory. That keeps the
+# template free (no database, no persistent disk) but means config and usage
+# are LOST when the service restarts, redeploys, or wakes from a free-plan
+# sleep. Configure providers in the admin UI after each cold start, or switch
+# to PostgreSQL/Neon (see docs/deploy/render.md) when persistence is needed.
+services:
+  - type: web
+    name: llmadmin
+    runtime: docker
+    plan: free
+    healthCheckPath: /admin/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CONFIG_STORE
+        value: file
+      - key: CONFIG_PATH
+        value: /tmp/llmadmin/conf.json
+      - key: USAGE_STORE
+        value: file
+      - key: HOME
+        value: /tmp/llmadmin
+      - key: CONFIG_CACHE_TTL_MS
+        value: "1000"
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: GATEWAY_API_KEY
+        generateValue: true
+      - key: WEB_UI
+        value: "true"
+      - key: ENABLE_LEGACY_LOGS
+        value: "false"
