@@ -81,6 +81,38 @@ jobs:
       - name: Build Docker image
         run: docker build -t llmadmin-web:ci .
 
+      - name: Smoke test file mode (default, no database)
+        env:
+          CONFIG_STORE: file
+          CONFIG_PATH: /tmp/llmadmin-ci/conf.json
+          USAGE_STORE: file
+          HOME: /tmp/llmadmin-ci
+          PORT: '8701'
+        run: |
+          set -euo pipefail
+          node src-gateway/build/start-server.js > /tmp/llmadmin-file.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8701/admin/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8701/admin/health | jq -e '.storage == "file"'
+          curl -fsS -X PUT http://127.0.0.1:8701/admin/config \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{"providers":{},"text":{"routing":[],"userConfig":null},"image":{"routing":[],"userConfig":null},"video":{"routing":[],"userConfig":null},"audio":{"routing":[],"userConfig":null},"mcp":{"routing":[],"userConfig":null}}' \
+            >/dev/null
+          kill $SERVER_PID
+          wait $SERVER_PID || true
+          node src-gateway/build/start-server.js >> /tmp/llmadmin-file.log 2>&1 &
+          SERVER_PID=$!
+          for i in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8701/admin/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS -o /dev/null http://127.0.0.1:8701/public/admin/
+
       - name: Smoke test with PostgreSQL
         run: |
           set -euo pipefail

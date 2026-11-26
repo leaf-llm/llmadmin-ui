@@ -1,18 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: llmadmin
-      POSTGRES_PASSWORD: llmadmin
-      POSTGRES_DB: llmadmin
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U llmadmin -d llmadmin"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    volumes:
-      - llmadmin-pgdata:/var/lib/postgresql/data
-
   app:
     build:
       context: .
@@ -25,16 +11,13 @@ services:
       PORT: "8700"
       WEB_UI: "true"
       ENABLE_LEGACY_LOGS: "false"
-      CONFIG_STORE: postgres
-      USAGE_STORE: postgres
-      DATABASE_URL: postgres://llmadmin:llmadmin@postgres:5432/llmadmin
-      DATABASE_SSL: "false"
+      # File mode without a mounted volume: data is ephemeral and is lost when
+      # the container is recreated. Add a volume (and point CONFIG_PATH at it)
+      # or switch to PostgreSQL when persistence is required.
+      CONFIG_STORE: file
+      CONFIG_PATH: /tmp/llmadmin/conf.json
+      USAGE_STORE: file
+      HOME: /tmp/llmadmin
       CONFIG_CACHE_TTL_MS: "1000"
       ADMIN_TOKEN: ${ADMIN_TOKEN:-dev-admin-token}
       GATEWAY_API_KEY: ${GATEWAY_API_KEY:-dev-gateway-key}
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-volumes:
-  llmadmin-pgdata:

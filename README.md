@@ -51,7 +51,7 @@ npm run build:desktop
 
 ## 部署到 Web / Render
 
-同一个仓库现在也可以作为 Web 服务运行，无需桌面端。默认模板使用 **Render + PostgreSQL**：
+同一个仓库现在也可以作为 Web 服务运行，无需桌面端。默认模板使用 **Render + 文件存储**，不需要数据库，也不需要持久磁盘：
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/leaf-llm/llmadmin-ui)
 
@@ -62,7 +62,9 @@ npm run build:desktop
 3. 添加 provider、模型路由；
 4. 客户端用 `Authorization: Bearer <GATEWAY_API_KEY>` 调用 `/v1/chat/completions` 或 `/v1/messages`。
 
-配置和用量存在 PostgreSQL，重新部署不会丢。详细说明：
+> ⚠️ 默认文件模式写入容器 `/tmp`，**服务重启、重新部署或免费实例休眠后可能丢失配置**。需要持久化时再切换到 PostgreSQL/Neon（见部署文档）。
+
+详细说明：
 
 - [Render 部署](docs/deploy/render.md)
 - [Docker / 其他 PaaS](docs/deploy/docker.md)

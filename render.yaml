@@ -3,16 +3,11 @@
 # One-click: fork the repo, then open
 # https://render.com/deploy?repo=https://github.com/leaf-llm/llmadmin-ui
 #
-# Free-plan caveats (check Render's current docs/pricing):
-#   - free web services sleep after inactivity (cold start on the next request)
-#   - free PostgreSQL has usage/expiry limits
-# For production, upgrade the web service and database plans.
-databases:
-  - name: llmadmin-db
-    databaseName: llmadmin
-    user: llmadmin
-    plan: free
-
+# Default storage is a file in the container's /tmp directory. That keeps the
+# template free (no database, no persistent disk) but means config and usage
+# are LOST when the service restarts, redeploys, or wakes from a free-plan
+# sleep. Configure providers in the admin UI after each cold start, or switch
+# to PostgreSQL/Neon (see docs/deploy/render.md) when persistence is needed.
 services:
   - type: web
     name: llmadmin
@@ -24,15 +19,15 @@ services:
       - key: NODE_ENV
         value: production
       - key: CONFIG_STORE
-        value: postgres
+        value: file
+      - key: CONFIG_PATH
+        value: /tmp/llmadmin/conf.json
       - key: USAGE_STORE
-        value: postgres
-      - key: DATABASE_URL
-        fromDatabase:
-          name: llmadmin-db
-          property: connectionString
-      - key: DATABASE_SSL
-        value: auto
+        value: file
+      - key: HOME
+        value: /tmp/llmadmin
+      - key: CONFIG_CACHE_TTL_MS
+        value: "1000"
       - key: ADMIN_TOKEN
         generateValue: true
       - key: GATEWAY_API_KEY
@@ -41,5 +36,3 @@ services:
         value: "true"
       - key: ENABLE_LEGACY_LOGS
         value: "false"
-      - key: CONFIG_CACHE_TTL_MS
-        value: "5000"

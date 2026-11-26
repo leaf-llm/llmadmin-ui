@@ -35,12 +35,16 @@ deployment needs the following, and the template implements it by default.
 
 ## Data at rest
 
-- Provider keys are stored in the unified config document in PostgreSQL. Rely
-  on the database provider's encryption at rest and network restrictions; do
-  not expose the database publicly.
+- By default provider keys are stored in the unified config document at
+  `/tmp/llmadmin/conf.json`. That file is ephemeral and readable by the
+  container user; treat the container as a trusted boundary.
+- If you switch to PostgreSQL, rely on the database provider's encryption at
+  rest and network restrictions; do not expose the database publicly.
 - Config export includes provider keys. Treat exported files as secrets.
   `GET /admin/config/export?redact=true` returns a shareable redacted copy.
-- Back up the database or export config before rotating keys.
+- File mode has no automatic backup: export the config before restarting or
+  redeploying. In PostgreSQL mode, back up the database or export config before
+  rotating keys.
 
 ## Logging
 
