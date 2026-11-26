@@ -38,18 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # The UI PR points at a core feature-branch commit that is not on
-          # main yet, so the default shallow submodule fetch cannot see it.
-          # Fetch the gateway branch explicitly below instead.
-          submodules: false
-
-      - name: Checkout gateway branch
-        env:
-          GATEWAY_REF: ${{ github.ref == 'refs/heads/master' && 'main' || 'feat/web-render-template' }}
-        run: |
-          rm -rf src-gateway
-          git clone --depth 1 --branch "$GATEWAY_REF" \
-            https://github.com/leaf-llm/llmadmin-core.git src-gateway
+          submodules: recursive
 
       - uses: actions/setup-node@v4
         with:
