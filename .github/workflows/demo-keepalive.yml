@@ -1,19 +1,26 @@
 name: Demo keep-alive
 
 # Render free web services spin down after 15 minutes without traffic and
-# forget every in-memory demo sandbox. A 10 minute ping keeps the instance
-# awake through Render's idle window.
+# forget every in-memory demo sandbox. The shortest GitHub cron interval is
+# 5 minutes; keeping two pings inside Render's idle window leaves room for
+# GitHub's scheduling jitter.
 #
 # Set the repository variable DEMO_URL (Settings -> Variables) to your demo
 # origin, e.g. https://llmadmin-ui.onrender.com. Without it the workflow pings
 # the default instance below.
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Never pile up overlapping pings if a previous run is still waiting on a cold
+# start; the next scheduled tick would only duplicate the same wake-up.
+concurrency:
+  group: demo-keepalive
+  cancel-in-progress: false
 
 jobs:
   ping:
