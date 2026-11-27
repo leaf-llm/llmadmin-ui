@@ -8,8 +8,8 @@ export type DemoSessionInfo = {
   keyHint: string | null;
   keyCreatedAt: number | null;
   gatewayUrl: string;
-  expiresAt: string;
-  remainingSeconds: number;
+  expiresAt: string | null;
+  remainingSeconds: number | null;
   requestsUsed: number;
   requestsRemaining: number;
   limits: {

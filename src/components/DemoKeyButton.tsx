@@ -27,17 +27,23 @@ export default function DemoKeyButton() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState<'key' | 'url' | ''>('');
-  const [remaining, setRemaining] = useState(0);
+  const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
     fetchDemoSession().then(setInfo);
   }, []);
 
   useEffect(() => {
-    if (!info) return;
+    if (!info || !info.expiresAt) {
+      setRemaining(null);
+      return;
+    }
     const tick = () =>
       setRemaining(
-        Math.max(0, Math.round((new Date(info.expiresAt).getTime() - Date.now()) / 1000))
+        Math.max(
+          0,
+          Math.round((new Date(info.expiresAt as string).getTime() - Date.now()) / 1000)
+        )
       );
     tick();
     const id = setInterval(tick, 1000);
@@ -142,8 +148,8 @@ export default function DemoKeyButton() {
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>演示环境 API Key</div>
                 <div style={{ fontSize: 13, color: '#5c5f5e', marginTop: 4 }}>
-                  每个访客一个独立的沙盒，{Math.round(info.limits.ttlSeconds / 60)} 分钟无操作后自动清空；
-                  上游是内置 Mock 模型，不消耗真实额度。
+                  每个访客一个独立的沙盒，刷新页面不会丢失；上游是内置 Mock
+                  模型，不消耗真实额度。
                 </div>
               </div>
               <button
@@ -172,7 +178,15 @@ export default function DemoKeyButton() {
               }}
             >
               <span>
-                剩余 <strong>{formatClock(remaining)}</strong>
+                {remaining === null ? (
+                  <>
+                    会话有效期 <strong>常驻</strong>（重启服务或重置后清空）
+                  </>
+                ) : (
+                  <>
+                    剩余 <strong>{formatClock(remaining)}</strong>
+                  </>
+                )}
               </span>
               <span>
                 请求额度 <strong>{info.requestsRemaining}</strong> / {info.limits.maxRequests}
