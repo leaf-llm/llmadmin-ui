@@ -58,6 +58,25 @@ export default function AdminAuthGate({
     setStatus('checking');
     setError('');
     try {
+      // Demo mode: the session cookie is the credential, so there is no token
+      // to type. An expired demo session is reported instead of the login form.
+      const demoRes = await fetch(`${getApiBaseUrl()}/admin/session`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      if (demoRes.ok) {
+        setStatus('authenticated');
+        return;
+      }
+      if (demoRes.status === 401) {
+        const body = await demoRes.json().catch(() => null);
+        if (body?.code === 'demo_session_required') {
+          setError('演示会话已过期，请重新打开 Demo 页面。');
+          setStatus('error');
+          return;
+        }
+      }
+
       const res = await fetch(`${getApiBaseUrl()}/admin/health`, {
         cache: 'no-store',
       });

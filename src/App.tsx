@@ -10,6 +10,7 @@ import { useRuntimeCounts } from './hooks/useRuntimeCounts';
 import { getApiBaseUrl, isDesktopMode } from './api/config';
 import { clearAdminToken } from './api/adminClient';
 import AdminAuthGate from './components/AdminAuthGate';
+import DemoKeyButton from './components/DemoKeyButton';
 import logoUrl from './assets/logo.png';
 
 type Page = 'providers' | 'all-providers' | 'plugins' | 'usage' | 'settings';
@@ -112,6 +113,7 @@ function Header({
         </div>
 
         <div className="header-right">
+          <DemoKeyButton />
           <div
             className="gateway-url"
             onClick={handleCopyUrl}
