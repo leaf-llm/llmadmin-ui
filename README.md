@@ -106,7 +106,7 @@ Render 免费 Web Service **15 分钟没有请求就会休眠**，进程内存�
 
 三种保活方式，从轻到重：
 
-1. **GitHub Actions**：把 [`docs/deploy/demo-keepalive.workflow.yml`](docs/deploy/demo-keepalive.workflow.yml) 复制到 `.github/workflows/demo-keepalive.yml`，每 10 分钟 ping 一次 `/admin/health`；在仓库 Settings → Secrets and variables → Actions → Variables 里设置 `DEMO_URL`（例如 `https://llmadmin-ui.onrender.com`）。注意 GitHub 的 cron 可能延迟几分钟，且仓库 60 天无提交时定时任务会被停用
+1. **仓库自带的 GitHub Actions**：[`.github/workflows/demo-keepalive.yml`](.github/workflows/demo-keepalive.yml) 每 10 分钟 ping 一次 `/admin/health`；在仓库 Settings → Secrets and variables → Actions → Variables 里设置 `DEMO_URL`（例如 `https://llmadmin-ui.onrender.com`）。注意 GitHub 的 cron 可能延迟几分钟，且仓库 60 天无提交时定时任务会被停用
 2. **外部监控**：UptimeRobot（5 分钟）、cron-job.org（1 分钟）之类，比 Actions 更稳，也不依赖仓库活跃度
 3. **Cloudflare Worker Cron**：已经用 Cloudflare 管域名的话，每分钟触发一次 `fetch`，最可靠
 
