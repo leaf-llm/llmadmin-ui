@@ -100,6 +100,20 @@ DEMO_MAX_SESSIONS_PER_IP=3   # 可选，单 IP 会话上限
 - 演示模式的会话保存在进程内存，**只能单实例**；会话默认不过期，超出 `DEMO_MAX_SESSIONS` 时按最久未使用回收；免费实例 15 分钟空闲会休眠并清空所有会话，建议用 Starter
 - 网关地址优先取 `DEMO_PUBLIC_BASE_URL`，其次 Render 自动注入的 `RENDER_EXTERNAL_URL`，最后取请求 Origin
 
+### Free 实例保活
+
+Render 免费 Web Service **15 分钟没有请求就会休眠**，进程内存里的演示会话随之丢失（冷启动约 1 分钟）。免费额度 750 实例小时/月，约等于一个服务 31 天连着跑，基本只够一个常驻实例。
+
+三种保活方式，从轻到重：
+
+1. **GitHub Actions**：把 [`docs/deploy/demo-keepalive.workflow.yml`](docs/deploy/demo-keepalive.workflow.yml) 复制到 `.github/workflows/demo-keepalive.yml`，每 10 分钟 ping 一次 `/admin/health`；在仓库 Settings → Secrets and variables → Actions → Variables 里设置 `DEMO_URL`（例如 `https://llmadmin-ui.onrender.com`）。注意 GitHub 的 cron 可能延迟几分钟，且仓库 60 天无提交时定时任务会被停用
+2. **外部监控**：UptimeRobot（5 分钟）、cron-job.org（1 分钟）之类，比 Actions 更稳，也不依赖仓库活跃度
+3. **Cloudflare Worker Cron**：已经用 Cloudflare 管域名的话，每分钟触发一次 `fetch`，最可靠
+
+如果 demo 是给外部用户长期访问的，直接上 Starter（$7/月）比任何保活都省心：不休眠、没有冷启动。
+
+> 保活只能避免“休眠丢会话”，**重新部署/重启进程依然会清空所有沙盒**——这是单实例内存方案的天花板。
+
 ## 架构
 
 ```

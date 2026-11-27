@@ -7,15 +7,9 @@ import {
   revokeDemoKey,
 } from '../api/demo';
 
-function formatClock(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
 /**
- * Demo-only header control: it hands the visitor their own sandbox key and
- * makes the 30 minute lifetime visible. Renders nothing outside demo mode.
+ * Demo-only header control: hands the visitor their own sandbox key.
+ * Renders nothing outside demo mode.
  */
 export default function DemoKeyButton() {
   const [info, setInfo] = useState<DemoSessionInfo | null>(null);
@@ -27,28 +21,10 @@ export default function DemoKeyButton() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState<'key' | 'url' | ''>('');
-  const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
     fetchDemoSession().then(setInfo);
   }, []);
-
-  useEffect(() => {
-    if (!info || !info.expiresAt) {
-      setRemaining(null);
-      return;
-    }
-    const tick = () =>
-      setRemaining(
-        Math.max(
-          0,
-          Math.round((new Date(info.expiresAt as string).getTime() - Date.now()) / 1000)
-        )
-      );
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [info]);
 
   if (!info) return null;
 
@@ -177,17 +153,6 @@ export default function DemoKeyButton() {
                 color: '#3b4238',
               }}
             >
-              <span>
-                {remaining === null ? (
-                  <>
-                    会话有效期 <strong>常驻</strong>（重启服务或重置后清空）
-                  </>
-                ) : (
-                  <>
-                    剩余 <strong>{formatClock(remaining)}</strong>
-                  </>
-                )}
-              </span>
               <span>
                 请求额度 <strong>{info.requestsRemaining}</strong> / {info.limits.maxRequests}
               </span>
