@@ -1,0 +1,46 @@
+name: Demo keep-alive
+
+# Render free web services spin down after 15 minutes without traffic and
+# forget every in-memory demo sandbox. The shortest GitHub cron interval is
+# 5 minutes; keeping two pings inside Render's idle window leaves room for
+# GitHub's scheduling jitter.
+#
+# Set the repository variable DEMO_URL (Settings -> Variables) to your demo
+# origin, e.g. https://llmadmin-ui.onrender.com. Without it the workflow pings
+# the default instance below.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never pile up overlapping pings if a previous run is still waiting on a cold
+# start; the next scheduled tick would only duplicate the same wake-up.
+concurrency:
+  group: demo-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping health endpoint
+        env:
+          DEMO_URL: ${{ vars.DEMO_URL || 'https://llmadmin-ui.onrender.com' }}
+        run: |
+          set -u
+          url="${DEMO_URL%/}/admin/health"
+          echo "pinging $url"
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "$url" || true)
+            echo "attempt $attempt -> HTTP $code"
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "demo did not wake up" >&2
+          exit 1

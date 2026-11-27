@@ -256,6 +256,16 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:8700',
           changeOrigin: true,
         },
+        // Demo entry + data plane, so http://localhost:5173/demo works in dev
+        // the same way /demo works on a deployed instance.
+        '/demo': {
+          target: 'http://localhost:8700',
+          changeOrigin: true,
+        },
+        '/v1': {
+          target: 'http://localhost:8700',
+          changeOrigin: true,
+        },
       },
     },
   };

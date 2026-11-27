@@ -32,6 +32,7 @@ export default function AdminAuthGate({
   const [error, setError] = useState('');
   const [health, setHealth] = useState<Health | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [demoExpired, setDemoExpired] = useState(false);
 
   const validate = async (candidate?: string) => {
     try {
@@ -58,6 +59,28 @@ export default function AdminAuthGate({
     setStatus('checking');
     setError('');
     try {
+      // Demo mode: the session cookie is the credential, so there is no token
+      // to type. An expired demo session is reported instead of the login form.
+      const demoRes = await fetch(`${getApiBaseUrl()}/admin/session`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      if (demoRes.ok) {
+        setStatus('authenticated');
+        return;
+      }
+      if (demoRes.status === 401) {
+        const body = await demoRes.json().catch(() => null);
+        if (body?.code === 'demo_session_required') {
+          setDemoExpired(true);
+          setError(
+            '没有找到演示会话（可能已过期或还没进入过 /demo）。点击下面按钮重新进入沙盒。'
+          );
+          setStatus('error');
+          return;
+        }
+      }
+
       const res = await fetch(`${getApiBaseUrl()}/admin/health`, {
         cache: 'no-store',
       });
@@ -170,6 +193,15 @@ export default function AdminAuthGate({
         )}
 
         {error && <div style={styles.error}>{error}</div>}
+
+        {status === 'error' && demoExpired && (
+          <a
+            style={{ ...styles.button, textAlign: 'center', textDecoration: 'none' }}
+            href="/demo"
+          >
+            进入演示沙盒
+          </a>
+        )}
 
         {status === 'error' && (
           <button style={styles.button} type="button" onClick={() => void check()}>
