@@ -79,6 +79,26 @@ docker compose up --build
 # http://localhost:8700/public/admin/
 ```
 
+### 演示沙盒模式（DEMO_MODE）
+
+想把服务变成公开 Demo（每个访客独立配置 + 独立 API Key，30 分钟回收）时，加这几组环境变量即可：
+
+```bash
+DEMO_MODE=true
+DEMO_SECRET=<32+ 字节随机串>
+WEB_UI=true
+NODE_ENV=production
+USAGE_STORE=memory
+DEMO_TTL_MINUTES=30          # 可选，默认 30
+DEMO_MAX_REQUESTS=300        # 可选，单会话请求上限
+DEMO_MAX_SESSIONS_PER_IP=3   # 可选，单 IP 会话上限
+```
+
+- 访客打开 `https://<service>.onrender.com/demo` 即进入沙盒；`/demo?key=1` 会直接打开 Key 面板
+- 种子路由指向网关内置 mock 上游，不调用真实供应商，也不消耗额度
+- 演示模式的会话保存在进程内存，**只能单实例**；免费实例 15 分钟空闲会休眠并清空会话，建议用 Starter
+- 网关地址优先取 `DEMO_PUBLIC_BASE_URL`，其次 Render 自动注入的 `RENDER_EXTERNAL_URL`，最后取请求 Origin
+
 ## 架构
 
 ```
