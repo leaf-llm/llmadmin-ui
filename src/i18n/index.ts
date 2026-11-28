@@ -12,12 +12,17 @@ i18n
       en: { translation: en },
       zh: { translation: zh },
     },
-    fallbackLng: 'en',
+    // The product is Chinese-first: a fresh visitor (and every demo sandbox)
+    // starts in 中文, and the header toggle persists an explicit choice.
+    fallbackLng: 'zh',
+    supportedLngs: ['zh', 'en'],
     interpolation: {
       escapeValue: false,
     },
     detection: {
-      order: ['localStorage', 'navigator'],
+      // Drop `navigator`: an English browser locale should not silently flip
+      // the UI to English on first visit. Only an explicit toggle wins.
+      order: ['localStorage'],
       caches: ['localStorage'],
     },
   });
