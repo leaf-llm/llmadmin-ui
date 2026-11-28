@@ -72,9 +72,20 @@ export default function AdminAuthGate({
       if (demoRes.status === 401) {
         const body = await demoRes.json().catch(() => null);
         if (body?.code === 'demo_session_required') {
+          // Demo mode: the sandbox is created explicitly through a POST, so
+          // crawlers that never run this JS do not create sessions or skew the
+          // analytics. One attempt per page load is enough.
+          const created = await fetch(`${getApiBaseUrl()}/demo/session`, {
+            method: 'POST',
+            credentials: 'same-origin',
+          }).catch(() => null);
+          if (created?.ok) {
+            setStatus('authenticated');
+            return;
+          }
           setDemoExpired(true);
           setError(
-            '没有找到演示会话（可能已过期或还没进入过 /demo）。点击下面按钮重新进入沙盒。'
+            '演示沙盒创建失败（可能是浏览器阻止了 Cookie，或当前 IP 打开的会话过多）。'
           );
           setStatus('error');
           return;
