@@ -70,9 +70,11 @@ export function useRuntimeCounts(): RuntimeCounts {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 
-        if (res.status === 401) {
+        // Runtime counters are optional telemetry. In demo mode the endpoint
+        // is intentionally disabled, and a guarded deployment may refuse it
+        // for other reasons — none of that should log the admin out.
+        if (res.status === 401 || res.status === 403) {
           controller.abort();
-          window.dispatchEvent(new CustomEvent('llmadmin:unauthorized'));
           return;
         }
         if (!res.ok || !res.body) {
