@@ -72,9 +72,19 @@ export default function AdminAuthGate({
       if (demoRes.status === 401) {
         const body = await demoRes.json().catch(() => null);
         if (body?.code === 'demo_session_required') {
+          // Direct visits to /public/admin/ (old links, bookmarks, the bare
+          // service URL) have no sandbox yet. Enter one automatically instead
+          // of showing a dead end; remember the attempt so a browser that
+          // refuses cookies does not loop forever.
+          const guardKey = 'llmadmin:demo-redirect';
+          if (!sessionStorage.getItem(guardKey)) {
+            sessionStorage.setItem(guardKey, '1');
+            window.location.replace('/demo');
+            return;
+          }
           setDemoExpired(true);
           setError(
-            '没有找到演示会话（可能已过期或还没进入过 /demo）。点击下面按钮重新进入沙盒。'
+            '没有找到演示会话（可能已过期或浏览器阻止了 Cookie）。点击下面按钮重新进入沙盒。'
           );
           setStatus('error');
           return;
